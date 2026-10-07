@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <functional>
 
 namespace oceanblast {
 
@@ -102,6 +103,10 @@ public:
     void setButtonMask(u32 mask);
     u32  getButtonMask() const { return buttonMask; }
 
+    // Audio / DMA Channel 2 Subsystem
+    using AudioCallback = std::function<void(const int16_t* samples, size_t sampleCount)>;
+    void setAudioCallback(AudioCallback cb) { audioCallback = cb; }
+
 private:
     // S3C2410 Keypad / GPIO Button State
     u32  buttonMask = 0;
@@ -140,6 +145,13 @@ private:
     // S3C2410 PWM Timer 4 State
     u16 timer4Cnt = 0xFFFF;
     size_t timer4CycleCounter = 0;
+
+    // S3C2410 DMA Channel 2 (IIS Audio) State
+    bool   dma2Active = false;
+    size_t dma2Timer = 0;
+    u32    dma2Src = 0;
+    u32    dma2Count = 0;
+    AudioCallback audioCallback = nullptr;
 
     // S3C2410 MMIO Register Storage
     std::unordered_map<u32, u32> mmioRegs;

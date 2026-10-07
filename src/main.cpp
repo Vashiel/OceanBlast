@@ -11,6 +11,7 @@
 #include "cartridge/cart_parser.h"
 
 #include "display/display.h"
+#include "audio/audio.h"
 
 using namespace oceanblast;
 
@@ -23,7 +24,7 @@ void printBanner() {
 }
 
 void printUsage(const char* progName) {
-    std::cout << "Usage: " << progName << " <cartridge.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--trace]" << std::endl;
+    std::cout << "Usage: " << progName << " <cartridge.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--sound] [--trace]" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -40,6 +41,8 @@ int main(int argc, char* argv[]) {
     bool gui = false;
     int scale = 3;
 
+    bool sound = false;
+
     for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--steps" && i + 1 < argc) {
@@ -48,6 +51,8 @@ int main(int argc, char* argv[]) {
             trace = true;
         } else if (arg == "--gui" || arg == "--window") {
             gui = true;
+        } else if (arg == "--sound" || arg == "--audio") {
+            sound = true;
         } else if (arg == "--scale" && i + 1 < argc) {
             scale = std::stoi(argv[++i]);
         }
@@ -70,6 +75,7 @@ int main(int argc, char* argv[]) {
     cpu.reset(0x00000000); // Boot from Steppingstone SRAM
 
     oceanblast::Display display(scale);
+    oceanblast::Audio audio;
     if (gui) {
         if (!display.init("OceanBlast - Nikko digiBLAST (2005)")) {
             std::cerr << "[Warning] Failed to initialize display window; falling back to headless mode." << std::endl;
@@ -77,10 +83,35 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    std::cout << "\n[OceanBlast] Starting ARM920T Steppingstone execution from 0x00000000..." << std::endl;
+    if (gui || sound) {
+        if (audio.init(44100, 2)) {
+            bus.setAudioCallback([&](const int16_t* s, size_t n) {
+                audio.writeSamples(s, n);
+            });
+        }
+    }
 
     size_t executedSteps = 0;
     bool enteredSdram = false;
+
+    auto getActiveFbPhys = [&]() -> u32 {
+        u32 lcdsaddr1 = bus.getMmio(0x4D000014);
+        if (lcdsaddr1 != 0) {
+            return (lcdsaddr1 & 0x1FFFFFFF) << 1;
+        }
+        if (bus.isMmuEnabled()) {
+            const u8* sdram = bus.getSdramPtr();
+            if (sdram[0xce4000] != 0 || sdram[0xce4000 + 10] != 0 || sdram[0xce4000 + 100] != 0) {
+                return 0x30ce4000;
+            }
+            if (executedSteps > 4000000) {
+                return 0x30310000;
+            }
+        }
+        return 0x30300000;
+    };
+
+    std::cout << "\n[OceanBlast] Starting ARM920T Steppingstone execution from 0x00000000..." << std::endl;
 
     while (!cpu.isHalted() && executedSteps < stepLimit) {
         if (gui && (executedSteps % 50000 == 0)) {
@@ -90,16 +121,7 @@ int main(int argc, char* argv[]) {
                 break;
             }
             bus.setButtonMask(display.getButtonMask());
-            u32 fbPhys = 0x30300000;
-            u32 lcdsaddr1 = bus.getMmio(0x4D000014);
-            if (lcdsaddr1 != 0) {
-                fbPhys = (lcdsaddr1 & 0x1FFFFFFF) << 1;
-            } else if (executedSteps > 185000000) {
-                fbPhys = 0x302A0000;
-            } else if (executedSteps > 4000000) {
-                fbPhys = 0x30310000;
-            }
-            display.updateFrame(bus.getSdramPtr(), fbPhys);
+            display.updateFrame(bus.getSdramPtr(), getActiveFbPhys());
         }
 
         u32 currentPC = cpu.getPC();
@@ -264,16 +286,12 @@ int main(int argc, char* argv[]) {
     }
 
     if (gui && display.isOpen()) {
-        u32 fbPhys = 0x30300000;
-        u32 lcdsaddr1 = bus.getMmio(0x4D000014);
-        if (lcdsaddr1 != 0) fbPhys = (lcdsaddr1 & 0x1FFFFFFF) << 1;
-        else if (executedSteps > 185000000) fbPhys = 0x302A0000;
-        else if (executedSteps > 4000000) fbPhys = 0x30310000;
+        u32 fbPhys = getActiveFbPhys();
         display.updateFrame(bus.getSdramPtr(), fbPhys);
         std::cout << "[Display] Emulation paused. Press ESC or close the window to exit." << std::endl;
         while (display.isOpen()) {
             display.processEvents();
-            display.updateFrame(bus.getSdramPtr(), fbPhys);
+            display.updateFrame(bus.getSdramPtr(), getActiveFbPhys());
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
         }
     }

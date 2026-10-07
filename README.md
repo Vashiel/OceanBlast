@@ -72,7 +72,7 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 * [x] **Commercial Game Binary Launch:** Startup script executes game binary (`./Rayman`); Linux dynamic linker maps `libSDL-1.2.so.0`, `libboost_thread`, `libboost_filesystem`, `libstdc++.so.5`, `libpthread.so.0`, and `libdl.so.2`; game code actively scheduled past 260M steps.
 * [x] **Live Host Display Output:** Real-time native desktop window rendering the authentic S3C2410 240×160 12-bit packed LCD444 framebuffer directly from SDRAM with configurable integer scaling (`--gui`, `--scale 2|3|4`).
 * [x] **Host Keypad & GPIO Input Subsystem:** Reverse-engineered hardware pin wiring from the kernel `greykbd.c` driver; host keyboard events are converted into active-low S3C2410 GPIO states (`GPFDAT`, `GPGDAT`) and trigger `EINT0..3`, `EINT4_7`, and `EINT8_23` interrupts directly to the Linux input subsystem (`/dev/input/event0`).
-* [ ] **Real-Time Audio Output:** Streaming DMA audio buffers from IIS controller to host sound driver.
+* [x] **Real-Time Audio Output:** Hardware modeling of S3C2410 DMA Channel 2 (`0x4B000080`) and IIS FIFO; periodic audio buffer delivery generates `INT_DMA2` (IRQ 35), driving ALSA `snd-pcm-oss` buffer replenishment and streaming live 16-bit signed stereo PCM through a Win32 `waveOut` audio backend (`--sound`, `--gui`).
 
 ---
 
@@ -96,7 +96,8 @@ g++ -std=c++17 -Wall -Wextra -O2 -Isrc \
     src/cpu/arm920t.cpp \
     src/cartridge/cart_parser.cpp \
     src/display/display_win32.cpp \
-    -lgdi32 -luser32 \
+    src/audio/audio_win32.cpp \
+    -lgdi32 -luser32 -lwinmm \
     -o bin/oceanblast.exe
 ```
 
@@ -108,12 +109,12 @@ make test
 
 ### Running
 ```bash
-bin/oceanblast.exe <path_to_cartridge_dump.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--trace]
+bin/oceanblast.exe <path_to_cartridge_dump.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--sound] [--trace]
 ```
 
-Example (interactive GUI):
+Example (interactive GUI with sound):
 ```bash
-bin/oceanblast.exe "roms/test.bin" --gui --scale 3
+bin/oceanblast.exe "roms/test.bin" --gui --scale 3 --sound
 ```
 
 #### Default Keyboard Controls

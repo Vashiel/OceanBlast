@@ -936,12 +936,12 @@ void ARM920T::executeSWI(u32 instr) {
             std::cout << "\n>>> [USERSPACE EXECVE] \"" << fn << "\" <<<\n" << std::endl;
         } else if (nr == 0x05) { // open
             std::string fn;
-            for (int i = 0; i < 64; ++i) {
+            for (int i = 0; i < 128; ++i) {
                 u8 ch = 0;
                 if (!bus.peek8(r[0] + i, ch) || ch == 0) break;
                 fn += static_cast<char>(ch);
             }
-            std::cout << "[USERSPACE OPEN] \"" << fn << "\"" << std::endl;
+            std::cout << "[USERSPACE OPEN r0=0x" << std::hex << r[0] << "] \"" << fn << "\" flags=0x" << r[1] << std::dec << std::endl;
         } else if (nr == 0x04) { // write
             std::string out;
             u32 len = std::min(r[2], 128u);
@@ -951,6 +951,12 @@ void ARM920T::executeSWI(u32 instr) {
                 out += static_cast<char>(ch);
             }
             std::cout << "[USERSPACE WRITE fd=" << r[0] << "] \"" << out << "\"" << std::endl;
+        } else if (nr == 0x36) { // ioctl
+            std::cout << "[USERSPACE IOCTL] fd=" << r[0] << " cmd=0x" << std::hex << r[1] << " arg=0x" << r[2] << std::dec << std::endl;
+        } else if (nr == 0xc0) { // mmap2
+            std::cout << "[USERSPACE MMAP2] addr=0x" << std::hex << r[0] << " len=0x" << r[1]
+                      << " prot=0x" << r[2] << " flags=0x" << r[3] << " fd=" << std::dec << (int)r[4]
+                      << " pgoff=0x" << std::hex << r[5] << std::dec << std::endl;
         } else {
             std::cout << "[SWI] Syscall 0x" << std::hex << swiNum << " called from 0x" << (retAddr - 4)
                       << " -> vector 0x" << r[15] << std::dec << std::endl;

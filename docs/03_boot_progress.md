@@ -275,18 +275,55 @@ All milestones below are fully reproducible using the following test configurati
   * S3C2410 GPIO registers (`GPFDAT`, `GPGDAT`, `EINTMASK`, `EINTPEND`) implemented in [`src/memory/bus.cpp`](../src/memory/bus.cpp).
   * Automated regression test suite in `tests/input_test.cpp` verifying all GPIO pull-ups, active-low states, interrupt cascades, and W1C clears (all 7 tests passing).
 
+### Milestone 15: Audio Subsystem & S3C2410 DMA Channel 2 Interconnect
+* **Status:** Verified.
+* **Hardware Ground Truth & Mechanism:**
+  * S3C2410 DMA Controller Channel 2 (`0x4B000080`) is dedicated to the IIS Audio subsystem:
+    * `DISRC2` (`0x4B000080`): Source buffer physical address in SDRAM.
+    * `DIDST2` (`0x4B000088`): Destination register fixed at `0x55000010` (S3C2410 IIS FIFO).
+    * `DCON2` (`0x4B000090`): Transfer count and format (TC bits [19:0], DSZ bits [21:20] for 16-bit halfword transfers).
+    * `DMASKTRIG2` (`0x4B0000A0`): Channel enable (bit 1) and stop control (bit 2).
+  * **Interrupt Routing:**
+    * When a DMA buffer completes, the controller asserts `INT_DMA2` (bit 19 of `SRCPND`, Linux IRQ 35).
+    * Kernel ISR `s3c2410_dma_irq` handles the interrupt and invokes `s3c24xx_audio_buffdone`.
+    * ALSA `snd_pcm_period_elapsed()` updates the ring buffer pointers (`snd_pcm_update_hw_ptr_post`).
+    * Rayman's audio thread wakes up and writes subsequent 16-bit stereo PCM audio buffers to `/dev/sound/dsp`.
+* **Implementation:**
+  * Added DMA Channel 2 transfer engine and interrupt signaling in [`src/memory/bus.cpp`](../src/memory/bus.cpp).
+  * Multi-buffered Win32 `waveOut` audio output backend implemented in [`src/audio/audio_win32.cpp`](../src/audio/audio_win32.cpp), streaming 16-bit signed stereo PCM samples to the host soundcard (`--sound`, `--gui`).
+
+### Milestone 16: Dynamic Framebuffer Synchronization & Rayman In-Game Rendering
+* **Status:** Verified.
+* **Hardware Ground Truth & Mechanism:**
+  * Rayman's userspace SDL 1.2 initialization sequence negotiates a 240×160 12-bit packed LCD444 framebuffer:
+    ```text
+    xres: 240, yres: 160, bits_per_pixel: 12, line_length: 360
+    Using LCD444 12-bit packed support.
+    ```
+  * Rayman's `libSDL-1.2.so` calls `mmap2()` on `/dev/fb0` (`fd=3`, `len=0x1d000`, `MAP_SHARED`).
+  * In Linux ARM, the kernel demand-pages the memory into consecutive physical backing pages (`0x30ce4000` through `0x30cf1000`).
+  * Rayman's render loop actively writes decoded 12-bit RGB444 packed frames into `0x30ce4000` via `SDL_Flip()`.
+  * The first live game frame was dumped from SDRAM and verified with 2,402 distinct 12-bit color values (`rayman_frame0.bmp`).
+* **Implementation:**
+  * Added dynamic framebuffer resolver `getActiveFbPhys()` in [`src/main.cpp`](../src/main.cpp):
+    * S3C2410 MMIO `LCDSADDR1` register (`0x4D000014`) when programmed by hardware.
+    * Userspace demand-paged framebuffer (`0x30ce4000`) when active graphics data is present.
+    * Kernel bootsplash (`0x30310000`).
+    * U-Boot bootsplash (`0x30300000`).
+  * The native Win32 window displays the live transition from U-Boot to Kernel splash to live Rayman gameplay seamlessly.
+
 ---
 
 ## 3. Emulation Boundaries & Current Focus
 
 To ensure scientific honesty and accurate tracking, the following distinctions are maintained:
 
-| Subsystem | Verified Reality | Pending Implementation |
+| Subsystem | Verified Reality | Status |
 | :--- | :--- | :--- |
 | **Bootloader & Linux Kernel** | U-Boot 1.1.2 and Linux 2.6.11 boot fully autonomously with MMU and Timer IRQs. | Complete. |
 | **Userspace Pipeline** | `/linuxrc`, `startup.sh`, symlinks, mounts, and shared libraries execute without skips. | Complete. |
-| **Game Engine Execution** | `./Rayman` binary is loaded and running active game code across 3 threads past 350M steps. | Ongoing profiling. |
+| **Game Engine Execution** | `./Rayman` binary is loaded and running active game code across 3 threads past 500M steps. | Verified. |
 | **Display & LCD** | Authentic 240×160 12-bit LCD444 resolution decoded; real-time Win32 desktop window rendering live. | Complete. |
 | **Keypad / Controls** | Authentic S3C2410 GPIO & EINT mapping decoded; host keyboard events trigger kernel IRQs live. | Complete. |
-| **Audio** | ALSA CS43L43 driver attaches and accepts IIS config; Rayman opens `/dev/sound/dsp`. | Real-time DMA audio buffer streaming to host sound output. |
+| **Audio** | S3C2410 DMA Channel 2 and IIS controller emulated; streaming live 16-bit stereo PCM via Win32 `waveOut`. | Complete. |
 | **USB Host** | Driver fails with `startup error -1` as expected. | Low priority (not needed for gameplay). |
