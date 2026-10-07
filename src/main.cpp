@@ -166,8 +166,8 @@ int main(int argc, char* argv[]) {
             if (seconds >= 1.0) {
                 const double mips = (executedSteps - statsSteps) / seconds / 1000000.0;
                 std::ostringstream title;
-                title << "OceanBlast | Anzeige " << std::fixed << std::setprecision(1) << presented / seconds
-                      << " FPS | Bildwechsel " << changed / seconds << "/s | " << mips << " MIPS"
+                title << "OceanBlast | Display " << std::fixed << std::setprecision(1) << presented / seconds
+                      << " FPS | Flips " << changed / seconds << "/s | " << mips << " MIPS"
                       << " | PC " << std::hex << cpu.getPC() << " | FB " << getActiveFbPhys()
                       << (display.paused ? " | PAUSE" : "");
                 display.setTitle(title.str());

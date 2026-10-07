@@ -1,8 +1,8 @@
-# Windows launcher
+# Windows Launcher
 
-2026-10-07. Double-click `bin/oceanblast.exe` without arguments to open the German launcher. Select a cartridge with **ROM laden**, choose 2x/3x/4x scaling, optionally enable sound, then click **Spiel starten**. **Datei** includes ROM selection and exit; **Hilfe / Steuerung** lists the keyboard controls. The game uses its own display window; click that window for input.
+2026-10-07. Double-click `bin/oceanblast.exe` without arguments to open the graphical launcher. Select a cartridge with **Browse ROM…**, choose 2x/3x/4x scaling, optionally enable sound, then click **Start Game**. The **File** menu includes ROM selection and exit; **Help / Controls** lists the keyboard controls. The game uses its own display window; click that window for input.
 
-The launcher starts the same executable as a child process with `--gui --scale N` and optional `--sound`. Only one session is allowed at a time. **Spiel beenden** requests normal window closure; after process exit, Start becomes available again. Closing the launcher during a session first requests game closure; close it again after the session ends. ROM selection does not modify the cartridge. No downloads or external dependencies are needed.
+The launcher starts the same executable as a child process with `--gui --scale N` and optional `--sound`. Only one session is allowed at a time. **Stop Game** requests normal window closure; after process exit, Start becomes available again. Closing the launcher during a session first requests game closure; close it again after the session ends. ROM selection does not modify the cartridge. No downloads or external dependencies are needed.
 
 Logs are written to `bin/sessions/session.log` and replaced at each launch. Existing emulator diagnostic dumps are confined to that working directory, which is ignored through `bin/`. Preserve a session log before starting another run if it is needed for comparison. Paths with spaces are quoted. Non-ANSI Windows filenames are not yet guaranteed by the emulator's existing narrow-character cartridge loader.
 

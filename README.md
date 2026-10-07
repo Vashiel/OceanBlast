@@ -4,35 +4,11 @@
 
 The goal of this project is digital preservation, architectural documentation, and software interoperability for an obscure and historically undocumented platform.
 
-## Windows start menu
-
-Double-click `bin/oceanblast.exe`, select **ROM laden**, and click **Spiel starten**. The launcher includes display scaling, optional sound, session controls and keyboard help. Command-line use remains supported. See [Windows launcher documentation](docs/06_windows_launcher.md).
-
 ---
 
-## ⚖️ Legal & Intellectual Property Notice
+## 🚀 Quick Start & Windows Launcher
 
-### 1. Independent Clean-Room Implementation
-OceanBlast is developed independently as a clean-room educational and digital preservation project. The emulator code is written from the ground up using publicly available hardware documentation (e.g., the *Samsung S3C2410A User's Manual*) and technical observation of hardware protocols.
-
-### 2. No Proprietary Assets, Firmware, or ROMs
-* OceanBlast **does not contain, distribute, host, or link to** any proprietary software, firmware, BIOS binaries, copyrighted game ROMs, commercial operating system images, or cryptographic secrets.
-* All testing and usage of this emulator require the user to provide their own legally acquired cartridge dumps and data for personal educational and preservation purposes.
-* Any game titles, video files, or software referenced in documentation or commit histories are mentioned strictly for descriptive compatibility and testing identification.
-
-### 3. Interoperability & Reverse Engineering
-Development of OceanBlast is conducted exclusively for the purpose of research, educational analysis, digital preservation, and software interoperability in strict accordance with applicable statutory provisions:
-* **European Union:** Article 6 of Directive 2009/24/EC of the European Parliament and of the Council of 23 April 2009 on the legal protection of computer programs (Decompilation for the purpose of achieving interoperability).
-* **United States:** 17 U.S.C. § 1201(f) (Reverse Engineering exemption of the Digital Millennium Copyright Act for interoperability of an independently created computer program).
-* **Germany:** § 69e Urheberrechtsgesetz (UrhG) (Dekompilierung zur Herstellung von Interoperabilität).
-
-### 4. Trademark & Nominative Fair Use Notice
-All product names, logos, brands, trademarks, and registered trademarks—including but not limited to **Nikko**, **digiBLAST**, **Grey Innovation**, **Samsung**, **RealPlayer**, **Ubisoft**, and individual game titles—are the property of their respective owners. 
-
-All company, product, and service names used in this repository are for identification, historical reference, and nominative fair use purposes only. The use of these names, logos, and brands does not imply endorsement, sponsorship, or affiliation with the owners of those marks. OceanBlast is completely independent and is not affiliated with, authorized, maintained, sponsored, or endorsed by Nikko Entertainment B.V., Grey Innovation Pty Ltd, Samsung Electronics Co., Ltd., or any game publishers.
-
-### 5. Disclaimer of Warranty & Limitation of Liability
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+Double-click `bin/oceanblast.exe` without arguments to launch the graphical interface. Click **Browse ROM…**, choose display scaling (2×, 3×, 4×), optionally enable sound, and click **Start Game**. The launcher includes session controls, optional FPS/debug logging, and built-in keyboard help. Command-line invocation remains fully supported. See [Windows launcher documentation](docs/06_windows_launcher.md).
 
 ---
 
@@ -50,7 +26,7 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 | **NAND Format** | 528 bytes per page (512 data bytes + 16 spare/OOB bytes) |
 | **Operating System** | Embedded Das U-Boot 1.1.2 bootloader loading Linux 2.4/2.6 kernel and SquashFS root filesystem |
 | **Display** | 2.7" TFT LCD (S3C2410 LCD controller at `0x4D000000`, 4096 colors / 16-bit RGB) |
-| **Audio** | S3C2410 IIS bus (`0x55000000`) with DMA playback |
+| **Audio** | S3C2410 IIS bus (`0x55000000`) with DMA playback (22.05 kHz stereo native, dynamic resampling) |
 | **Debug Console** | S3C2410 UART0 (`0x50000000`) streamed via 115200 baud serial console |
 
 ---
@@ -77,6 +53,7 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 * [x] **Live Host Display Output:** Real-time native desktop window rendering the authentic S3C2410 240×160 12-bit packed LCD444 framebuffer directly from SDRAM with configurable integer scaling (`--gui`, `--scale 2|3|4`).
 * [x] **Host Keypad & GPIO Input Subsystem:** Reverse-engineered hardware pin wiring from the kernel `greykbd.c` driver; host keyboard events are converted into active-low S3C2410 GPIO states (`GPFDAT`, `GPGDAT`) and trigger `EINT0..3`, `EINT4_7`, and `EINT8_23` interrupts directly to the Linux input subsystem (`/dev/input/event0`).
 * [x] **Real-Time Audio Output:** Hardware modeling of S3C2410 DMA Channel 2 (`0x4B000080`) and IIS FIFO; periodic audio buffer delivery generates `INT_DMA2` (IRQ 35), driving ALSA `snd-pcm-oss` buffer replenishment and streaming live 16-bit signed stereo PCM through a Win32 `waveOut` audio backend (`--sound`, `--gui`).
+* [x] **Optimized Jitter-Free Audio Execution:** Hardware-synchronized 22.05 kHz audio streaming with dynamic prescaler clock calculation, eliminating ALSA XRUN storms, double-speed playback, and audio buffer starvation.
 
 ---
 
@@ -101,7 +78,7 @@ g++ -std=c++17 -Wall -Wextra -O2 -Isrc \
     src/cartridge/cart_parser.cpp \
     src/display/display_win32.cpp \
     src/audio/audio_win32.cpp \
-    -lgdi32 -luser32 -lwinmm \
+    -lgdi32 -luser32 -lwinmm -lcomdlg32 \
     -o bin/oceanblast.exe
 ```
 
@@ -112,8 +89,9 @@ make test
 ```
 
 ### Running
+Double-click `bin/oceanblast.exe` for the Windows GUI launcher, or run via command line:
 ```bash
-bin/oceanblast.exe <path_to_cartridge_dump.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--sound] [--trace]
+bin/oceanblast.exe <path_to_cartridge_dump.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--sound] [--audio-rate <Hz>] [--trace]
 ```
 
 Example (interactive GUI with sound):
@@ -135,6 +113,32 @@ bin/oceanblast.exe "roms/test.bin" --gui --scale 3 --sound
 | **Start** | `GPG10` / `EINT18` | `Enter` |
 | **Select / Pause** | `GPG9` / `EINT17` | `Space` |
 | **Exit Window** | — | `Escape` |
+
+---
+
+## ⚖️ Legal & Intellectual Property Notice
+
+### 1. Independent Clean-Room Implementation
+OceanBlast is developed independently as a clean-room educational and digital preservation project. The emulator code is written from the ground up using publicly available hardware documentation (e.g., the *Samsung S3C2410A User's Manual*) and technical observation of hardware protocols.
+
+### 2. No Proprietary Assets, Firmware, or ROMs
+* OceanBlast **does not contain, distribute, host, or link to** any proprietary software, firmware, BIOS binaries, copyrighted game ROMs, commercial operating system images, or cryptographic secrets.
+* All testing and usage of this emulator require the user to provide their own legally acquired cartridge dumps and data for personal educational and preservation purposes.
+* Any game titles, video files, or software referenced in documentation or commit histories are mentioned strictly for descriptive compatibility and testing identification.
+
+### 3. Interoperability & Reverse Engineering
+Development of OceanBlast is conducted exclusively for the purpose of research, educational analysis, digital preservation, and software interoperability in strict accordance with applicable statutory provisions:
+* **European Union:** Article 6 of Directive 2009/24/EC of the European Parliament and of the Council of 23 April 2009 on the legal protection of computer programs (Decompilation for the purpose of achieving interoperability).
+* **United States:** 17 U.S.C. § 1201(f) (Reverse Engineering exemption of the Digital Millennium Copyright Act for interoperability of an independently created computer program).
+* **Germany:** § 69e Urheberrechtsgesetz (UrhG) (Dekompilierung zur Herstellung von Interoperabilität).
+
+### 4. Trademark & Nominative Fair Use Notice
+All product names, logos, brands, trademarks, and registered trademarks—including but not limited to **Nikko**, **digiBLAST**, **Grey Innovation**, **Samsung**, **RealPlayer**, **Ubisoft**, and individual game titles—are the property of their respective owners. 
+
+All company, product, and service names used in this repository are for identification, historical reference, and nominative fair use purposes only. The use of these names, logos, and brands does not imply endorsement, sponsorship, or affiliation with the owners of those marks. OceanBlast is completely independent and is not affiliated with, authorized, maintained, sponsored, or endorsed by Nikko Entertainment B.V., Grey Innovation Pty Ltd, Samsung Electronics Co., Ltd., or any game publishers.
+
+### 5. Disclaimer of Warranty & Limitation of Liability
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
