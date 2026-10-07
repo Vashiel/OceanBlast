@@ -534,6 +534,10 @@ u32 Bus::readMmio(u32 addr) {
         case 0x50000018: return 0x00; // UFSTAT0
         case 0x5000001C: return 0x00; // UMSTAT0
 
+        // DMA Controller Channel 2 (0x4B000080 - IIS Audio)
+        case 0x4B000094: return dma2Active ? (mmioRegs[0x4B000090] & 0x000FFFFF) : 0; // DSTAT2
+        case 0x4B0000A0: return mmioRegs[0x4B0000A0]; // DMASKTRIG2
+
         // Interrupt Controller (0x4A000000)
         case 0x4A000000: return mmioRegs[0x4A000000]; // SRCPND
         case 0x4A000008: return mmioRegs[0x4A000008]; // INTMSK
@@ -649,6 +653,25 @@ void Bus::writeMmio(u32 addr, u32 val) {
         case 0x5400000C: // IICDS
             mmioRegs[0x5400000C] = val;
             return;
+
+        // S3C2410 DMA Channel 2 (IIS Audio)
+        case 0x4B0000A0: { // DMASKTRIG2
+            mmioRegs[0x4B0000A0] = val;
+            if (val & (1 << 2)) { // STOP
+                dma2Active = false;
+                dma2Timer = 0;
+            } else if (val & (1 << 1)) { // ON
+                dma2Active = true;
+                dma2Src = mmioRegs[0x4B000080]; // DISRC2
+                u32 dcon = mmioRegs[0x4B000090]; // DCON2
+                u32 tc = dcon & 0x000FFFFF;      // Transfer Count
+                u32 dsz = (dcon >> 20) & 3;      // Data size (00=1B, 01=2B, 10=4B)
+                u32 itemSize = (dsz == 1) ? 2 : ((dsz == 2) ? 4 : 1);
+                dma2Count = tc * itemSize;       // Total bytes
+                dma2Timer = 150000;              // Transfer period in cycles (~6ms at 25 MIPS)
+            }
+            return;
+        }
 
         // ADC Controller (0x58000000)
         case 0x58000000: { // ADCCON
@@ -826,6 +849,26 @@ void Bus::tick(size_t cycles) {
                     mmioRegs[0x4A000014] = 14;          // INTOFFSET = 14
                 }
             }
+        }
+    }
+
+    // S3C2410 DMA Channel 2 (IIS Audio Transfer)
+    if (dma2Active) {
+        if (cycles >= dma2Timer) {
+            dma2Active = false;
+            dma2Timer = 0;
+            mmioRegs[0x4B000094] = 0; // DSTAT2: CurTC = 0
+
+            // Forward PCM audio buffer if source is valid SDRAM
+            if (audioCallback && dma2Src >= ADDR_SDRAM_BASE && (dma2Src - ADDR_SDRAM_BASE) + dma2Count <= ADDR_SDRAM_SIZE) {
+                const int16_t* pcm = reinterpret_cast<const int16_t*>(sdram.data() + (dma2Src - ADDR_SDRAM_BASE));
+                audioCallback(pcm, dma2Count / sizeof(int16_t));
+            }
+
+            // Assert INT_DMA2 (bit 19 of SRCPND)
+            requestIrq(19);
+        } else {
+            dma2Timer -= cycles;
         }
     }
 }

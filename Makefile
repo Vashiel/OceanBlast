@@ -7,10 +7,11 @@ SRCS = src/main.cpp \
        src/memory/bus.cpp \
        src/cpu/arm920t.cpp \
        src/cartridge/cart_parser.cpp \
-       src/display/display_win32.cpp
+       src/display/display_win32.cpp \
+       src/audio/audio_win32.cpp
 
 OBJS = $(SRCS:.cpp=.o)
-LDFLAGS = -lgdi32 -luser32
+LDFLAGS = -lgdi32 -luser32 -lwinmm
 
 all: $(TARGET)
 
@@ -24,11 +25,11 @@ test: build/cpu_regression.exe build/input_test.exe
 	./build/cpu_regression.exe
 	./build/input_test.exe
 
-build/cpu_regression.exe: tests/cpu_regression.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cartridge/cart_parser.cpp src/display/display_win32.cpp
+build/cpu_regression.exe: tests/cpu_regression.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cartridge/cart_parser.cpp src/display/display_win32.cpp src/audio/audio_win32.cpp
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
-build/input_test.exe: tests/input_test.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cartridge/cart_parser.cpp src/display/display_win32.cpp
+build/input_test.exe: tests/input_test.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cartridge/cart_parser.cpp src/display/display_win32.cpp src/audio/audio_win32.cpp
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
