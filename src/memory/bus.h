@@ -98,7 +98,14 @@ public:
     // MMIO State Inspection
     u32 getMmio(u32 addr) { return readMmio(addr); }
 
+    // Keypad / Button Input Subsystem
+    void setButtonMask(u32 mask);
+    u32  getButtonMask() const { return buttonMask; }
+
 private:
+    // S3C2410 Keypad / GPIO Button State
+    u32  buttonMask = 0;
+    void requestIrq(u32 bit);
     // S3C2410 / ARM920T MMU State
     bool mmuEnabled = false;
     bool userMode = false;

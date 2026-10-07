@@ -89,6 +89,7 @@ int main(int argc, char* argv[]) {
                 std::cout << "\n[OceanBlast] Display window closed by user." << std::endl;
                 break;
             }
+            bus.setButtonMask(display.getButtonMask());
             u32 fbPhys = 0x30300000;
             u32 lcdsaddr1 = bus.getMmio(0x4D000014);
             if (lcdsaddr1 != 0) {
