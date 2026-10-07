@@ -23,6 +23,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             bool isDown = (msg == WM_KEYDOWN);
             uint32_t mask = 0;
             switch (wParam) {
+                case VK_F5: if (isDown && !(lParam & (1L << 30))) g_currentDisplay->paused = !g_currentDisplay->paused; return 0;
+                case VK_F6: if (isDown) { g_currentDisplay->paused = true; g_currentDisplay->singleStep = true; } return 0;
+                case VK_F7: if (isDown) g_currentDisplay->snapshot = true; return 0;
                 case VK_UP:     mask = BTN_UP; break;
                 case VK_DOWN:   mask = BTN_DOWN; break;
                 case VK_LEFT:   mask = BTN_LEFT; break;
@@ -136,6 +139,10 @@ void Display::processEvents() {
     }
 }
 
+void Display::setTitle(const std::string& title) {
+    if (m_hwnd) SetWindowTextA(static_cast<HWND>(m_hwnd), title.c_str());
+}
+
 void Display::updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr) {
     if (!m_open || !m_hwnd || !m_hdc || !sdram) return;
 
@@ -172,9 +179,6 @@ void Display::updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr) {
     }
 
     renderToDc(m_hdc);
-    if (m_hwnd) {
-        InvalidateRect(static_cast<HWND>(m_hwnd), nullptr, FALSE);
-    }
 }
 
 void Display::renderToDc(void* targetHdc) {
@@ -222,6 +226,7 @@ namespace oceanblast {
 Display::Display(int scale) : m_scale(scale), m_open(false), m_buttonMask(0), m_hwnd(nullptr), m_hdc(nullptr), m_bitmapInfo(nullptr) {}
 Display::~Display() {}
 bool Display::init(const char*) { return false; }
+void Display::setTitle(const std::string&) {}
 void Display::processEvents() {}
 void Display::updateFrame(const uint8_t*, uint32_t) {}
 void Display::close() {}

@@ -4,6 +4,10 @@
 
 The goal of this project is digital preservation, architectural documentation, and software interoperability for an obscure and historically undocumented platform.
 
+## Windows start menu
+
+Double-click `bin/oceanblast.exe`, select **ROM laden**, and click **Spiel starten**. The launcher includes display scaling, optional sound, session controls and keyboard help. Command-line use remains supported. See [Windows launcher documentation](docs/06_windows_launcher.md).
+
 ---
 
 ## ⚖️ Legal & Intellectual Property Notice

@@ -20,6 +20,7 @@ public:
 
     void reset(u32 startAddress = 0x00000000);
     void step();
+    void setDebugLogging(bool enabled) { debugLogging = enabled; }
 
     // Register Access
     u32 getReg(int index) const { return (index >= 0 && index < 16) ? r[index] : 0; }
@@ -44,6 +45,7 @@ private:
     u32 cpsr;
     u32 spsr;
     bool halted;
+    bool debugLogging = false;
 
     // Banked Registers for ARM Exception Modes
     u32 r13_usr = 0, r14_usr = 0;
@@ -70,10 +72,10 @@ private:
     void setNZFlags(u32 result);
     void setAddFlags(u32 a, u32 b, u32 res);
     void setSubFlags(u32 a, u32 b, u32 res);
-    u32 shiftOperand(u32 value, u32 shiftType, u32 shiftAmount, bool& carryOut);
+    u32 shiftOperand(u32 value, u32 shiftType, u32 shiftAmount, bool& carryOut, bool immediate = false);
 
     // ARM Execution
-    void stepARM();
+    void stepARM(u32 physAddr = 0xFFFFFFFF);
     void executeBranch(u32 instr);
     void executeBX(u32 instr);
     void executeMRS(u32 instr);
@@ -88,7 +90,7 @@ private:
     void executeSWI(u32 instr);
 
     // Thumb Execution
-    void stepThumb();
+    void stepThumb(u32 physAddr = 0xFFFFFFFF);
 };
 
 } // namespace oceanblast

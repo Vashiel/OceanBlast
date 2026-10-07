@@ -4,6 +4,8 @@
 #include <string>
 #include <unordered_map>
 #include <functional>
+#include <array>
+#include <cstring>
 
 namespace oceanblast {
 
@@ -41,32 +43,6 @@ public:
 
     void reset();
 
-    // Memory Access
-    u8  read8(u32 addr);
-    u16 read16(u32 addr);
-    u32 read32(u32 addr);
-
-    void write8(u32 addr, u8 val);
-    void write16(u32 addr, u16 val);
-    void write32(u32 addr, u32 val);
-
-    // Physical (translated) memory access
-    u8   read8Phys(u32 addr);
-    void write8Phys(u32 addr, u8 val);
-    bool peek8(u32 va, u8& val) const;
-    bool peek32(u32 va, u32& val) const;
-
-    // Cartridge loading
-    bool loadCartridge(const std::string& path);
-    bool hasCartridge() const { return !cartNand.empty(); }
-    const std::vector<u8>& getCartNand() const { return cartNand; }
-    size_t getCartNandSize() const { return cartNand.size(); }
-    bool isRawNand528() const { return rawNand528; }
-
-    // Direct memory inspection
-    const u8* getSteppingstonePtr() const { return steppingstone.data(); }
-    const u8* getSdramPtr() const { return sdram.data(); }
-
     // MMU / Virtual Memory Translation
     enum class MmuFault {
         NONE = 0,
@@ -81,20 +57,204 @@ public:
     void setUserMode(bool um) { userMode = um; }
     bool isUserMode() const { return userMode; }
 
-    void setMmuEnabled(bool en) { mmuEnabled = en; }
-    void setTtb(u32 val) { ttb = val; }
+    void flushTlb() const;
+    void setMmuEnabled(bool en) { mmuEnabled = en; flushTlb(); }
+    void setTtb(u32 val) { ttb = val; flushTlb(); }
     u32  getTtb() const { return ttb; }
     void setDacr(u32 val) { dacr = val; }
     bool isMmuEnabled() const { return mmuEnabled; }
-    u32  translate(u32 va, MmuFault* fault = nullptr, bool isWrite = false) const;
+
+    u32  translateSlow(u32 va, MmuFault* fault, bool isWrite) const;
+
+    inline u32 translate(u32 va, MmuFault* fault = nullptr, bool isWrite = false) const {
+        if (!mmuEnabled) {
+            if (fault) *fault = MmuFault::NONE;
+            return va;
+        }
+        u32 vpn = va >> 12;
+        u32 idx = vpn & (TLB_SIZE - 1);
+        const TlbEntry& entry = tlb[idx];
+        if (entry.valid && entry.vpn == vpn) {
+            if (userMode) {
+                u32 ap = entry.ap;
+                if (ap == 0 || ap == 1 || (ap == 2 && isWrite)) {
+                    if (fault) *fault = MmuFault::PAGE_PERMISSION_FAULT;
+                    return 0xFFFFFFFF;
+                }
+            }
+            if (fault) *fault = MmuFault::NONE;
+            return entry.paBase | (va & 0xFFF);
+        }
+        return translateSlow(va, fault, isWrite);
+    }
+
+    // Physical (translated) memory access slow paths
+    u8   read8PhysSlow(u32 addr);
+    u16  read16PhysSlow(u32 addr);
+    u32  read32PhysSlow(u32 addr);
+    void write8PhysSlow(u32 addr, u8 val);
+    void write16PhysSlow(u32 addr, u16 val);
+    void write32PhysSlow(u32 addr, u32 val);
+
+    inline u8 read8Phys(u32 pa) {
+        if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) < ADDR_SDRAM_SIZE) {
+            return sdramPtr[pa - ADDR_SDRAM_BASE];
+        }
+        return read8PhysSlow(pa);
+    }
+
+    inline u16 read16Phys(u32 pa) {
+        if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 2) && (pa & 1) == 0) {
+            u16 val;
+            std::memcpy(&val, sdramPtr + (pa - ADDR_SDRAM_BASE), 2);
+            return val;
+        }
+        return read16PhysSlow(pa);
+    }
+
+    inline u32 read32Phys(u32 pa) {
+        if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 4) && (pa & 3) == 0) {
+            u32 val;
+            std::memcpy(&val, sdramPtr + (pa - ADDR_SDRAM_BASE), 4);
+            return val;
+        }
+        return read32PhysSlow(pa);
+    }
+
+    inline void write8Phys(u32 pa, u8 val) {
+        if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) < ADDR_SDRAM_SIZE) {
+            sdramPtr[pa - ADDR_SDRAM_BASE] = val;
+            return;
+        }
+        write8PhysSlow(pa, val);
+    }
+
+    inline u8 read8(u32 addr) {
+        MmuFault fault = MmuFault::NONE;
+        u32 pa = translate(addr, &fault);
+        if (fault != MmuFault::NONE) {
+            lastFault = fault;
+            lastFaultAddr = addr;
+            return 0;
+        }
+        lastFault = MmuFault::NONE;
+        return read8Phys(pa);
+    }
+
+    inline u16 read16(u32 addr) {
+        MmuFault fault = MmuFault::NONE;
+        u32 pa = translate(addr, &fault);
+        if (fault != MmuFault::NONE) {
+            lastFault = fault;
+            lastFaultAddr = addr;
+            return 0;
+        }
+        lastFault = MmuFault::NONE;
+        return read16Phys(pa);
+    }
+
+    inline u32 read32(u32 addr) {
+        MmuFault fault = MmuFault::NONE;
+        u32 pa = translate(addr, &fault);
+        if (fault != MmuFault::NONE) {
+            lastFault = fault;
+            lastFaultAddr = addr;
+            return 0;
+        }
+        lastFault = MmuFault::NONE;
+        return read32Phys(pa);
+    }
+
+    inline void write8(u32 addr, u8 val) {
+        MmuFault fault = MmuFault::NONE;
+        u32 pa = translate(addr, &fault, true);
+        if (fault != MmuFault::NONE) {
+            lastFault = fault;
+            lastFaultAddr = addr;
+            return;
+        }
+        lastFault = MmuFault::NONE;
+        if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) < ADDR_SDRAM_SIZE) {
+            sdramPtr[pa - ADDR_SDRAM_BASE] = val;
+            return;
+        }
+        write8PhysSlow(pa, val);
+    }
+
+    inline void write16(u32 addr, u16 val) {
+        MmuFault fault = MmuFault::NONE;
+        u32 pa = translate(addr, &fault, true);
+        if (fault != MmuFault::NONE) {
+            lastFault = fault;
+            lastFaultAddr = addr;
+            return;
+        }
+        lastFault = MmuFault::NONE;
+        if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 2) && (pa & 1) == 0) {
+            std::memcpy(sdramPtr + (pa - ADDR_SDRAM_BASE), &val, 2);
+            return;
+        }
+        write16PhysSlow(pa, val);
+    }
+
+    inline void write32(u32 addr, u32 val) {
+        MmuFault fault = MmuFault::NONE;
+        u32 pa = translate(addr, &fault, true);
+        if (fault != MmuFault::NONE) {
+            lastFault = fault;
+            lastFaultAddr = addr;
+            return;
+        }
+        lastFault = MmuFault::NONE;
+        if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 4) && (pa & 3) == 0) {
+            std::memcpy(sdramPtr + (pa - ADDR_SDRAM_BASE), &val, 4);
+            return;
+        }
+        write32PhysSlow(pa, val);
+    }
+
+    bool peek8(u32 va, u8& val) const;
+    bool peek32(u32 va, u32& val) const;
+
+    // Cartridge loading
+    bool loadCartridge(const std::string& path);
+    bool hasCartridge() const { return !cartNand.empty(); }
+    const std::vector<u8>& getCartNand() const { return cartNand; }
+    size_t getCartNandSize() const { return cartNand.size(); }
+    bool isRawNand528() const { return rawNand528; }
+
+    // Direct memory inspection
+    const u8* getSteppingstonePtr() const { return steppingstone.data(); }
+    const u8* getSdramPtr() const { return sdram.data(); }
 
     MmuFault getLastFault() const { return lastFault; }
     u32      getLastFaultAddr() const { return lastFaultAddr; }
     void     clearLastFault() const { lastFault = MmuFault::NONE; lastFaultAddr = 0; }
 
     // S3C2410 Interrupts & Timers
-    bool hasPendingIrq() const;
-    void tick(size_t cycles = 1);
+    bool hasPendingIrq() const { return regIntpnd != 0; }
+    void tickTimer4();
+    void tickDma2();
+    void tickAdcI2c(size_t cycles);
+
+    inline void tick(size_t cycles = 1) {
+        if (regTcon & (1 << 20)) {
+            timer4CycleCounter += cycles;
+            if (timer4CycleCounter >= 100000) {
+                tickTimer4();
+            }
+        }
+        if (dma2Active) {
+            if (cycles >= dma2Timer) {
+                tickDma2();
+            } else {
+                dma2Timer -= cycles;
+            }
+        }
+        if (adcPending || i2cPending) {
+            tickAdcI2c(cycles);
+        }
+    }
 
     // MMIO State Inspection
     u32 getMmio(u32 addr) { return readMmio(addr); }
@@ -118,8 +278,24 @@ private:
     u32  dacr = 0;
     mutable MmuFault lastFault = MmuFault::NONE;
     mutable u32      lastFaultAddr = 0;
+
+    struct TlbEntry {
+        u32 vpn = 0xFFFFFFFF;
+        u32 paBase = 0;
+        u8  ap = 0;
+        bool valid = false;
+    };
+    static constexpr size_t TLB_SIZE = 2048;
+    mutable std::array<TlbEntry, TLB_SIZE> tlb = {};
+
+    u32 regTcon = 0;
+    u32 regIntmsk = ~0u;
+    u32 regSrcpnd = 0;
+    u32 regIntpnd = 0;
+
     std::vector<u8> steppingstone;
     std::vector<u8> sdram;
+    u8* sdramPtr = nullptr;
     std::vector<u8> cartNand;
     bool rawNand528 = true; // True if dump contains 16-byte OOB per 512-byte page
 

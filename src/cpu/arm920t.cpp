@@ -32,6 +32,7 @@ void ARM920T::reset(u32 startAddress) {
     bus.setMmuEnabled(false);
     bus.setTtb(0);
     bus.setDacr(0);
+    bus.setUserMode(false);
 }
 
 void ARM920T::switchMode(u32 newMode) {
@@ -125,7 +126,7 @@ void ARM920T::handlePrefetchAbort(u32 faultPC) {
     r[15] = (cp15_control & (1 << 13)) ? 0xFFFF000C : 0x0000000C;
 
     static int pabtCount = 0;
-    if (pabtCount++ < 30) {
+    if (pabtCount++ < 30 && debugLogging) {
         std::cout << "[PREFETCH ABORT #" << pabtCount << "] faultPC=0x" << std::hex << faultPC
                   << " -> vector 0x" << r[15] << " retAddr=0x" << retAddr << std::dec << std::endl;
     }
@@ -144,7 +145,7 @@ void ARM920T::handleDataAbort(u32 faultAddr, Bus::MmuFault faultType) {
     r[15] = (cp15_control & (1 << 13)) ? 0xFFFF0010 : 0x00000010;
 
     static int dabtCount = 0;
-    if (dabtCount++ < 50 || faultType == Bus::MmuFault::PAGE_PERMISSION_FAULT) {
+    if (dabtCount++ < 50 && debugLogging) {
         std::cout << "[DATA ABORT #" << dabtCount << "] faultAddr=0x" << std::hex << faultAddr
                   << " fsr=0x" << cp15_fsr << " -> vector 0x" << r[15]
                   << " retAddr=0x" << retAddr << std::dec << std::endl;
@@ -162,7 +163,7 @@ void ARM920T::handleUndefinedInstruction(u32 instr) {
     r[15] = (cp15_control & (1 << 13)) ? 0xFFFF0004 : 0x00000004;
 
     static int undCount = 0;
-    if (undCount++ < 15) {
+    if (undCount++ < 15 && debugLogging) {
         std::cout << "[UNDEF INSTR #" << undCount << "] instr=0x" << std::hex << instr
                   << " at 0x" << (retAddr - 4) << " -> vector 0x" << r[15] << std::dec << std::endl;
     }
@@ -185,8 +186,6 @@ void ARM920T::dumpState() const {
 void ARM920T::step() {
     if (halted) return;
 
-    bus.setUserMode((cpsr & 0x1F) == 0x10);
-
     if (!(cpsr & FLAG_I) && bus.hasPendingIrq()) {
         handleIrq();
         return;
@@ -194,7 +193,7 @@ void ARM920T::step() {
 
     u32 currentPC = r[15];
     Bus::MmuFault fetchFault = Bus::MmuFault::NONE;
-    bus.translate(currentPC, &fetchFault);
+    u32 pa = bus.translate(currentPC, &fetchFault);
     if (fetchFault != Bus::MmuFault::NONE) {
         handlePrefetchAbort(currentPC);
         bus.tick(1);
@@ -202,9 +201,9 @@ void ARM920T::step() {
     }
 
     if (isThumb()) {
-        stepThumb();
+        stepThumb(pa);
     } else {
-        stepARM();
+        stepARM(pa);
     }
 
     bus.tick(1);
@@ -259,8 +258,16 @@ void ARM920T::setSubFlags(u32 a, u32 b, u32 res) {
     else cpsr &= ~FLAG_V;
 }
 
-u32 ARM920T::shiftOperand(u32 val, u32 type, u32 amount, bool& carryOut) {
+u32 ARM920T::shiftOperand(u32 val, u32 type, u32 amount, bool& carryOut, bool immediate) {
     carryOut = (cpsr & FLAG_C) != 0;
+    if (immediate && amount == 0) {
+        if (type == 1 || type == 2) amount = 32;
+        else if (type == 3) {
+            u32 result = (carryOut ? 0x80000000u : 0u) | (val >> 1);
+            carryOut = (val & 1) != 0;
+            return result;
+        }
+    }
     if (amount == 0) return val;
 
     switch (type) {
@@ -296,7 +303,7 @@ u32 ARM920T::shiftOperand(u32 val, u32 type, u32 amount, bool& carryOut) {
             }
         case 3: // ROR
             amount %= 32;
-            if (amount == 0) return val;
+            if (amount == 0) { carryOut = (val >> 31) != 0; return val; }
             carryOut = (val >> (amount - 1)) & 1;
             return (val >> amount) | (val << (32 - amount));
         default:
@@ -304,8 +311,9 @@ u32 ARM920T::shiftOperand(u32 val, u32 type, u32 amount, bool& carryOut) {
     }
 }
 
-void ARM920T::stepARM() {
+void ARM920T::stepARM(u32 physAddr) {
     u32 pc = r[15];
+    if (debugLogging) {
     if (pc == 0xc001a538) {
         static int irqDbgCount = 0;
         if (irqDbgCount++ < 10) {
@@ -384,7 +392,8 @@ void ARM920T::stepARM() {
         }
         std::cout << std::dec;
     }
-    u32 instr = bus.read32(pc);
+    }
+    u32 instr = (physAddr != 0xFFFFFFFF) ? bus.read32Phys(physAddr) : bus.read32(pc);
     r[15] += 4; // Advance PC to instruction address + 4
 
     u32 cond = instr >> 28;
@@ -444,7 +453,7 @@ void ARM920T::stepARM() {
     }
     else {
         static int unkCount = 0;
-        if (unkCount++ < 10) {
+        if (unkCount++ < 10 && debugLogging) {
             std::cerr << "[CPU] Undefined/Unhandled ARM instruction 0x" << std::hex << std::setw(8) << instr
                       << " at PC 0x" << pc << std::dec << std::endl;
         }
@@ -540,7 +549,7 @@ void ARM920T::executeCP15(u32 instr) {
             cp15_control = val;
             bus.setMmuEnabled((val & 1) != 0);
         } else if (crn == 2) {
-            std::cout << "[CP15 TTB WRITE] val=0x" << std::hex << val << " PC=0x" << r[15] << std::dec << std::endl;
+            if (debugLogging) std::cout << "[CP15 TTB WRITE] val=0x" << std::hex << val << " PC=0x" << r[15] << std::dec << std::endl;
             cp15_ttb = val;
             bus.setTtb(val);
         } else if (crn == 3) {
@@ -550,8 +559,10 @@ void ARM920T::executeCP15(u32 instr) {
             cp15_fsr = val;
         } else if (crn == 6) {
             cp15_far = val;
+        } else if (crn == 8) {
+            bus.flushTlb();
         }
-        // CRn=7 (Cache flush) and CRn=8 (TLB flush) are accepted as NOPs
+        // CRn=7 (Cache flush) is accepted as NOP
     }
 }
 
@@ -565,6 +576,7 @@ void ARM920T::executeDataProcessing(u32 instr) {
     u32 op1 = (rn == 15) ? (r[15] + 4) : r[rn];
     u32 op2 = 0;
     bool carry = (cpsr & FLAG_C) != 0;
+    const bool arithmeticCarry = carry;
 
     if (isImm) {
         u32 imm = instr & 0xFF;
@@ -587,7 +599,7 @@ void ARM920T::executeDataProcessing(u32 instr) {
         } else {
             shiftAmt = (instr >> 7) & 0x1F;
         }
-        op2 = shiftOperand(op2, shiftType, shiftAmt, carry);
+        op2 = shiftOperand(op2, shiftType, shiftAmt, carry, !isRegShift);
     }
 
     u32 result = 0;
@@ -600,7 +612,7 @@ void ARM920T::executeDataProcessing(u32 instr) {
         case 0x3: result = op2 - op1; if (setCond) setSubFlags(op2, op1, result); break; // RSB
         case 0x4: result = op1 + op2; if (setCond) setAddFlags(op1, op2, result); break; // ADD
         case 0x5: { // ADC
-            u32 cVal = carry ? 1 : 0;
+            u32 cVal = arithmeticCarry ? 1 : 0;
             result = op1 + op2 + cVal;
             if (setCond) {
                 setNZFlags(result);
@@ -612,7 +624,7 @@ void ARM920T::executeDataProcessing(u32 instr) {
             break;
         }
         case 0x6: { // SBC
-            u32 cVal = carry ? 0 : 1;
+            u32 cVal = arithmeticCarry ? 0 : 1;
             result = op1 - op2 - cVal;
             if (setCond) {
                 setNZFlags(result);
@@ -624,7 +636,7 @@ void ARM920T::executeDataProcessing(u32 instr) {
             break;
         }
         case 0x7: { // RSC
-            u32 cVal = carry ? 0 : 1;
+            u32 cVal = arithmeticCarry ? 0 : 1;
             result = op2 - op1 - cVal;
             if (setCond) {
                 setNZFlags(result);
@@ -687,7 +699,7 @@ void ARM920T::executeSingleDataTransfer(u32 instr) {
         u32 shiftType = (instr >> 5) & 3;
         u32 shiftAmt = (instr >> 7) & 0x1F;
         bool dummyCarry = false;
-        offset = shiftOperand(offset, shiftType, shiftAmt, dummyCarry);
+        offset = shiftOperand(offset, shiftType, shiftAmt, dummyCarry, true);
     }
 
     u32 targetAddr = pre ? (up ? (baseVal + offset) : (baseVal - offset)) : baseVal;
@@ -924,7 +936,7 @@ void ARM920T::executeSWI(u32 instr) {
     r[14] = retAddr;             // Save return address
     r[15] = (cp15_control & (1 << 13)) ? 0xFFFF0008 : 0x00000008;
 
-    if (bus.isMmuEnabled()) {
+    if (debugLogging && bus.isMmuEnabled()) {
         u32 nr = swiNum & 0x000FFFFF;
         if (nr == 0x0b) { // execve
             std::string fn;
@@ -964,9 +976,9 @@ void ARM920T::executeSWI(u32 instr) {
     }
 }
 
-void ARM920T::stepThumb() {
+void ARM920T::stepThumb(u32 physAddr) {
     u32 instrPC = r[15];
-    u16 instr = bus.read16(instrPC);
+    u16 instr = (physAddr != 0xFFFFFFFF) ? bus.read16Phys(physAddr) : bus.read16(instrPC);
     r[15] += 2;
 
     // Format 2: Add/subtract (register / 3-bit immediate)

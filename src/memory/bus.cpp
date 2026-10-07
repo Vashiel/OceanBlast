@@ -9,11 +9,13 @@ namespace oceanblast {
 Bus::Bus() {
     steppingstone.resize(ADDR_STEPPINGSTONE_SIZE, 0);
     sdram.resize(ADDR_SDRAM_SIZE, 0);
+    sdramPtr = sdram.data();
 }
 
 Bus::~Bus() {}
 
 void Bus::reset() {
+    sdramPtr = sdram.data();
     std::fill(steppingstone.begin(), steppingstone.end(), 0);
     std::fill(sdram.begin(), sdram.end(), 0);
     mmioRegs.clear();
@@ -101,7 +103,7 @@ bool Bus::loadCartridge(const std::string& path) {
     return false;
 }
 
-u8 Bus::read8Phys(u32 addr) {
+u8 Bus::read8PhysSlow(u32 addr) {
     // 1. Steppingstone SRAM (0x00000000 - 0x00000FFF)
     if (addr < ADDR_STEPPINGSTONE_SIZE) {
         return steppingstone[addr];
@@ -155,7 +157,7 @@ bool Bus::peek32(u32 va, u32& val) const {
     return true;
 }
 
-void Bus::write8Phys(u32 addr, u8 val) {
+void Bus::write8PhysSlow(u32 addr, u8 val) {
     if (addr < ADDR_STEPPINGSTONE_SIZE) {
         steppingstone[addr] = val;
         return;
@@ -190,64 +192,36 @@ void Bus::write8Phys(u32 addr, u8 val) {
     }
 }
 
-u8 Bus::read8(u32 addr) {
-    MmuFault fault = MmuFault::NONE;
-    u32 pa = translate(addr, &fault);
-    if (fault != MmuFault::NONE) {
-        lastFault = fault;
-        lastFaultAddr = addr;
-        return 0;
+u16 Bus::read16PhysSlow(u32 pa) {
+    if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 2) && (pa & 1) == 0) {
+        u16 val;
+        std::memcpy(&val, sdram.data() + (pa - ADDR_SDRAM_BASE), 2);
+        return val;
     }
-    lastFault = MmuFault::NONE;
-    return read8Phys(pa);
-}
-
-u16 Bus::read16(u32 addr) {
-    MmuFault fault = MmuFault::NONE;
-    u32 pa = translate(addr, &fault);
-    if (fault != MmuFault::NONE) {
-        lastFault = fault;
-        lastFaultAddr = addr;
-        return 0;
+    if (pa <= (ADDR_STEPPINGSTONE_SIZE - 2) && (pa & 1) == 0) {
+        u16 val;
+        std::memcpy(&val, steppingstone.data() + pa, 2);
+        return val;
     }
-    lastFault = MmuFault::NONE;
-    if (pa == 0x4E00000C) {
-        return readNandByte();
-    }
+    if (pa == 0x4E00000C) return readNandByte();
     u16 b0 = read8Phys(pa);
     u16 b1 = read8Phys(pa + 1);
     return b0 | (b1 << 8);
 }
 
-u32 Bus::read32(u32 addr) {
-    MmuFault fault = MmuFault::NONE;
-    u32 pa = translate(addr, &fault);
-    if (fault != MmuFault::NONE) {
-        lastFault = fault;
-        lastFaultAddr = addr;
-        return 0;
-    }
-    lastFault = MmuFault::NONE;
-    // Fast path for 4-byte aligned SDRAM reads
+u32 Bus::read32PhysSlow(u32 pa) {
     if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 4) && (pa & 3) == 0) {
         u32 val;
         std::memcpy(&val, sdram.data() + (pa - ADDR_SDRAM_BASE), 4);
         return val;
     }
-    // Fast path for Steppingstone reads
     if (pa <= (ADDR_STEPPINGSTONE_SIZE - 4) && (pa & 3) == 0) {
         u32 val;
         std::memcpy(&val, steppingstone.data() + pa, 4);
         return val;
     }
-    // NAND Flash Data Register (0x4E00000C): 8-bit bus clocked once per access
-    if (pa == 0x4E00000C) {
-        return readNandByte();
-    }
-    // MMIO Registers
-    if (pa >= ADDR_MEMCON_BASE && pa < 0x5C000000) {
-        return readMmio(pa);
-    }
+    if (pa == 0x4E00000C) return readNandByte();
+    if (pa >= ADDR_MEMCON_BASE && pa < 0x5C000000) return readMmio(pa);
 
     u32 b0 = read8Phys(pa);
     u32 b1 = read8Phys(pa + 1);
@@ -256,40 +230,12 @@ u32 Bus::read32(u32 addr) {
     return b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
 }
 
-void Bus::write8(u32 addr, u8 val) {
-    MmuFault fault = MmuFault::NONE;
-    u32 pa = translate(addr, &fault, true);
-    if (fault != MmuFault::NONE) {
-        lastFault = fault;
-        lastFaultAddr = addr;
-        return;
-    }
-    lastFault = MmuFault::NONE;
-    write8Phys(pa, val);
-}
-
-void Bus::write16(u32 addr, u16 val) {
-    MmuFault fault = MmuFault::NONE;
-    u32 pa = translate(addr, &fault, true);
-    if (fault != MmuFault::NONE) {
-        lastFault = fault;
-        lastFaultAddr = addr;
-        return;
-    }
-    lastFault = MmuFault::NONE;
+void Bus::write16PhysSlow(u32 pa, u16 val) {
     write8Phys(pa, val & 0xFF);
     write8Phys(pa + 1, (val >> 8) & 0xFF);
 }
 
-void Bus::write32(u32 addr, u32 val) {
-    MmuFault fault = MmuFault::NONE;
-    u32 pa = translate(addr, &fault, true);
-    if (fault != MmuFault::NONE) {
-        lastFault = fault;
-        lastFaultAddr = addr;
-        return;
-    }
-    lastFault = MmuFault::NONE;
+void Bus::write32PhysSlow(u32 pa, u32 val) {
     if (pa == 0x30207fec) {
         static int wpCount = 0;
         if (wpCount++ < 10) {
@@ -553,13 +499,13 @@ u32 Bus::readMmio(u32 addr) {
         case 0x5000001C: return 0x00; // UMSTAT0
 
         // DMA Controller Channel 2 (0x4B000080 - IIS Audio)
-        case 0x4B000094: return dma2Active ? (mmioRegs[0x4B000090] & 0x000FFFFF) : 0; // DSTAT2
+        case 0x4B000094: return mmioRegs[0x4B000094]; // DSTAT2: latched current transfer, independent of reload DCON
         case 0x4B0000A0: return mmioRegs[0x4B0000A0]; // DMASKTRIG2
 
         // Interrupt Controller (0x4A000000)
-        case 0x4A000000: return mmioRegs[0x4A000000]; // SRCPND
-        case 0x4A000008: return mmioRegs[0x4A000008]; // INTMSK
-        case 0x4A000010: return mmioRegs[0x4A000010]; // INTPND
+        case 0x4A000000: return regSrcpnd;
+        case 0x4A000008: return regIntmsk;
+        case 0x4A000010: return regIntpnd;
         case 0x4A000014: return mmioRegs[0x4A000014]; // INTOFFSET
         case 0x4A00001C: return mmioRegs[0x4A00001C]; // INTSUBMSK
 
@@ -567,6 +513,7 @@ u32 Bus::readMmio(u32 addr) {
         case 0x4C000014: return mmioRegs[0x4C000014]; // CLKDIVN
 
         // PWM Timers (0x51000000)
+        case 0x51000008: return regTcon;
         case 0x51000040: { // TCNTO4 (Timer 4 Count Observation Register)
             timer4Cnt -= 64;
             return timer4Cnt;
@@ -629,18 +576,20 @@ void Bus::writeMmio(u32 addr, u32 val) {
     switch (addr) {
         // S3C2410 Interrupt Controller (W1C registers)
         case 0x4A000000: // SRCPND: Write 1 to clear
-            mmioRegs[0x4A000000] &= ~val;
+            regSrcpnd &= ~val;
+            mmioRegs[0x4A000000] = regSrcpnd;
+            return;
+        case 0x4A000008: // INTMSK
+            regIntmsk = val;
+            mmioRegs[0x4A000008] = val;
             return;
         case 0x4A000010: { // INTPND: Write 1 to clear
-            mmioRegs[0x4A000010] &= ~val;
-            u32 intmsk = 0xFFFFFFFF;
-            auto itMsk = mmioRegs.find(0x4A000008);
-            if (itMsk != mmioRegs.end()) intmsk = itMsk->second;
-            u32 pending = mmioRegs[0x4A000000] & ~intmsk;
+            regIntpnd &= ~val;
+            u32 pending = regSrcpnd & ~regIntmsk;
             if (pending != 0) {
                 for (int b = 0; b < 32; ++b) {
                     if (pending & (1 << b)) {
-                        mmioRegs[0x4A000010] = (1 << b);
+                        regIntpnd = (1 << b);
                         mmioRegs[0x4A000014] = b;
                         break;
                     }
@@ -648,10 +597,17 @@ void Bus::writeMmio(u32 addr, u32 val) {
             } else {
                 mmioRegs[0x4A000014] = 0;
             }
+            mmioRegs[0x4A000010] = regIntpnd;
             return;
         }
         case 0x4A000018: // SUBSRCPND: Write 1 to clear
             mmioRegs[0x4A000018] &= ~val;
+            return;
+
+        // PWM Timers
+        case 0x51000008: // TCON
+            regTcon = val;
+            mmioRegs[0x51000008] = val;
             return;
 
         // I2C Controller (0x54000000)
@@ -678,6 +634,7 @@ void Bus::writeMmio(u32 addr, u32 val) {
             if (val & (1 << 2)) { // STOP
                 dma2Active = false;
                 dma2Timer = 0;
+                mmioRegs[0x4B000094] = 0;
             } else if (val & (1 << 1)) { // ON
                 dma2Active = true;
                 dma2Src = mmioRegs[0x4B000080]; // DISRC2
@@ -686,7 +643,12 @@ void Bus::writeMmio(u32 addr, u32 val) {
                 u32 dsz = (dcon >> 20) & 3;      // Data size (00=1B, 01=2B, 10=4B)
                 u32 itemSize = (dsz == 1) ? 2 : ((dsz == 2) ? 4 : 1);
                 dma2Count = tc * itemSize;       // Total bytes
-                dma2Timer = 150000;              // Transfer period in cycles (~6ms at 25 MIPS)
+                mmioRegs[0x4B000094] = tc;
+                // In S3C2410 IIS audio, DMA rate is paced by the audio DAC consumption rate.
+                // At ~20 MIPS guest clock, 44.1kHz 16-bit stereo (176.4 kB/s) is ~114 cycles/byte,
+                // and 22.05kHz 16-bit stereo (88.2 kB/s) is ~227 cycles/byte.
+                // Using ~220 cycles/byte prevents ALSA from racing ahead and triggering continuous XRUNs.
+                dma2Timer = (dma2Count > 0) ? (dma2Count * 220) : 150000;
             }
             return;
         }
@@ -737,13 +699,12 @@ void Bus::writeMmio(u32 addr, u32 val) {
 }
 
 void Bus::requestIrq(u32 bit) {
-    mmioRegs[0x4A000000] |= (1 << bit); // SRCPND
-    u32 intmsk = 0xFFFFFFFF;
-    auto itMsk = mmioRegs.find(0x4A000008);
-    if (itMsk != mmioRegs.end()) intmsk = itMsk->second;
-    if ((intmsk & (1 << bit)) == 0) {
-        if (mmioRegs[0x4A000010] == 0) {
-            mmioRegs[0x4A000010] |= (1 << bit);
+    regSrcpnd |= (1 << bit);
+    mmioRegs[0x4A000000] = regSrcpnd;
+    if ((regIntmsk & (1 << bit)) == 0) {
+        if (regIntpnd == 0) {
+            regIntpnd |= (1 << bit);
+            mmioRegs[0x4A000010] = regIntpnd;
             mmioRegs[0x4A000014] = bit;
         }
     }
@@ -780,12 +741,36 @@ void Bus::setButtonMask(u32 newMask) {
     }
 }
 
-bool Bus::hasPendingIrq() const {
-    auto it = mmioRegs.find(0x4A000010);
-    return (it != mmioRegs.end() && it->second != 0);
+void Bus::tickTimer4() {
+    timer4CycleCounter = 0;
+    requestIrq(14); // INT_TIMER4
 }
 
-void Bus::tick(size_t cycles) {
+void Bus::tickDma2() {
+    dma2Active = false;
+    dma2Timer = 0;
+    mmioRegs[0x4B000094] = 0; // DSTAT2: CurTC = 0
+
+    // Forward PCM audio buffer if source is valid SDRAM
+    if (audioCallback && dma2Src >= ADDR_SDRAM_BASE && (dma2Src - ADDR_SDRAM_BASE) + dma2Count <= ADDR_SDRAM_SIZE) {
+        const int16_t* pcm = reinterpret_cast<const int16_t*>(sdram.data() + (dma2Src - ADDR_SDRAM_BASE));
+        audioCallback(pcm, dma2Count / sizeof(int16_t));
+    }
+
+    // DCON/DISRC are reload registers. Linux queues a second buffer
+    // while the first runs and expects it to load before the IRQ.
+    if (!(mmioRegs[0x4B000090] & (1u << 22)) &&
+        (mmioRegs[0x4B0000A0] & (1u << 1))) {
+        writeMmio(0x4B0000A0, mmioRegs[0x4B0000A0]);
+    } else {
+        mmioRegs[0x4B0000A0] &= ~(1u << 1);
+    }
+
+    // Assert INT_DMA2 (bit 19 of SRCPND)
+    requestIrq(19);
+}
+
+void Bus::tickAdcI2c(size_t cycles) {
     // S3C2410 ADC Conversion Handling
     if (adcPending) {
         if (cycles >= adcTimer) {
@@ -805,17 +790,7 @@ void Bus::tick(size_t cycles) {
             if (itSubMsk != mmioRegs.end()) submsk = itSubMsk->second;
 
             if ((submsk & (1 << 10)) == 0) {
-                mmioRegs[0x4A000000] |= (1 << 31); // SRCPND: bit 31 (INT_ADC_TC)
-                u32 intmsk = 0xFFFFFFFF;
-                auto itMsk = mmioRegs.find(0x4A000008);
-                if (itMsk != mmioRegs.end()) intmsk = itMsk->second;
-
-                if ((intmsk & (1 << 31)) == 0) {
-                    if (mmioRegs[0x4A000010] == 0) {
-                        mmioRegs[0x4A000010] |= (1 << 31);
-                        mmioRegs[0x4A000014] = 31;
-                    }
-                }
+                requestIrq(31);
             }
         } else {
             adcTimer -= cycles;
@@ -831,69 +806,25 @@ void Bus::tick(size_t cycles) {
             mmioRegs[0x54000004] |= 1;        // IICSTAT bit 0: NACK
 
             // Trigger IRQ 27 (INT_IIC) in SRCPND
-            mmioRegs[0x4A000000] |= (1 << 27);
-            u32 intmsk = 0xFFFFFFFF;
-            auto itMsk = mmioRegs.find(0x4A000008);
-            if (itMsk != mmioRegs.end()) intmsk = itMsk->second;
-
-            if ((intmsk & (1 << 27)) == 0) {
-                if (mmioRegs[0x4A000010] == 0) {
-                    mmioRegs[0x4A000010] |= (1 << 27);
-                    mmioRegs[0x4A000014] = 27;
-                }
-            }
+            requestIrq(27);
         } else {
             i2cTimer -= cycles;
         }
     }
+}
 
-    // S3C2410 PWM Timer 4: Check if Timer 4 is enabled in TCON (bit 20)
-    auto itTcon = mmioRegs.find(0x51000008);
-    if (itTcon != mmioRegs.end() && (itTcon->second & (1 << 20))) {
-        timer4CycleCounter += cycles;
-        // 100,000 instructions per system tick
-        if (timer4CycleCounter >= 100000) {
-            timer4CycleCounter = 0;
-
-            // Check if IRQ 14 (Timer 4) is unmasked in INTMSK
-            u32 intmsk = 0xFFFFFFFF;
-            auto itMsk = mmioRegs.find(0x4A000008);
-            if (itMsk != mmioRegs.end()) intmsk = itMsk->second;
-
-            if ((intmsk & (1 << 14)) == 0) {
-                mmioRegs[0x4A000000] |= (1 << 14); // SRCPND: Timer 4
-                if (mmioRegs[0x4A000010] == 0) {
-                    mmioRegs[0x4A000010] |= (1 << 14); // INTPND
-                    mmioRegs[0x4A000014] = 14;          // INTOFFSET = 14
-                }
-            }
-        }
-    }
-
-    // S3C2410 DMA Channel 2 (IIS Audio Transfer)
-    if (dma2Active) {
-        if (cycles >= dma2Timer) {
-            dma2Active = false;
-            dma2Timer = 0;
-            mmioRegs[0x4B000094] = 0; // DSTAT2: CurTC = 0
-
-            // Forward PCM audio buffer if source is valid SDRAM
-            if (audioCallback && dma2Src >= ADDR_SDRAM_BASE && (dma2Src - ADDR_SDRAM_BASE) + dma2Count <= ADDR_SDRAM_SIZE) {
-                const int16_t* pcm = reinterpret_cast<const int16_t*>(sdram.data() + (dma2Src - ADDR_SDRAM_BASE));
-                audioCallback(pcm, dma2Count / sizeof(int16_t));
-            }
-
-            // Assert INT_DMA2 (bit 19 of SRCPND)
-            requestIrq(19);
-        } else {
-            dma2Timer -= cycles;
-        }
+void Bus::flushTlb() const {
+    for (size_t i = 0; i < TLB_SIZE; ++i) {
+        tlb[i].valid = false;
     }
 }
 
-u32 Bus::translate(u32 va, MmuFault* fault, bool isWrite) const {
+u32 Bus::translateSlow(u32 va, MmuFault* fault, bool isWrite) const {
     if (fault) *fault = MmuFault::NONE;
     if (!mmuEnabled) return va;
+
+    u32 vpn = va >> 12;
+    u32 idx = vpn & (TLB_SIZE - 1);
 
     // Check TTB first-level translation table if mapped in SDRAM
     u32 ttbBase = ttb & ~0x3FFF;
@@ -904,14 +835,19 @@ u32 Bus::translate(u32 va, MmuFault* fault, bool isWrite) const {
         std::memcpy(&desc, sdram.data() + descOffset, 4);
 
         if ((desc & 3) == 2) { // 1 MB Section Descriptor
+            u32 ap = (desc >> 10) & 3;
             if (userMode) {
-                u32 ap = (desc >> 10) & 3;
                 if (ap == 0 || ap == 1 || (ap == 2 && isWrite)) {
                     if (fault) *fault = MmuFault::SECTION_PERMISSION_FAULT;
                     return 0xFFFFFFFF;
                 }
             }
-            return (desc & 0xFFF00000) | (va & 0x000FFFFF);
+            u32 pa = (desc & 0xFFF00000) | (va & 0x000FFFFF);
+            tlb[idx].vpn = vpn;
+            tlb[idx].paBase = pa & ~0xFFF;
+            tlb[idx].ap = ap;
+            tlb[idx].valid = true;
+            return pa;
         } else if ((desc & 3) == 1) { // Coarse Page Table
             u32 ptPhys = desc & ~0x3FF;
             if (ptPhys >= ADDR_SDRAM_BASE && (ptPhys - ADDR_SDRAM_BASE) <= ADDR_SDRAM_SIZE - 1024) {
@@ -920,25 +856,35 @@ u32 Bus::translate(u32 va, MmuFault* fault, bool isWrite) const {
                 u32 pte = 0;
                 std::memcpy(&pte, sdram.data() + ptOffset, 4);
                 if ((pte & 3) == 2 || (pte & 3) == 3) { // Small Page (4KB)
+                    int apShift = 4 + (((va >> 10) & 3) * 2);
+                    u32 ap = (pte >> apShift) & 3;
                     if (userMode) {
-                        int apShift = 4 + (((va >> 10) & 3) * 2);
-                        u32 ap = (pte >> apShift) & 3;
                         if (ap == 0 || ap == 1 || (ap == 2 && isWrite)) {
                             if (fault) *fault = MmuFault::PAGE_PERMISSION_FAULT;
                             return 0xFFFFFFFF;
                         }
                     }
-                    return (pte & 0xFFFFF000) | (va & 0xFFF);
+                    u32 pa = (pte & 0xFFFFF000) | (va & 0xFFF);
+                    tlb[idx].vpn = vpn;
+                    tlb[idx].paBase = pa & ~0xFFF;
+                    tlb[idx].ap = ap;
+                    tlb[idx].valid = true;
+                    return pa;
                 } else if ((pte & 3) == 1) { // Large Page (64KB)
+                    int apShift = 4 + (((va >> 14) & 3) * 2);
+                    u32 ap = (pte >> apShift) & 3;
                     if (userMode) {
-                        int apShift = 4 + (((va >> 14) & 3) * 2);
-                        u32 ap = (pte >> apShift) & 3;
                         if (ap == 0 || ap == 1 || (ap == 2 && isWrite)) {
                             if (fault) *fault = MmuFault::PAGE_PERMISSION_FAULT;
                             return 0xFFFFFFFF;
                         }
                     }
-                    return (pte & 0xFFFF0000) | (va & 0xFFFF);
+                    u32 pa = (pte & 0xFFFF0000) | (va & 0xFFFF);
+                    tlb[idx].vpn = vpn;
+                    tlb[idx].paBase = pa & ~0xFFF;
+                    tlb[idx].ap = ap;
+                    tlb[idx].valid = true;
+                    return pa;
                 } else {
                     if (fault) *fault = MmuFault::PAGE_TRANSLATION_FAULT;
                     return 0xFFFFFFFF;
@@ -952,7 +898,12 @@ u32 Bus::translate(u32 va, MmuFault* fault, bool isWrite) const {
 
     // Direct kernel linear SDRAM mapping (0xC0000000 -> 0x30000000)
     if (va >= 0xC0000000 && va < (0xC0000000 + ADDR_SDRAM_SIZE)) {
-        return (va - 0xC0000000) + ADDR_SDRAM_BASE;
+        u32 pa = (va - 0xC0000000) + ADDR_SDRAM_BASE;
+        tlb[idx].vpn = vpn;
+        tlb[idx].paBase = pa & ~0xFFF;
+        tlb[idx].ap = 3;
+        tlb[idx].valid = true;
+        return pa;
     }
 
     // Linux S3C24XX virtual MMIO mappings (0xF0000000 .. 0xF1600000)

@@ -11,9 +11,11 @@ SRCS = src/main.cpp \
        src/audio/audio_win32.cpp
 
 OBJS = $(SRCS:.cpp=.o)
-LDFLAGS = -lgdi32 -luser32 -lwinmm
+LDFLAGS = -lgdi32 -luser32 -lwinmm -lcomdlg32
 
 all: $(TARGET)
+
+src/main.o: src/display/launcher.h
 
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
