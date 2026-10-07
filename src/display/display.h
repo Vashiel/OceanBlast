@@ -37,6 +37,10 @@ public:
     void close();
 
     uint32_t getButtonMask() const { return m_buttonMask; }
+    void setButtonState(uint32_t mask, bool down) {
+        if (down) m_buttonMask |= mask;
+        else      m_buttonMask &= ~mask;
+    }
 
 private:
     int m_scale;

@@ -31,8 +31,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 default: break;
             }
             if (mask != 0) {
-                // Update internal button mask:
-                // Note: we can maintain bitfield in Display
+                g_currentDisplay->setButtonState(mask, isDown);
             }
         } else if (msg == WM_CLOSE) {
             g_currentDisplay->close();

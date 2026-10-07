@@ -71,7 +71,7 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 * [x] **Diagnostic Keypad & Framebuffer Splash (`fb_test`):** `/usr/packages/showversion/bin/iskeydown` tests hardware button lines; `/usr/packages/fb_test/bin/fb_test` opens `/dev/fb0` and transfers 57,600 bytes of splash image data to framebuffer memory.
 * [x] **Commercial Game Binary Launch:** Startup script executes game binary (`./Rayman`); Linux dynamic linker maps `libSDL-1.2.so.0`, `libboost_thread`, `libboost_filesystem`, `libstdc++.so.5`, `libpthread.so.0`, and `libdl.so.2`; game code actively scheduled past 260M steps.
 * [x] **Live Host Display Output:** Real-time native desktop window rendering the authentic S3C2410 240×160 12-bit packed LCD444 framebuffer directly from SDRAM with configurable integer scaling (`--gui`, `--scale 2|3|4`).
-* [ ] **Host Input Mapping:** Binding host keyboard/gamepad events to console buttons.
+* [x] **Host Keypad & GPIO Input Subsystem:** Reverse-engineered hardware pin wiring from the kernel `greykbd.c` driver; host keyboard events are converted into active-low S3C2410 GPIO states (`GPFDAT`, `GPGDAT`) and trigger `EINT0..3`, `EINT4_7`, and `EINT8_23` interrupts directly to the Linux input subsystem (`/dev/input/event0`).
 * [ ] **Real-Time Audio Output:** Streaming DMA audio buffers from IIS controller to host sound driver.
 
 ---
@@ -100,6 +100,12 @@ g++ -std=c++17 -Wall -Wextra -O2 -Isrc \
     -o bin/oceanblast.exe
 ```
 
+### Running Test Suites
+OceanBlast includes ROM-free CPU regression and GPIO keypad verification suites:
+```bash
+make test
+```
+
 ### Running
 ```bash
 bin/oceanblast.exe <path_to_cartridge_dump.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--trace]
@@ -109,6 +115,21 @@ Example (interactive GUI):
 ```bash
 bin/oceanblast.exe "roms/test.bin" --gui --scale 3
 ```
+
+#### Default Keyboard Controls
+| Console Button | Hardware Line | Host Keyboard Key |
+| :--- | :--- | :--- |
+| **D-Pad Up** | `GPF2` / `EINT2` | `Up Arrow` |
+| **D-Pad Down** | `GPF7` / `EINT7` | `Down Arrow` |
+| **D-Pad Left** | `GPF3` / `EINT3` | `Left Arrow` |
+| **D-Pad Right** | `GPF6` / `EINT6` | `Right Arrow` |
+| **Button A** | `GPF0` / `EINT0` | `Z` or `K` |
+| **Button B** | `GPF1` / `EINT1` | `X` or `J` |
+| **L Shoulder** | `GPG11` / `EINT19` | `A` or `Q` |
+| **R Shoulder** | `GPG8` / `EINT16` | `S` or `W` |
+| **Start** | `GPG10` / `EINT18` | `Enter` |
+| **Select / Pause** | `GPG9` / `EINT17` | `Space` |
+| **Exit Window** | — | `Escape` |
 
 ---
 

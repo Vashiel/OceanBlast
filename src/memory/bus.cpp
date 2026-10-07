@@ -19,6 +19,11 @@ void Bus::reset() {
     mmioRegs.clear();
     mmioRegs[0x4A000008] = 0xFFFFFFFF; // INTMSK default: all masked
     mmioRegs[0x4A00001C] = 0x000007FF; // INTSUBMSK default: all sub-masked
+    mmioRegs[0x56000054] = 0x000000FF; // GPFDAT default: all pulled up
+    mmioRegs[0x56000064] = 0x0000FFFF; // GPGDAT default: all pulled up
+    mmioRegs[0x560000A4] = 0xFFFFFFF0; // EINTMASK default: all ext masked
+    mmioRegs[0x560000A8] = 0x00000000; // EINTPEND default: clear
+    buttonMask = 0;
 
     nfconf = 0;
     nfcmd  = 0;
@@ -562,6 +567,32 @@ u32 Bus::readMmio(u32 addr) {
         case 0x58000010: return 750; // ADCDAT1
 
         // GPIO & System Status Registers (0x56000000)
+        case 0x56000054: { // GPFDAT: Active-low inputs for buttons
+            u32 gpf = 0xFF;
+            if (buttonMask & (1 << 4)) gpf &= ~(1 << 0); // BTN_A -> GPF0
+            if (buttonMask & (1 << 5)) gpf &= ~(1 << 1); // BTN_B -> GPF1
+            if (buttonMask & (1 << 0)) gpf &= ~(1 << 2); // BTN_UP -> GPF2
+            if (buttonMask & (1 << 2)) gpf &= ~(1 << 3); // BTN_LEFT -> GPF3
+            if (buttonMask & (1 << 3)) gpf &= ~(1 << 6); // BTN_RIGHT -> GPF6
+            if (buttonMask & (1 << 1)) gpf &= ~(1 << 7); // BTN_DOWN -> GPF7
+            return gpf;
+        }
+        case 0x56000064: { // GPGDAT: Active-low inputs for buttons
+            u32 gpg = 0xFFFF;
+            if (buttonMask & (1 << 7)) gpg &= ~(1 << 8);  // BTN_R -> GPG8
+            if (buttonMask & (1 << 9)) gpg &= ~(1 << 9);  // BTN_SELECT -> GPG9
+            if (buttonMask & (1 << 8)) gpg &= ~(1 << 10); // BTN_START -> GPG10
+            if (buttonMask & (1 << 6)) gpg &= ~(1 << 11); // BTN_L -> GPG11
+            return gpg;
+        }
+        case 0x560000A4: { // EINTMASK
+            auto it = mmioRegs.find(0x560000A4);
+            return (it != mmioRegs.end()) ? it->second : 0xFFFFFFF0;
+        }
+        case 0x560000A8: { // EINTPEND
+            auto it = mmioRegs.find(0x560000A8);
+            return (it != mmioRegs.end()) ? it->second : 0;
+        }
         case 0x560000B0: return 0x32410002; // GSTATUS1: S3C2410A Chip ID
         case 0x560000B4: return 0x00000001; // GSTATUS2: Power-on reset flag
 
@@ -650,9 +681,61 @@ void Bus::writeMmio(u32 addr, u32 val) {
             break;
         }
 
+        // S3C2410 GPIO & External Interrupt Registers
+        case 0x560000A4: // EINTMASK
+            mmioRegs[0x560000A4] = val;
+            return;
+        case 0x560000A8: // EINTPEND (W1C: Write 1 to clear)
+            mmioRegs[0x560000A8] &= ~val;
+            return;
+
         default:
             mmioRegs[addr] = val;
             break;
+    }
+}
+
+void Bus::requestIrq(u32 bit) {
+    mmioRegs[0x4A000000] |= (1 << bit); // SRCPND
+    u32 intmsk = 0xFFFFFFFF;
+    auto itMsk = mmioRegs.find(0x4A000008);
+    if (itMsk != mmioRegs.end()) intmsk = itMsk->second;
+    if ((intmsk & (1 << bit)) == 0) {
+        if (mmioRegs[0x4A000010] == 0) {
+            mmioRegs[0x4A000010] |= (1 << bit);
+            mmioRegs[0x4A000014] = bit;
+        }
+    }
+}
+
+void Bus::setButtonMask(u32 newMask) {
+    u32 changed = newMask ^ buttonMask;
+    buttonMask = newMask;
+    if (changed == 0) return;
+
+    // External Interrupts 0..3 (GPF0..3)
+    if (changed & (1 << 4)) requestIrq(0); // BTN_A -> EINT0
+    if (changed & (1 << 5)) requestIrq(1); // BTN_B -> EINT1
+    if (changed & (1 << 0)) requestIrq(2); // BTN_UP -> EINT2
+    if (changed & (1 << 2)) requestIrq(3); // BTN_LEFT -> EINT3
+
+    // External Interrupts 4..7 (GPF4..7)
+    u32 eintMask = mmioRegs[0x560000A4];
+    bool trig4_7 = false;
+    if (changed & (1 << 3)) { mmioRegs[0x560000A8] |= (1 << 6); trig4_7 = true; } // BTN_RIGHT -> EINT6
+    if (changed & (1 << 1)) { mmioRegs[0x560000A8] |= (1 << 7); trig4_7 = true; } // BTN_DOWN -> EINT7
+    if (trig4_7 && ((mmioRegs[0x560000A8] & ~eintMask) & 0xF0)) {
+        requestIrq(4); // EINT4_7
+    }
+
+    // External Interrupts 8..23 (GPG0..15 -> EINT8..23)
+    bool trig8_23 = false;
+    if (changed & (1 << 7)) { mmioRegs[0x560000A8] |= (1 << 16); trig8_23 = true; } // BTN_R -> GPG8 -> EINT16
+    if (changed & (1 << 9)) { mmioRegs[0x560000A8] |= (1 << 17); trig8_23 = true; } // BTN_SELECT -> GPG9 -> EINT17
+    if (changed & (1 << 8)) { mmioRegs[0x560000A8] |= (1 << 18); trig8_23 = true; } // BTN_START -> GPG10 -> EINT18
+    if (changed & (1 << 6)) { mmioRegs[0x560000A8] |= (1 << 19); trig8_23 = true; } // BTN_L -> GPG11 -> EINT19
+    if (trig8_23 && ((mmioRegs[0x560000A8] & ~eintMask) & 0x00FFFF00)) {
+        requestIrq(5); // EINT8_23
     }
 }
 

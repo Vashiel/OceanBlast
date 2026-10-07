@@ -241,6 +241,40 @@ All milestones below are fully reproducible using the following test configurati
   * Native desktop window rendering subsystem implemented in [`src/display/display_win32.cpp`](../src/display/display_win32.cpp) using Win32 GDI with hardware nearest-neighbor integer scaling (`--gui`, `--scale 2|3|4`).
   * Live framebuffer polling from SDRAM at active S3C2410 LCD memory base addresses (`0x30300000`, `0x30310000`, and `0x302A0000`).
 
+### Milestone 14: Keypad Hardware Decoded & GPIO Subsystem Implemented
+* **Status:** Verified.
+* **Hardware Ground Truth:**
+  * Keypad layout and hardware wiring reverse-engineered directly from the kernel `greykbd.c` driver (`struct platform_device Grey-keypad` at `0xc0180c14`, `dev.platform_data` at `0xc0180f18`):
+    * **D-Pad:**
+      * `KEY_UP` (0x67) -> Port F, Pin 2 (`GPF2` / `EINT2`, IRQ 0x12 / IRQ 2)
+      * `KEY_DOWN` (0x6c) -> Port F, Pin 7 (`GPF7` / `EINT7`, IRQ 0x33 / `EINT4_7` cascaded IRQ 4)
+      * `KEY_LEFT` (0x69) -> Port F, Pin 3 (`GPF3` / `EINT3`, IRQ 0x13 / IRQ 3)
+      * `KEY_RIGHT` (0x6a) -> Port F, Pin 6 (`GPF6` / `EINT6`, IRQ 0x32 / `EINT4_7` cascaded IRQ 4)
+    * **Action Buttons:**
+      * Button A (`KEY_1`, 0x02) -> Port F, Pin 0 (`GPF0` / `EINT0`, IRQ 0x10 / IRQ 0)
+      * Button B (`KEY_4`, 0x05) -> Port F, Pin 1 (`GPF1` / `EINT1`, IRQ 0x11 / IRQ 1)
+      * Buttons X / Y (`KEY_5`, `KEY_2`, `KEY_3`) -> `GPF4`, `GPF5`, `GPG12`
+    * **Shoulder Buttons:**
+      * L Trigger (`KEY_LEFTCTRL`, 0x1d) -> Port G, Pin 11 (`GPG11` / `EINT19`, IRQ 0x3f / `EINT8_23` cascaded IRQ 5)
+      * R Trigger (`KEY_RIGHTCTRL`, 0x61) -> Port G, Pin 8 (`GPG8` / `EINT16`, IRQ 0x3c / `EINT8_23` cascaded IRQ 5)
+    * **System Buttons:**
+      * Start (`KEY_S`, 0x1f) -> Port G, Pin 10 (`GPG10` / `EINT18`, IRQ 0x3e / `EINT8_23` cascaded IRQ 5)
+      * Select / Pause (`KEY_P`, 0x19) -> Port G, Pin 9 (`GPG9` / `EINT17`, IRQ 0x3d / `EINT8_23` cascaded IRQ 5)
+      * Backlight (`KEY_B`, 0x30) -> Port G, Pin 0 (`GPG0` / `EINT8`)
+      * Power / Sleep (`KEY_N`, 0x31) -> Port G, Pin 13 (`GPG13` / `EINT21`)
+  * **Electrical Circuit Semantics:**
+    * Buttons are active-low with pull-up resistors (HIGH = 1 released, LOW = 0 pressed).
+    * Confirmed by disassembly of kernel ISR and workqueue handler (`rsbs r3, r2, #1` inversion before `input_report_key()`).
+  * **Interrupt Cascade:**
+    * EINT0..3 trigger dedicated primary IRQs 0..3 directly.
+    * EINT4..7 set corresponding bits in `EINTPEND` (`0x560000A8`) and trigger `EINT4_7` (IRQ 4).
+    * EINT8..23 set corresponding bits in `EINTPEND` and trigger `EINT8_23` (IRQ 5).
+    * `EINTPEND` conforms to Write-1-to-Clear (W1C) semantics.
+* **Implementation:**
+  * Real-time keyboard mapping in [`src/display/display_win32.cpp`](../src/display/display_win32.cpp) updates button bitmask via Win32 `WM_KEYDOWN` and `WM_KEYUP` events.
+  * S3C2410 GPIO registers (`GPFDAT`, `GPGDAT`, `EINTMASK`, `EINTPEND`) implemented in [`src/memory/bus.cpp`](../src/memory/bus.cpp).
+  * Automated regression test suite in `tests/input_test.cpp` verifying all GPIO pull-ups, active-low states, interrupt cascades, and W1C clears (all 7 tests passing).
+
 ---
 
 ## 3. Emulation Boundaries & Current Focus
@@ -253,6 +287,6 @@ To ensure scientific honesty and accurate tracking, the following distinctions a
 | **Userspace Pipeline** | `/linuxrc`, `startup.sh`, symlinks, mounts, and shared libraries execute without skips. | Complete. |
 | **Game Engine Execution** | `./Rayman` binary is loaded and running active game code across 3 threads past 350M steps. | Ongoing profiling. |
 | **Display & LCD** | Authentic 240×160 12-bit LCD444 resolution decoded; real-time Win32 desktop window rendering live. | Complete. |
-| **Keypad / Controls** | S3C2410 GPIO registers return neutral states satisfying boot tests. | Host keyboard mapping to console buttons (D-Pad, A, B, L, R). |
+| **Keypad / Controls** | Authentic S3C2410 GPIO & EINT mapping decoded; host keyboard events trigger kernel IRQs live. | Complete. |
 | **Audio** | ALSA CS43L43 driver attaches and accepts IIS config; Rayman opens `/dev/sound/dsp`. | Real-time DMA audio buffer streaming to host sound output. |
 | **USB Host** | Driver fails with `startup error -1` as expected. | Low priority (not needed for gameplay). |

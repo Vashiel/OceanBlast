@@ -20,7 +20,19 @@ $(TARGET): $(OBJS)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-clean:
-	rm -f $(OBJS) $(TARGET)
+test: build/cpu_regression.exe build/input_test.exe
+	./build/cpu_regression.exe
+	./build/input_test.exe
 
-.PHONY: all clean
+build/cpu_regression.exe: tests/cpu_regression.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cartridge/cart_parser.cpp src/display/display_win32.cpp
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
+build/input_test.exe: tests/input_test.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cartridge/cart_parser.cpp src/display/display_win32.cpp
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
+clean:
+	rm -f $(OBJS) $(TARGET) build/cpu_regression.exe build/input_test.exe
+
+.PHONY: all clean test
