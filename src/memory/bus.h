@@ -49,6 +49,12 @@ public:
     void write16(u32 addr, u16 val);
     void write32(u32 addr, u32 val);
 
+    // Physical (translated) memory access
+    u8   read8Phys(u32 addr);
+    void write8Phys(u32 addr, u8 val);
+    bool peek8(u32 va, u8& val) const;
+    bool peek32(u32 va, u32& val) const;
+
     // Cartridge loading
     bool loadCartridge(const std::string& path);
     bool hasCartridge() const { return !cartNand.empty(); }
@@ -61,17 +67,42 @@ public:
     const u8* getSdramPtr() const { return sdram.data(); }
 
     // MMU / Virtual Memory Translation
+    enum class MmuFault {
+        NONE = 0,
+        SECTION_TRANSLATION_FAULT = 0x5,
+        PAGE_TRANSLATION_FAULT = 0x7,
+        SECTION_DOMAIN_FAULT = 0x9,
+        PAGE_DOMAIN_FAULT = 0xB,
+        SECTION_PERMISSION_FAULT = 0xD,
+        PAGE_PERMISSION_FAULT = 0xF,
+    };
+
+    void setUserMode(bool um) { userMode = um; }
+    bool isUserMode() const { return userMode; }
+
     void setMmuEnabled(bool en) { mmuEnabled = en; }
     void setTtb(u32 val) { ttb = val; }
+    u32  getTtb() const { return ttb; }
     void setDacr(u32 val) { dacr = val; }
     bool isMmuEnabled() const { return mmuEnabled; }
-    u32  translate(u32 va) const;
+    u32  translate(u32 va, MmuFault* fault = nullptr, bool isWrite = false) const;
+
+    MmuFault getLastFault() const { return lastFault; }
+    u32      getLastFaultAddr() const { return lastFaultAddr; }
+    void     clearLastFault() const { lastFault = MmuFault::NONE; lastFaultAddr = 0; }
+
+    // S3C2410 Interrupts & Timers
+    bool hasPendingIrq() const;
+    void tick(size_t cycles = 1);
 
 private:
     // S3C2410 / ARM920T MMU State
     bool mmuEnabled = false;
+    bool userMode = false;
     u32  ttb = 0;
     u32  dacr = 0;
+    mutable MmuFault lastFault = MmuFault::NONE;
+    mutable u32      lastFaultAddr = 0;
     std::vector<u8> steppingstone;
     std::vector<u8> sdram;
     std::vector<u8> cartNand;
@@ -88,8 +119,17 @@ private:
     bool nandReadActive = false;
     bool nandReadSpare = false;
 
+    // S3C2410 ADC Controller State
+    bool adcPending = false;
+    size_t adcTimer = 0;
+
+    // S3C2410 I2C Controller State
+    bool i2cPending = false;
+    size_t i2cTimer = 0;
+
     // S3C2410 PWM Timer 4 State
     u16 timer4Cnt = 0xFFFF;
+    size_t timer4CycleCounter = 0;
 
     // S3C2410 MMIO Register Storage
     std::unordered_map<u32, u32> mmioRegs;

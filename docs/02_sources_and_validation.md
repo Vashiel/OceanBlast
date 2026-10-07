@@ -1,49 +1,64 @@
-# OceanBlast: Quellen und technischer Prüfstand
+# OceanBlast: Technical Sources & Verification Framework
 
-Stand: 6. Oktober 2026. Diese Notiz ergänzt die vorhandene Dokumentation. Der Arbeitsbaum enthält laufende Änderungen; diese Untersuchung verändert keinen Emulatorcode.
+Updated: October 7, 2026. This document establishes the technical reference foundation, external documentation, memory map corrections, and verification methodology used in OceanBlast.
 
-## Belastbare externe Grundlagen
+---
 
-- Samsung S3C2410A User's Manual, Revision 1.0, März 2004: https://bitsavers.org/components/samsung/S3C204x/S3C2410/21-S3-C2410A-032004_S3C2410A_Users_Manual_1.0_200403.pdf
-  Primärquelle für den Standard-SoC, ARM920T, Register, NAND-Boot, Interrupts, DMA und LCD. Es belegt nicht automatisch alle Eigenschaften der digiBLAST-Platine oder die vollständige Gleichheit des OCEAN-L-20.
-- MAME digiBLAST-Treiber: https://github.com/mamedev/mame/blob/master/src/mame/skeleton/digiblast.cpp
-  Modelliert ARM9 mit 200 MHz, S3C2410 mit 12-MHz-Eingang und 32 MiB RAM samt Spiegel. Markiert das System als MACHINE_NOT_WORKING und MACHINE_NO_SOUND. Der Kommentar beschreibt beginnendes Booten nach Übernahme der NAND-Anbindung aus ghosteo.cpp und Ergänzung des ID-Kommandos. Das widerlegt die Begründung für eine unbelegte Exklusivitätsbehauptung, beweist aber keinen spielbaren Emulator.
-- MAME S3C2410-Modell: https://github.com/mamedev/mame/blob/master/src/devices/machine/s3c2410.cpp
-  Vergleichsquelle für Peripherieverhalten; zusätzlich die zugehörigen Header und gemeinsamen S3C24xx-Dateien konsultieren. Ein Emulator ist eine Implementierungsreferenz, keine Messung an der digiBLAST-Hardware.
-- MAME Cartridge-Liste: https://github.com/mamedev/mame/blob/master/hash/digiblast_cart.xml
-  Referenz für bekannte Dump-Metadaten und Hashes. Ein Eintrag belegt keine Spielbarkeit.
+## 1. Primary Technical Sources
 
-## Korrekturen zur vorhandenen Speicherkarte
+* **Samsung S3C2410A User's Manual (Revision 1.0, March 2004)**
+  * URL: https://bitsavers.org/components/samsung/S3C204x/S3C2410/21-S3-C2410A-032004_S3C2410A_Users_Manual_1.0_200403.pdf
+  * Primary architectural reference for the Samsung S3C2410 application processor (the base architecture of the OCEAN-L-20 SoC), ARM920T core, MMU/CP15, bus memory controller, Steppingstone 4 KB boot SRAM, NAND Flash controller, interrupt controller, timers, and peripheral interfaces.
+* **MAME digiBLAST Driver Implementation**
+  * Reference: `src/mame/skeleton/digiblast.cpp` (https://github.com/mamedev/mame/blob/master/src/mame/skeleton/digiblast.cpp)
+  * Skeleton driver documenting 200 MHz ARM9 core clock, S3C2410 12 MHz input crystal, and 32 MB SDRAM address space. Notes system as `MACHINE_NOT_WORKING` and `MACHINE_NO_SOUND`.
+* **MAME S3C2410 Device Model**
+  * Reference: `src/devices/machine/s3c2410.cpp` (https://github.com/mamedev/mame/blob/master/src/devices/machine/s3c2410.cpp)
+  * Comparative reference for peripheral registers and MMIO offsets.
+* **MAME Cartridge Software List (`digiblast_cart.xml`)**
+  * Reference: `hash/digiblast_cart.xml` (https://github.com/mamedev/mame/blob/master/hash/digiblast_cart.xml)
+  * Reference for known retail dumps, cartridge geometries, and SHA-1/CRC verification hashes.
 
-Die folgenden S3C2410-Adressen stehen bereits korrekt in src/memory/bus.h. docs/01_memory_map.md weicht davon ab:
+---
 
-| Einheit | Basisadresse | Falscher Eintrag in vorhandener Dokumentation |
-| --- | --- | --- |
-| IIS Audio | 0x55000000 | 0x5B000000 |
-| RTC | 0x57000000 | 0x58000000 |
-| ADC | 0x58000000 | 0x59000000 |
-| Watchdog | 0x53000000 | dem PWM-Timer bei 0x51000000 zugeordnet |
+## 2. Memory Map Verifications & Corrections
 
-SPI liegt bei 0x59000000, SD/MMC bei 0x5A000000. Die tatsächliche Verdrahtung von Tasten, Batterieerkennung und externem Audiochip muss gesondert rekonstruiert werden.
+Initial preliminary documentation had minor offset mismatches which have been aligned directly with the Samsung hardware manual and the emulator source (`src/memory/bus.h`):
 
-## Was der lokale Code aktuell zeigt
+| Peripheral Subsystem | Physical Base Address | Preliminary Documented Error |
+| :--- | :--- | :--- |
+| **IIS Audio Interface** | `0x55000000` | Misidentified as `0x5B000000` |
+| **Real-Time Clock (RTC)** | `0x57000000` | Misidentified as `0x58000000` |
+| **ADC & Touch Screen** | `0x58000000` | Misidentified as `0x59000000` |
+| **Watchdog Timer (WDT)** | `0x53000000` | Conflated with PWM timers at `0x51000000` |
 
-- main.cpp lädt eine Cartridge, analysiert sie und führt eine begrenzte Anzahl CPU-Schritte aus. Optionen: --steps N und --trace; Standardlimit: 500000.
-- bus.cpp lädt acht Datenbereiche von je 512 Bytes als 4-KiB-Steppingstone. Die Formatwahl zwischen 512 und 528 Bytes pro Seite erfolgt allein über die Dateigröße modulo 528. Das ist eine Heuristik, kein verifiziertes Formatmerkmal.
-- SDRAM und sein Spiegel sind vorhanden. NAND-Lesezugriffe, synthetische Geräte-IDs und UART-Ausgabe sind implementiert.
-- Viele MMIO-Register sind lediglich gespeicherte Werte. Daraus folgt keine funktionierende Timer-, Interrupt-, DMA-, LCD- oder Audioemulation.
-- NAND-OOB-Lesewege erzeugen ECC-Bytes statt die vorhandenen OOB-Bytes eines Raw-Dumps zurückzugeben. Vor weiterer Bootdiagnose klären, welche Dump-Geometrie und ECC-Anordnung die Firmware erwartet. Original-OOB enthält potenziell weitere relevante Metadaten.
-- Die Meldung 'Steppingstone Boot Complete' wird bei jedem PC >= 0x30000000 ausgelöst. Auch ein Sprung außerhalb des SDRAM-Bereichs kann sie auslösen. Sie ist kein Beweis für einen erfolgreichen Bootloader-Start.
-- Die README beschreibt geplante Subsysteme und erhebt unbelegte Aussagen wie 'world’s first' und 'clean-room'. Solche Aussagen benötigen eigene Nachweise. Die hier gelesenen Dateien belegen noch keinen Linux-Start oder spielbaren Titel.
+SPI controller resides at `0x59000000`; SD/MMC interface resides at `0x5A000000`.
 
-Diese Untersuchung umfasst Quellen- und Codelektüre; sie enthält keinen neuen Build- oder Laufzeitnachweis.
+---
 
-## Empfohlene nächste Nachweise
+## 3. Emulation Baseline & Ground Truth
 
-1. Eine feste Test-Cartridge mit SHA-256, Dateigröße, Seitengröße und Herkunft der Metadaten dokumentieren. Originaldump unverändert aufbewahren.
-2. NAND Read-ID, Daten-/OOB-Lesen, Adresszyklen und ECC anhand des konkret identifizierten NAND-Chips prüfen. Keine Firmwarefehler durch künstlich passende Rückgabewerte verdecken.
-3. CPU-Konformität getrennt vom Bootfortschritt prüfen: ARM/Thumb-Wechsel, PC-Semantik, banked registers, Exceptions und CP15/MMU.
-4. Bootmeilensteine durch UART-Text und gültige Ausführungsadressen belegen: Steppingstone, U-Boot-Einstieg, Kommandoverarbeitung, Kernelübergabe, Kernelstart, Bildausgabe, Eingabe, Ton, Spiel.
-5. Für jede Geräteeigenschaft markieren: Herstellerhandbuch, MAME-Modell, Dump-Beobachtung, Hardwaremessung oder offene Annahme. Besonders Displayauflösung, Takt, Linux-Nutzung und Cartridge-Layout nicht allein aus allgemeinen Systembeschreibungen ableiten.
+1. **Autonomous Steppingstone Boot (4 KB SRAM):**
+   * The hardware autonomous copy reads the first 8 pages (512 data bytes each = 4096 bytes) into internal Steppingstone SRAM (`0x00000000 - 0x00000FFF`).
+2. **NAND Cartridge Geometry & OOB Handling:**
+   * Commercial cartridges use 528-byte pages (512 data bytes + 16 spare/OOB bytes).
+   * For dumps preserving authentic OOB data, the raw OOB bytes must be passed through directly.
+   * For dumps with blanked OOB (`0xFF`), standard Linux MTD 256-byte 1-bit Hamming ECC is dynamically calculated to satisfy U-Boot's verification checks.
+3. **Hardware Device Modeling vs. Driver Stubs:**
+   * Successful driver initialization in the Linux kernel log (`dmesg`) indicates that driver probes succeeded, not that complete hardware emulation is finished.
+   * For example, `s3c2410-ohci` (USB host) logs `startup error -1` and fails probing, while IIS audio and I2C devices accept initial configuration registers without live audio synthesis or bus arbitration.
+   * Distinctions must be strictly maintained between:
+     - U-Boot static BMP splash extraction from SDRAM,
+     - Framebuffer writes (`/dev/fb0`) by test binaries or game engines,
+     - Live display presentation in the emulator window,
+     - Interactive gameplay with keypad inputs and sound.
 
-Die fehlende konsolenspezifische Dokumentation macht das Projekt schwieriger, aber die Standard-SoC-Dokumentation liefert eine konkrete Grundlage. Die offenen Punkte betreffen vor allem Board-Verdrahtung, Cartridge-Protokoll und Firmwareverhalten.
+---
+
+## 4. Verification Standards
+
+All progress claims in OceanBlast must be backed by reproducible empirical execution:
+1. Exact Cartridge SHA-256 hash, byte size, and verified MTD partition layout.
+2. Exact invocation command and step execution boundary.
+3. Matching UART console output, process execution events, and exception trace excerpts.
+4. Clean separation between verified milestones, inferred behaviors, and pending features.

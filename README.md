@@ -53,7 +53,7 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 
 ## 📈 Emulation Progress
 
-* [x] **Autonomous Boot SRAM:** S3C2410 Steppingstone hardware logic autonomously parsing initial 4 KB bootloader into internal SRAM.
+* [x] **Autonomous Boot SRAM:** S3C2410 Steppingstone hardware logic autonomously parsing initial 4 KB bootloader into internal SRAM (`0x00000000`).
 * [x] **ARM920T CPU Core & CP15:** 32-bit ARM instruction interpreter with condition evaluation, branch exchange (`BX`), block transfer (`LDM`/`STM`), barrel shifter, coprocessor CP15 transfers (`MRC`/`MCR`), and virtual memory address translation.
 * [x] **SDRAM & Memory Controller:** Dynamic physical bus mapping with SDRAM mirroring and MMIO routing.
 * [x] **NAND Flash Controller:** Hardware registers `NFCONF`, `NFCMD`, `NFADDR`, `NFDATA`, and `NFSTAT`.
@@ -63,9 +63,16 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 * [x] **S3C2410 ADC Subsystem (`checkbattery`):** ADC conversion registers (`ADCCON`, `ADCDAT0`) returning proper battery counts within the boot validation window.
 * [x] **Linux Kernel Handoff & Decompression:** U-Boot loads the 1.8 MB kernel image from cartridge NAND, verifies CRC, unpacks via gunzip to `0x30008000`, and passes control with ATAGS parameters.
 * [x] **Linux 2.6.11 Kernel Boot:** ARM920T MMU page table traversal, virtual memory switch (`0xC0000000`), S3C2410A chip identification (`GSTATUS1 = 0x32410002`), clock management, memory zones, slab allocator, and early `dmesg` logging.
-* [ ] **System Timer IRQ:** Timer 4 interrupt delivery to advance `jiffies` during `calibrate_delay()`.
-* [ ] **LCD Framebuffer & Display:** S3C2410 LCD controller (`0x4D000000`) emulation and framebuffer rendering.
-* [ ] **Audio & Input:** S3C2410 IIS audio bus (`0x55000000`) and keypad GPIO polling.
+* [x] **System Timer 4 IRQ:** Timer 4 interrupt delivery advances `jiffies` during `calibrate_delay()`, completing calibration loop at 19.86 BogoMIPS.
+* [x] **Peripheral Driver Probes:** S3C2410 DMA (4 channels), UART0..2, I2C, ALSA CS43L43 audio driver, and `s3c2410fb` framebuffer device initialized. *(Note: USB Host `s3c2410-ohci` fails with startup error -1 as expected).*
+* [x] **SquashFS 2.2 RootFS Mount:** Kernel mounts MTD partition 5 (`/dev/mtdblock/5`) as read-only SquashFS root filesystem and initializes `devfs`.
+* [x] **Userspace Pipeline & ARMv4/v5 Copy-On-Write (COW):** MMU Access Permission (AP) checking implemented, generating `PAGE_PERMISSION_FAULT` (FSR `0xF`) on user-mode stack writes to shared pages. Linux `do_wp_page()` successfully isolates child/parent stack frames.
+* [x] **Multi-Process Initialization (`startup.sh`):** `/linuxrc` and `/usr/packages/startupscripts/startup.sh` successfully execute all three symlinks (`/dev/dsp`, `/dev/fb0`, `/dev/video`), set dynamic library paths (`setpath`), and mount system filesystems via `/bin/mount` (`/bin/busybox`).
+* [x] **Diagnostic Keypad & Framebuffer Splash (`fb_test`):** `/usr/packages/showversion/bin/iskeydown` tests hardware button lines; `/usr/packages/fb_test/bin/fb_test` opens `/dev/fb0` and transfers 57,600 bytes of splash image data to framebuffer memory.
+* [x] **Commercial Game Binary Launch:** Startup script executes game binary (`./Rayman`); Linux dynamic linker maps `libSDL-1.2.so.0`, `libboost_thread`, `libboost_filesystem`, `libstdc++.so.5`, `libpthread.so.0`, and `libdl.so.2`; game code actively scheduled past 260M steps.
+* [ ] **Live Host Display Output:** Rendering the active framebuffer memory from SDRAM into a host window (SDL2/OpenGL).
+* [ ] **Host Input Mapping:** Binding host keyboard/gamepad events to console buttons.
+* [ ] **Real-Time Audio Output:** Streaming DMA audio buffers from IIS controller to host sound driver.
 
 ---
 

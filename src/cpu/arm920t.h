@@ -45,10 +45,25 @@ private:
     u32 spsr;
     bool halted;
 
+    // Banked Registers for ARM Exception Modes
+    u32 r13_usr = 0, r14_usr = 0;
+    u32 r13_svc = 0, r14_svc = 0, spsr_svc = 0;
+    u32 r13_irq = 0, r14_irq = 0, spsr_irq = 0;
+    u32 r13_abt = 0, r14_abt = 0, spsr_abt = 0;
+    u32 r13_und = 0, r14_und = 0, spsr_und = 0;
+
+    void switchMode(u32 newMode);
+    void handleIrq();
+    void handlePrefetchAbort(u32 faultPC);
+    void handleDataAbort(u32 faultAddr, Bus::MmuFault faultType);
+    void handleUndefinedInstruction(u32 instr);
+
     // Coprocessor 15 (System Control Coprocessor)
     u32 cp15_control = 0x00000070; // Control Register (c1)
     u32 cp15_ttb     = 0;          // Translation Table Base (c2)
     u32 cp15_dacr    = 0;          // Domain Access Control (c3)
+    u32 cp15_fsr     = 0;          // Fault Status Register (c5)
+    u32 cp15_far     = 0;          // Fault Address Register (c6)
 
     // Helper functions
     bool evaluateCondition(u32 cond) const;
@@ -69,6 +84,7 @@ private:
     void executeHalfwordTransfer(u32 instr);
     void executeBlockDataTransfer(u32 instr);
     void executeMultiply(u32 instr);
+    void executeSwap(u32 instr);
     void executeSWI(u32 instr);
 
     // Thumb Execution
