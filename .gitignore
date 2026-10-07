@@ -1,0 +1,34 @@
+# Build artifacts
+bin/
+build/
+*.o
+*.obj
+*.exe
+*.dll
+
+# Python cache & tools artifacts
+**/__pycache__/
+*.pyc
+**/*.pyc
+
+# ROMs, game dumps, NAND images, and media (NEVER commit proprietary assets!)
+roms/
+dumps/
+*.bin
+*.rom
+*.zip
+*.7z
+*.tar
+*.gz
+*.iso
+*.dump
+*.raw
+*.img
+
+# IDE & OS files
+.vscode/
+.vs/
+*.suo
+*.user
+Thumbs.db
+.DS_Store
