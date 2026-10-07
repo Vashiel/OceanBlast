@@ -95,6 +95,9 @@ public:
     bool hasPendingIrq() const;
     void tick(size_t cycles = 1);
 
+    // MMIO State Inspection
+    u32 getMmio(u32 addr) { return readMmio(addr); }
+
 private:
     // S3C2410 / ARM920T MMU State
     bool mmuEnabled = false;
