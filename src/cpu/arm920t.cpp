@@ -16,9 +16,15 @@ void ARM920T::reset(u32 startAddress) {
     std::memset(r, 0, sizeof(r));
     r[15] = startAddress; // Reset vector (typically 0x00000000 in Steppingstone SRAM)
     r[13] = 0x00000F00;   // Boot stack pointer in Steppingstone SRAM
-    cpsr  = 0x00000013;   // Supervisor (SVC32) mode, ARM state, IRQ/FIQ disabled
+    cpsr  = 0x000000D3;   // Supervisor (SVC32) mode, ARM state, IRQ/FIQ disabled
     spsr  = 0;
     halted = false;
+
+    r13_usr = r14_usr = 0;
+    r13_svc = r[13]; r14_svc = 0; spsr_svc = 0;
+    r13_irq = r14_irq = spsr_irq = 0;
+    r13_abt = r14_abt = spsr_abt = 0;
+    r13_und = r14_und = spsr_und = 0;
 
     cp15_control = 0x00000070;
     cp15_ttb     = 0;
@@ -26,6 +32,140 @@ void ARM920T::reset(u32 startAddress) {
     bus.setMmuEnabled(false);
     bus.setTtb(0);
     bus.setDacr(0);
+}
+
+void ARM920T::switchMode(u32 newMode) {
+    u32 oldMode = cpsr & 0x1F;
+    if (newMode == oldMode) return;
+
+    // 1. Save state of current mode
+    switch (oldMode) {
+        case 0x10: // USR
+        case 0x1F: // SYS
+            r13_usr = r[13];
+            r14_usr = r[14];
+            break;
+        case 0x13: // SVC
+            r13_svc = r[13];
+            r14_svc = r[14];
+            spsr_svc = spsr;
+            break;
+        case 0x12: // IRQ
+            r13_irq = r[13];
+            r14_irq = r[14];
+            spsr_irq = spsr;
+            break;
+        case 0x17: // ABT
+            r13_abt = r[13];
+            r14_abt = r[14];
+            spsr_abt = spsr;
+            break;
+        case 0x1B: // UND
+            r13_und = r[13];
+            r14_und = r[14];
+            spsr_und = spsr;
+            break;
+        default:
+            break;
+    }
+
+    // 2. Restore state of new mode
+    switch (newMode) {
+        case 0x10: // USR
+        case 0x1F: // SYS
+            r[13] = r13_usr;
+            r[14] = r14_usr;
+            break;
+        case 0x13: // SVC
+            r[13] = r13_svc;
+            r[14] = r14_svc;
+            spsr = spsr_svc;
+            break;
+        case 0x12: // IRQ
+            r[13] = r13_irq;
+            r[14] = r14_irq;
+            spsr = spsr_irq;
+            break;
+        case 0x17: // ABT
+            r[13] = r13_abt;
+            r[14] = r14_abt;
+            spsr = spsr_abt;
+            break;
+        case 0x1B: // UND
+            r[13] = r13_und;
+            r[14] = r14_und;
+            spsr = spsr_und;
+            break;
+        default:
+            break;
+    }
+
+    cpsr = (cpsr & ~0x1F) | (newMode & 0x1F);
+    bus.setUserMode((cpsr & 0x1F) == 0x10);
+}
+
+void ARM920T::handleIrq() {
+    u32 oldCpsr = cpsr;
+    switchMode(0x12); // IRQ mode
+    spsr = oldCpsr;
+    r[14] = r[15] + 4; // Return address for `sub lr, lr, #4`
+    cpsr |= FLAG_I;   // Disable further IRQs
+    cpsr &= ~FLAG_T;  // ARM state
+    r[15] = (cp15_control & (1 << 13)) ? 0xFFFF0018 : 0x00000018;
+}
+
+void ARM920T::handlePrefetchAbort(u32 faultPC) {
+    u32 retAddr = faultPC + 4;
+    u32 oldCpsr = cpsr;
+    switchMode(0x17); // Abort mode
+    spsr = oldCpsr;
+    cpsr |= FLAG_I;   // Disable IRQ
+    cpsr &= ~FLAG_T;  // ARM state
+    r[14] = retAddr;  // r14_abt = faultPC + 4
+    r[15] = (cp15_control & (1 << 13)) ? 0xFFFF000C : 0x0000000C;
+
+    static int pabtCount = 0;
+    if (pabtCount++ < 30) {
+        std::cout << "[PREFETCH ABORT #" << pabtCount << "] faultPC=0x" << std::hex << faultPC
+                  << " -> vector 0x" << r[15] << " retAddr=0x" << retAddr << std::dec << std::endl;
+    }
+}
+
+void ARM920T::handleDataAbort(u32 faultAddr, Bus::MmuFault faultType) {
+    cp15_far = faultAddr;
+    cp15_fsr = static_cast<u32>(faultType);
+    u32 retAddr = (cpsr & FLAG_T) ? (r[15] + 6) : (r[15] + 4); // instruction_pc + 8
+    u32 oldCpsr = cpsr;
+    switchMode(0x17); // Abort mode
+    spsr = oldCpsr;
+    cpsr |= FLAG_I;   // Disable IRQ
+    cpsr &= ~FLAG_T;  // ARM state
+    r[14] = retAddr;  // r14_abt = instruction_pc + 8
+    r[15] = (cp15_control & (1 << 13)) ? 0xFFFF0010 : 0x00000010;
+
+    static int dabtCount = 0;
+    if (dabtCount++ < 50 || faultType == Bus::MmuFault::PAGE_PERMISSION_FAULT) {
+        std::cout << "[DATA ABORT #" << dabtCount << "] faultAddr=0x" << std::hex << faultAddr
+                  << " fsr=0x" << cp15_fsr << " -> vector 0x" << r[15]
+                  << " retAddr=0x" << retAddr << std::dec << std::endl;
+    }
+}
+
+void ARM920T::handleUndefinedInstruction(u32 instr) {
+    u32 retAddr = r[15]; // address after the undefined instruction
+    u32 oldCpsr = cpsr;
+    switchMode(0x1B); // UND mode
+    spsr = oldCpsr;
+    cpsr |= FLAG_I;   // Disable IRQ
+    cpsr &= ~FLAG_T;  // ARM state
+    r[14] = retAddr;  // r14_und = instruction_pc + 4
+    r[15] = (cp15_control & (1 << 13)) ? 0xFFFF0004 : 0x00000004;
+
+    static int undCount = 0;
+    if (undCount++ < 15) {
+        std::cout << "[UNDEF INSTR #" << undCount << "] instr=0x" << std::hex << instr
+                  << " at 0x" << (retAddr - 4) << " -> vector 0x" << r[15] << std::dec << std::endl;
+    }
 }
 
 void ARM920T::dumpState() const {
@@ -44,11 +184,30 @@ void ARM920T::dumpState() const {
 
 void ARM920T::step() {
     if (halted) return;
+
+    bus.setUserMode((cpsr & 0x1F) == 0x10);
+
+    if (!(cpsr & FLAG_I) && bus.hasPendingIrq()) {
+        handleIrq();
+        return;
+    }
+
+    u32 currentPC = r[15];
+    Bus::MmuFault fetchFault = Bus::MmuFault::NONE;
+    bus.translate(currentPC, &fetchFault);
+    if (fetchFault != Bus::MmuFault::NONE) {
+        handlePrefetchAbort(currentPC);
+        bus.tick(1);
+        return;
+    }
+
     if (isThumb()) {
         stepThumb();
     } else {
         stepARM();
     }
+
+    bus.tick(1);
 }
 
 bool ARM920T::evaluateCondition(u32 cond) const {
@@ -147,6 +306,84 @@ u32 ARM920T::shiftOperand(u32 val, u32 type, u32 amount, bool& carryOut) {
 
 void ARM920T::stepARM() {
     u32 pc = r[15];
+    if (pc == 0xc001a538) {
+        static int irqDbgCount = 0;
+        if (irqDbgCount++ < 10) {
+            std::cout << "[IRQ_DISPATCH] r0=" << std::hex << r[0] << " r1=" << r[1]
+                      << " [r1+0]=" << bus.read32(r[1])
+                      << " [r1+4]=" << bus.read32(r[1]+4)
+                      << " [r1+8]=" << bus.read32(r[1]+8) << std::dec << std::endl;
+        }
+    }
+    if (pc == 0xc001a540) {
+        static int irqCallCount = 0;
+        if (irqCallCount++ < 10) {
+            std::cout << "[IRQ_CALL] r3=" << std::hex << r[3] << " [r3]=" << bus.read32(r[3]) << std::dec << std::endl;
+        }
+    }
+    if (pc == 0xc00198c8) {
+        std::cout << "[RET_TO_USER] sp=" << std::hex << r[13]
+                  << " [sp+0x3c]=" << bus.read32(r[13] + 0x3c)
+                  << " [sp+0x40]=" << bus.read32(r[13] + 0x40)
+                  << " cpsr=" << cpsr << std::dec << std::endl;
+    }
+    if (pc == 0xc00703ac) {
+        std::cout << "[EXEC_MMAP] r9=0x" << std::hex << r[9] << " [r9+0x100]=0x" << bus.read32(r[9] + 0x100) << std::dec << std::endl;
+    }
+    if (pc == 0xc006ffc0) {
+        std::cout << "[DO_EXECVE mm_alloc call]" << std::endl;
+    }
+    if (pc == 0xc006ffc4) {
+        std::cout << "[DO_EXECVE mm_alloc ret] mm=0x" << std::hex << r[0]
+                  << " pgd=0x" << bus.read32(r[0] + 0x1c) << std::dec << std::endl;
+    }
+    if (pc == 0xc0070420) {
+        std::cout << "[PRE_SWITCH_MM] r4=0x" << std::hex << r[4]
+                  << " [r4+0x1c]=0x" << bus.read32(r[4] + 0x1c)
+                  << " r5=0x" << r[5] << " r6=0x" << r[6]
+                  << " LR=0x" << r[14] << std::dec << std::endl;
+    }
+    if (pc == 0xc0021be8) {
+        std::cout << "[SWITCH_MM] new TTB=0x" << std::hex << r[0] << " lr=0x" << r[14] << std::dec << std::endl;
+    }
+    if (pc == 0xc0125180) {
+        std::cout << "[ADC PROBE CALLED] r0=0x" << std::hex << r[0] << " lr=0x" << r[14] << std::dec << std::endl;
+    }
+    if (pc == 0xc0125020 || pc == 0xc0124f20) {
+        std::cout << "[ADC LOCK] PC=0x" << std::hex << pc << " LR=0x" << r[14]
+                  << " r0=0x" << r[0] << " sem_count=" << (i32)bus.read32(r[0])
+                  << " CPSR=0x" << cpsr << std::dec << std::endl;
+    }
+    if (pc == 0xc0147660) {
+        static int schedEntryCount = 0;
+        std::cout << "[SCHEDULE_ENTRY #" << schedEntryCount << "] LR=0x" << std::hex << r[14]
+                  << " SP=0x" << r[13] << " CPSR=0x" << cpsr << std::dec << std::endl;
+        if (schedEntryCount == 52) {
+            std::cout << "--- [STACK DUMP at SCHEDULE_ENTRY #52] ---" << std::hex << "\n";
+            for (u32 s = r[13]; s < r[13] + 160; s += 4) {
+                std::cout << "  [0x" << s << "] = 0x" << bus.read32(s) << "\n";
+            }
+            std::cout << std::dec;
+        }
+        schedEntryCount++;
+    }
+    if (pc == 0xc0147ae4) {
+        char comm10[17] = {0};
+        char comm8[17] = {0};
+        for (int i = 0; i < 16; i++) {
+            comm10[i] = bus.read8(r[10] + 0x1a4 + i);
+            comm8[i] = bus.read8(r[8] + 0x1a4 + i);
+        }
+        std::cout << "[SCHEDULE_SWITCH] next='" << comm10 << "' (0x" << std::hex << r[10]
+                  << ") prev='" << comm8 << "' (0x" << r[8] << ")" << std::dec << std::endl;
+    }
+    if (pc == 0xc0019844) {
+        std::cout << "[SWITCH_TO] r1=" << std::hex << r[1] << " r2=" << r[2] << "\n";
+        for (int i = 0; i <= 40; i += 4) {
+            std::cout << "  [r2 + " << i << "] = 0x" << bus.read32(r[2] + i) << "\n";
+        }
+        std::cout << std::dec;
+    }
     u32 instr = bus.read32(pc);
     r[15] += 4; // Advance PC to instruction address + 4
 
@@ -169,11 +406,15 @@ void ARM920T::stepARM() {
     else if ((instr & 0x0FB0F000) == 0x0320F000) {
         executeMSR(instr);
     }
-    // 5. Multiply
-    else if ((instr & 0x0E000090) == 0x00000090 && ((instr & 0x00000060) == 0)) {
+    // 5. Swap (SWP / SWPB)
+    else if ((instr & 0x0FB00FF0) == 0x01000090) {
+        executeSwap(instr);
+    }
+    // 6. Multiply
+    else if ((instr & 0x0F000090) == 0x00000090 && ((instr & 0x00000060) == 0)) {
         executeMultiply(instr);
     }
-    // 6. Halfword Data Transfer
+    // 7. Halfword Data Transfer
     else if ((instr & 0x0E000090) == 0x00000090 && ((instr & 0x00000060) != 0)) {
         executeHalfwordTransfer(instr);
     }
@@ -200,6 +441,14 @@ void ARM920T::stepARM() {
     // 12. Data Processing
     else if ((instr & 0x0C000000) == 0x00000000) {
         executeDataProcessing(instr);
+    }
+    else {
+        static int unkCount = 0;
+        if (unkCount++ < 10) {
+            std::cerr << "[CPU] Undefined/Unhandled ARM instruction 0x" << std::hex << std::setw(8) << instr
+                      << " at PC 0x" << pc << std::dec << std::endl;
+        }
+        handleUndefinedInstruction(instr);
     }
 }
 
@@ -246,6 +495,10 @@ void ARM920T::executeMSR(u32 instr) {
     if (fields & 4) mask |= 0x00FF0000; // s
     if (fields & 8) mask |= 0xFF000000; // f
 
+    if (!isSPSR && (cpsr & 0x1F) == 0x10) { // User mode
+        mask &= 0xFF000000; // Only condition flags (f) can be modified in User mode
+    }
+
     u32 val = 0;
     if (instr & (1 << 25)) { // Immediate
         u32 imm = instr & 0xFF;
@@ -259,7 +512,11 @@ void ARM920T::executeMSR(u32 instr) {
     if (isSPSR) {
         spsr = (spsr & ~mask) | (val & mask);
     } else {
-        cpsr = (cpsr & ~mask) | (val & mask);
+        u32 newCpsr = (cpsr & ~mask) | (val & mask);
+        if ((mask & 0x1F) && (newCpsr & 0x1F) != (cpsr & 0x1F)) {
+            switchMode(newCpsr & 0x1F);
+        }
+        cpsr = newCpsr;
     }
 }
 
@@ -274,6 +531,8 @@ void ARM920T::executeCP15(u32 instr) {
         else if (crn == 1) val = cp15_control;
         else if (crn == 2) val = cp15_ttb;
         else if (crn == 3) val = cp15_dacr;
+        else if (crn == 5) val = cp15_fsr;
+        else if (crn == 6) val = cp15_far;
         if (rd != 15) r[rd] = val;
     } else {
         u32 val = (rd == 15) ? (r[15] + 4) : r[rd];
@@ -281,11 +540,16 @@ void ARM920T::executeCP15(u32 instr) {
             cp15_control = val;
             bus.setMmuEnabled((val & 1) != 0);
         } else if (crn == 2) {
+            std::cout << "[CP15 TTB WRITE] val=0x" << std::hex << val << " PC=0x" << r[15] << std::dec << std::endl;
             cp15_ttb = val;
             bus.setTtb(val);
         } else if (crn == 3) {
             cp15_dacr = val;
             bus.setDacr(val);
+        } else if (crn == 5) {
+            cp15_fsr = val;
+        } else if (crn == 6) {
+            cp15_far = val;
         }
         // CRn=7 (Cache flush) and CRn=8 (TLB flush) are accepted as NOPs
     }
@@ -384,7 +648,13 @@ void ARM920T::executeDataProcessing(u32 instr) {
     if (writeResult) {
         if (rd == 15) {
             r[15] = result & ~3;
-            if (setCond) cpsr = spsr;
+            if (setCond) {
+                u32 newCpsr = spsr;
+                if ((newCpsr & 0x1F) != (cpsr & 0x1F)) {
+                    switchMode(newCpsr & 0x1F);
+                }
+                cpsr = newCpsr;
+            }
         } else {
             r[rd] = result;
             if (setCond && opcode != 0x2 && opcode != 0x3 && opcode != 0x4 && opcode != 0x5 && opcode != 0x6 && opcode != 0x7) {
@@ -424,6 +694,11 @@ void ARM920T::executeSingleDataTransfer(u32 instr) {
 
     if (isLoad) {
         u32 val = isByte ? bus.read8(targetAddr) : bus.read32(targetAddr);
+        if (bus.getLastFault() != Bus::MmuFault::NONE) {
+            handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+            bus.clearLastFault();
+            return;
+        }
         if (rd == 15) {
             if (val & 1) {
                 cpsr |= FLAG_T;
@@ -439,6 +714,11 @@ void ARM920T::executeSingleDataTransfer(u32 instr) {
         u32 val = (rd == 15) ? (r[15] + 4) : r[rd];
         if (isByte) bus.write8(targetAddr, val & 0xFF);
         else bus.write32(targetAddr, val);
+        if (bus.getLastFault() != Bus::MmuFault::NONE) {
+            handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+            bus.clearLastFault();
+            return;
+        }
     }
 
     if (!pre) r[rn] = up ? (baseVal + offset) : (baseVal - offset);
@@ -472,9 +752,19 @@ void ARM920T::executeHalfwordTransfer(u32 instr) {
         if (op == 1) val = bus.read16(targetAddr);
         else if (op == 2) val = static_cast<i32>(static_cast<i8>(bus.read8(targetAddr)));
         else if (op == 3) val = static_cast<i32>(static_cast<i16>(bus.read16(targetAddr)));
+        if (bus.getLastFault() != Bus::MmuFault::NONE) {
+            handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+            bus.clearLastFault();
+            return;
+        }
         r[rd] = val;
     } else {
         if (op == 1) bus.write16(targetAddr, r[rd] & 0xFFFF);
+        if (bus.getLastFault() != Bus::MmuFault::NONE) {
+            handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+            bus.clearLastFault();
+            return;
+        }
     }
 
     if (!pre) r[rn] = up ? (baseVal + offset) : (baseVal - offset);
@@ -498,19 +788,46 @@ void ARM920T::executeBlockDataTransfer(u32 instr) {
     if (!up) startAddr = baseVal - (count * 4);
     if (pre == up) startAddr += 4;
 
+    bool userBank = sBit && !(regList & (1 << 15));
+
     u32 currAddr = startAddr;
     for (int i = 0; i < 16; ++i) {
         if (regList & (1 << i)) {
             if (isLoad) {
                 u32 val = bus.read32(currAddr);
-                r[i] = val;
+                if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                    handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                    bus.clearLastFault();
+                    return;
+                }
+                if (userBank && i == 13) {
+                    r13_usr = val;
+                } else if (userBank && i == 14) {
+                    r14_usr = val;
+                } else {
+                    r[i] = val;
+                }
                 if (i == 15) {
                     r[15] &= ~3;
-                    if (sBit) cpsr = spsr;
+                    if (sBit) {
+                        u32 newCpsr = spsr;
+                        if ((newCpsr & 0x1F) != (cpsr & 0x1F)) {
+                            switchMode(newCpsr & 0x1F);
+                        }
+                        cpsr = newCpsr;
+                    }
                 }
             } else {
-                u32 val = (i == 15) ? (r[15] + 4) : r[i];
+                u32 val = 0;
+                if (userBank && i == 13) val = r13_usr;
+                else if (userBank && i == 14) val = r14_usr;
+                else val = (i == 15) ? (r[15] + 4) : r[i];
                 bus.write32(currAddr, val);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                    handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                    bus.clearLastFault();
+                    return;
+                }
             }
             currAddr += 4;
         }
@@ -558,65 +875,630 @@ void ARM920T::executeMultiply(u32 instr) {
     }
 }
 
+void ARM920T::executeSwap(u32 instr) {
+    u32 rn = (instr >> 16) & 0xF;
+    u32 rd = (instr >> 12) & 0xF;
+    u32 rm = instr & 0xF;
+    u32 addr = r[rn];
+    bool isByte = (instr & (1 << 22)) != 0;
+
+    if (isByte) {
+        u8 temp = bus.read8(addr);
+        if (bus.getLastFault() != Bus::MmuFault::NONE) {
+            handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+            bus.clearLastFault();
+            return;
+        }
+        bus.write8(addr, r[rm] & 0xFF);
+        if (bus.getLastFault() != Bus::MmuFault::NONE) {
+            handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+            bus.clearLastFault();
+            return;
+        }
+        r[rd] = temp;
+    } else {
+        u32 temp = bus.read32(addr);
+        if (bus.getLastFault() != Bus::MmuFault::NONE) {
+            handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+            bus.clearLastFault();
+            return;
+        }
+        bus.write32(addr, r[rm]);
+        if (bus.getLastFault() != Bus::MmuFault::NONE) {
+            handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+            bus.clearLastFault();
+            return;
+        }
+        r[rd] = temp;
+    }
+}
+
 void ARM920T::executeSWI(u32 instr) {
-    (void)instr;
-    // Software interrupt / supervisor call
-    spsr = cpsr;
-    cpsr = (cpsr & ~0x1F) | 0x13; // Supervisor mode
+    u32 swiNum = instr & 0x00FFFFFF;
+    u32 retAddr = r[15];
+    u32 oldCpsr = cpsr;
+    switchMode(0x13); // Supervisor mode
+    spsr = oldCpsr;
     cpsr |= FLAG_I;              // Disable IRQ
-    r[14] = r[15];               // Save return address
-    r[15] = 0x00000008;          // SWI vector
+    cpsr &= ~FLAG_T;             // ARM state
+    r[14] = retAddr;             // Save return address
+    r[15] = (cp15_control & (1 << 13)) ? 0xFFFF0008 : 0x00000008;
+
+    if (bus.isMmuEnabled()) {
+        u32 nr = swiNum & 0x000FFFFF;
+        if (nr == 0x0b) { // execve
+            std::string fn;
+            for (int i = 0; i < 64; ++i) {
+                u8 ch = 0;
+                if (!bus.peek8(r[0] + i, ch) || ch == 0) break;
+                fn += static_cast<char>(ch);
+            }
+            std::cout << "\n>>> [USERSPACE EXECVE] \"" << fn << "\" <<<\n" << std::endl;
+        } else if (nr == 0x05) { // open
+            std::string fn;
+            for (int i = 0; i < 64; ++i) {
+                u8 ch = 0;
+                if (!bus.peek8(r[0] + i, ch) || ch == 0) break;
+                fn += static_cast<char>(ch);
+            }
+            std::cout << "[USERSPACE OPEN] \"" << fn << "\"" << std::endl;
+        } else if (nr == 0x04) { // write
+            std::string out;
+            u32 len = std::min(r[2], 128u);
+            for (u32 i = 0; i < len; ++i) {
+                u8 ch = 0;
+                if (!bus.peek8(r[1] + i, ch)) break;
+                out += static_cast<char>(ch);
+            }
+            std::cout << "[USERSPACE WRITE fd=" << r[0] << "] \"" << out << "\"" << std::endl;
+        } else {
+            std::cout << "[SWI] Syscall 0x" << std::hex << swiNum << " called from 0x" << (retAddr - 4)
+                      << " -> vector 0x" << r[15] << std::dec << std::endl;
+        }
+    }
 }
 
 void ARM920T::stepThumb() {
-    // Thumb instruction decoder
-    u32 pc = r[15];
-    u16 instr = bus.read16(pc);
+    u32 instrPC = r[15];
+    u16 instr = bus.read16(instrPC);
     r[15] += 2;
 
-    u32 op = instr >> 13;
-    switch (op) {
-        case 0: { // Shift by immediate or add/subtract
-            u32 subOp = (instr >> 11) & 3;
-            u32 rd = instr & 7;
-            u32 rs = (instr >> 3) & 7;
-            u32 offset = (instr >> 6) & 0x1F;
-            bool dummy = false;
-            if (subOp == 3) { // Add/subtract
-                bool isImm = (instr & (1 << 10)) != 0;
-                bool isSub = (instr & (1 << 9)) != 0;
-                u32 rn = (instr >> 6) & 7;
-                u32 val = isImm ? rn : r[rn];
-                u32 res = isSub ? (r[rs] - val) : (r[rs] + val);
-                r[rd] = res;
-                if (isSub) setSubFlags(r[rs], val, res);
-                else setAddFlags(r[rs], val, res);
+    // Format 2: Add/subtract (register / 3-bit immediate)
+    if ((instr & 0xF800) == 0x1800) {
+        bool isImm = (instr & (1 << 10)) != 0;
+        bool isSub = (instr & (1 << 9)) != 0;
+        u32 rn = (instr >> 6) & 7;
+        u32 rs = (instr >> 3) & 7;
+        u32 rd = instr & 7;
+        u32 op1 = r[rs];
+        u32 op2 = isImm ? rn : r[rn];
+        u32 res = isSub ? (op1 - op2) : (op1 + op2);
+        r[rd] = res;
+        if (isSub) setSubFlags(op1, op2, res);
+        else setAddFlags(op1, op2, res);
+        return;
+    }
+
+    // Format 1: Move shifted register
+    if ((instr & 0xE000) == 0x0000) {
+        u32 subOp = (instr >> 11) & 3;
+        u32 offset = (instr >> 6) & 0x1F;
+        u32 rs = (instr >> 3) & 7;
+        u32 rd = instr & 7;
+        u32 val = r[rs];
+        u32 res = 0;
+        bool carry = (cpsr & FLAG_C) != 0;
+
+        if (subOp == 0) { // LSL
+            if (offset == 0) {
+                res = val; // MOV Rd, Rs (carry unaffected)
             } else {
-                r[rd] = shiftOperand(r[rs], subOp, offset, dummy);
-                setNZFlags(r[rd]);
+                carry = (val >> (32 - offset)) & 1;
+                res = val << offset;
+                if (carry) cpsr |= FLAG_C; else cpsr &= ~FLAG_C;
             }
-            break;
+        } else if (subOp == 1) { // LSR
+            if (offset == 0) { // LSR #32
+                carry = (val >> 31) & 1;
+                res = 0;
+            } else {
+                carry = (val >> (offset - 1)) & 1;
+                res = val >> offset;
+            }
+            if (carry) cpsr |= FLAG_C; else cpsr &= ~FLAG_C;
+        } else if (subOp == 2) { // ASR
+            if (offset == 0) { // ASR #32
+                carry = (val >> 31) & 1;
+                res = (val & 0x80000000) ? 0xFFFFFFFF : 0;
+            } else {
+                carry = (static_cast<i32>(val) >> (offset - 1)) & 1;
+                res = static_cast<u32>(static_cast<i32>(val) >> offset);
+            }
+            if (carry) cpsr |= FLAG_C; else cpsr &= ~FLAG_C;
         }
-        case 1: { // Move/compare/add/subtract immediate
-            u32 subOp = (instr >> 11) & 3;
-            u32 rd = (instr >> 8) & 7;
-            u32 imm = instr & 0xFF;
-            if (subOp == 0) { r[rd] = imm; setNZFlags(imm); }
-            else if (subOp == 1) { setSubFlags(r[rd], imm, r[rd] - imm); }
-            else if (subOp == 2) { setAddFlags(r[rd], imm, r[rd] + imm); r[rd] += imm; }
-            else if (subOp == 3) { setSubFlags(r[rd], imm, r[rd] - imm); r[rd] -= imm; }
-            break;
+        r[rd] = res;
+        setNZFlags(res);
+        return;
+    }
+
+    // Format 3: Move/compare/add/subtract immediate
+    if ((instr & 0xE000) == 0x2000) {
+        u32 subOp = (instr >> 11) & 3;
+        u32 rd = (instr >> 8) & 7;
+        u32 imm = instr & 0xFF;
+        if (subOp == 0) { // MOV
+            r[rd] = imm;
+            setNZFlags(imm);
+        } else if (subOp == 1) { // CMP
+            setSubFlags(r[rd], imm, r[rd] - imm);
+        } else if (subOp == 2) { // ADD
+            u32 op1 = r[rd];
+            u32 res = op1 + imm;
+            r[rd] = res;
+            setAddFlags(op1, imm, res);
+        } else if (subOp == 3) { // SUB
+            u32 op1 = r[rd];
+            u32 res = op1 - imm;
+            r[rd] = res;
+            setSubFlags(op1, imm, res);
         }
-        default:
-            break;
+        return;
+    }
+
+    // Format 4: ALU operations
+    if ((instr & 0xFC00) == 0x4000) {
+        u32 aluOp = (instr >> 6) & 0xF;
+        u32 rs = (instr >> 3) & 7;
+        u32 rd = instr & 7;
+        u32 op1 = r[rd];
+        u32 op2 = r[rs];
+        switch (aluOp) {
+            case 0x0: { // AND
+                r[rd] = op1 & op2;
+                setNZFlags(r[rd]);
+                break;
+            }
+            case 0x1: { // EOR
+                r[rd] = op1 ^ op2;
+                setNZFlags(r[rd]);
+                break;
+            }
+            case 0x2: { // LSL
+                u32 amt = op2 & 0xFF;
+                if (amt == 0) {
+                    r[rd] = op1;
+                } else if (amt < 32) {
+                    bool c = (op1 >> (32 - amt)) & 1;
+                    if (c) cpsr |= FLAG_C; else cpsr &= ~FLAG_C;
+                    r[rd] = op1 << amt;
+                } else if (amt == 32) {
+                    bool c = op1 & 1;
+                    if (c) cpsr |= FLAG_C; else cpsr &= ~FLAG_C;
+                    r[rd] = 0;
+                } else {
+                    cpsr &= ~FLAG_C;
+                    r[rd] = 0;
+                }
+                setNZFlags(r[rd]);
+                break;
+            }
+            case 0x3: { // LSR
+                u32 amt = op2 & 0xFF;
+                if (amt == 0) {
+                    r[rd] = op1;
+                } else if (amt < 32) {
+                    bool c = (op1 >> (amt - 1)) & 1;
+                    if (c) cpsr |= FLAG_C; else cpsr &= ~FLAG_C;
+                    r[rd] = op1 >> amt;
+                } else if (amt == 32) {
+                    bool c = (op1 >> 31) & 1;
+                    if (c) cpsr |= FLAG_C; else cpsr &= ~FLAG_C;
+                    r[rd] = 0;
+                } else {
+                    cpsr &= ~FLAG_C;
+                    r[rd] = 0;
+                }
+                setNZFlags(r[rd]);
+                break;
+            }
+            case 0x4: { // ASR
+                u32 amt = op2 & 0xFF;
+                if (amt == 0) {
+                    r[rd] = op1;
+                } else if (amt < 32) {
+                    bool c = (static_cast<i32>(op1) >> (amt - 1)) & 1;
+                    if (c) cpsr |= FLAG_C; else cpsr &= ~FLAG_C;
+                    r[rd] = static_cast<u32>(static_cast<i32>(op1) >> amt);
+                } else {
+                    bool c = (op1 >> 31) & 1;
+                    if (c) cpsr |= FLAG_C; else cpsr &= ~FLAG_C;
+                    r[rd] = (op1 & 0x80000000) ? 0xFFFFFFFF : 0;
+                }
+                setNZFlags(r[rd]);
+                break;
+            }
+            case 0x5: { // ADC
+                u32 c = (cpsr & FLAG_C) ? 1 : 0;
+                u32 res = op1 + op2 + c;
+                r[rd] = res;
+                setNZFlags(res);
+                if (static_cast<u64>(op1) + op2 + c > 0xFFFFFFFFULL) cpsr |= FLAG_C; else cpsr &= ~FLAG_C;
+                if (((op1 ^ res) & (op2 ^ res) & 0x80000000) != 0) cpsr |= FLAG_V; else cpsr &= ~FLAG_V;
+                break;
+            }
+            case 0x6: { // SBC
+                u32 notC = (cpsr & FLAG_C) ? 0 : 1;
+                u32 res = op1 - op2 - notC;
+                r[rd] = res;
+                setNZFlags(res);
+                if (static_cast<u64>(op1) >= static_cast<u64>(op2) + notC) cpsr |= FLAG_C; else cpsr &= ~FLAG_C;
+                if (((op1 ^ op2) & (op1 ^ res) & 0x80000000) != 0) cpsr |= FLAG_V; else cpsr &= ~FLAG_V;
+                break;
+            }
+            case 0x7: { // ROR
+                u32 amt = op2 & 0xFF;
+                if (amt == 0) {
+                    r[rd] = op1;
+                } else {
+                    u32 amt5 = amt & 0x1F;
+                    bool c = (amt5 == 0) ? ((op1 >> 31) & 1) : ((op1 >> (amt5 - 1)) & 1);
+                    if (c) cpsr |= FLAG_C; else cpsr &= ~FLAG_C;
+                    r[rd] = (amt5 == 0) ? op1 : ((op1 >> amt5) | (op1 << (32 - amt5)));
+                }
+                setNZFlags(r[rd]);
+                break;
+            }
+            case 0x8: { // TST
+                setNZFlags(op1 & op2);
+                break;
+            }
+            case 0x9: { // NEG
+                u32 res = 0 - op2;
+                r[rd] = res;
+                setSubFlags(0, op2, res);
+                break;
+            }
+            case 0xA: { // CMP
+                setSubFlags(op1, op2, op1 - op2);
+                break;
+            }
+            case 0xB: { // CMN
+                setAddFlags(op1, op2, op1 + op2);
+                break;
+            }
+            case 0xC: { // ORR
+                r[rd] = op1 | op2;
+                setNZFlags(r[rd]);
+                break;
+            }
+            case 0xD: { // MUL
+                r[rd] = op1 * op2;
+                setNZFlags(r[rd]);
+                break;
+            }
+            case 0xE: { // BIC
+                r[rd] = op1 & ~op2;
+                setNZFlags(r[rd]);
+                break;
+            }
+            case 0xF: { // MVN
+                r[rd] = ~op2;
+                setNZFlags(r[rd]);
+                break;
+            }
+        }
+        return;
+    }
+
+    // Format 5: Hi register operations / branch exchange
+    if ((instr & 0xFC00) == 0x4400) {
+        u32 op5 = (instr >> 8) & 3;
+        u32 d = (instr & 7) | ((instr & 0x80) >> 4);
+        u32 s = ((instr >> 3) & 7) | ((instr & 0x40) >> 3);
+        u32 valS = (s == 15) ? (instrPC + 4) : r[s];
+        u32 valD = (d == 15) ? (instrPC + 4) : r[d];
+        if (op5 == 0) { // ADD
+            u32 res = valD + valS;
+            if (d == 15) r[15] = res & ~1;
+            else r[d] = res;
+        } else if (op5 == 1) { // CMP
+            setSubFlags(valD, valS, valD - valS);
+        } else if (op5 == 2) { // MOV
+            if (d == 15) r[15] = valS & ~1;
+            else r[d] = valS;
+        } else if (op5 == 3) { // BX / BLX
+            if (instr & 0x80) { // BLX
+                r[14] = (instrPC + 2) | 1;
+            }
+            if (valS & 1) {
+                cpsr |= FLAG_T;
+                r[15] = valS & ~1;
+            } else {
+                cpsr &= ~FLAG_T;
+                r[15] = valS & ~3;
+            }
+        }
+        return;
+    }
+
+    // Format 6: PC-relative load
+    if ((instr & 0xF800) == 0x4800) {
+        u32 rd = (instr >> 8) & 7;
+        u32 imm = (instr & 0xFF) * 4;
+        u32 addr = ((instrPC + 4) & ~3) + imm;
+        u32 val = bus.read32(addr);
+        if (bus.getLastFault() != Bus::MmuFault::NONE) {
+            handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+            bus.clearLastFault();
+            return;
+        }
+        r[rd] = val;
+        return;
+    }
+
+    // Format 7 & Format 8: Load/store register offset / sign-extended byte/halfword
+    if ((instr & 0xF000) == 0x5000) {
+        bool bit11 = (instr & (1 << 11)) != 0;
+        u32 ro = (instr >> 6) & 7;
+        u32 rb = (instr >> 3) & 7;
+        u32 rd = instr & 7;
+        u32 addr = r[rb] + r[ro];
+        if (!bit11) { // Format 7: Load/store with register offset
+            bool load = (instr & (1 << 10)) != 0;
+            bool isByte = (instr & (1 << 9)) != 0;
+            if (load) {
+                if (isByte) {
+                    u8 val = bus.read8(addr);
+                    if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+                    r[rd] = val;
+                } else {
+                    u32 val = bus.read32(addr);
+                    if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+                    r[rd] = val;
+                }
+            } else {
+                if (isByte) {
+                    bus.write8(addr, r[rd] & 0xFF);
+                    if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+                } else {
+                    bus.write32(addr, r[rd]);
+                    if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+                }
+            }
+        } else { // Format 8: Load/store sign-extended byte/halfword
+            u32 op8 = (instr >> 9) & 3;
+            if (op8 == 0) { // STRH
+                bus.write16(addr, r[rd] & 0xFFFF);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+            } else if (op8 == 1) { // LDSB
+                u8 val = bus.read8(addr);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+                r[rd] = static_cast<u32>(static_cast<i8>(val));
+            } else if (op8 == 2) { // LDRH
+                u16 val = bus.read16(addr);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+                r[rd] = val;
+            } else if (op8 == 3) { // LDSH
+                u16 val = bus.read16(addr);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+                r[rd] = static_cast<u32>(static_cast<i16>(val));
+            }
+        }
+        return;
+    }
+
+    // Format 9: Load/store with immediate offset
+    if ((instr & 0xE000) == 0x6000) {
+        bool isByte = (instr & (1 << 12)) != 0;
+        bool load = (instr & (1 << 11)) != 0;
+        u32 offset5 = (instr >> 6) & 0x1F;
+        u32 rb = (instr >> 3) & 7;
+        u32 rd = instr & 7;
+        u32 addr = r[rb] + (isByte ? offset5 : (offset5 * 4));
+        if (load) {
+            if (isByte) {
+                u8 val = bus.read8(addr);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+                r[rd] = val;
+            } else {
+                u32 val = bus.read32(addr);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+                r[rd] = val;
+            }
+        } else {
+            if (isByte) {
+                bus.write8(addr, r[rd] & 0xFF);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+            } else {
+                bus.write32(addr, r[rd]);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+            }
+        }
+        return;
+    }
+
+    // Format 10: Load/store halfword
+    if ((instr & 0xF000) == 0x8000) {
+        bool load = (instr & (1 << 11)) != 0;
+        u32 offset5 = (instr >> 6) & 0x1F;
+        u32 rb = (instr >> 3) & 7;
+        u32 rd = instr & 7;
+        u32 addr = r[rb] + (offset5 * 2);
+        if (load) {
+            u16 val = bus.read16(addr);
+            if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+            r[rd] = val;
+        } else {
+            bus.write16(addr, r[rd] & 0xFFFF);
+            if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+        }
+        return;
+    }
+
+    // Format 11: SP-relative load/store
+    if ((instr & 0xF000) == 0x9000) {
+        bool load = (instr & (1 << 11)) != 0;
+        u32 rd = (instr >> 8) & 7;
+        u32 imm = (instr & 0xFF) * 4;
+        u32 addr = r[13] + imm;
+        if (load) {
+            u32 val = bus.read32(addr);
+            if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+            r[rd] = val;
+        } else {
+            bus.write32(addr, r[rd]);
+            if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+        }
+        return;
+    }
+
+    // Format 12: Load address
+    if ((instr & 0xF000) == 0xA000) {
+        bool sp = (instr & (1 << 11)) != 0;
+        u32 rd = (instr >> 8) & 7;
+        u32 imm = (instr & 0xFF) * 4;
+        if (sp) r[rd] = r[13] + imm;
+        else r[rd] = ((instrPC + 4) & ~3) + imm;
+        return;
+    }
+
+    // Format 13: Add offset to Stack Pointer
+    if ((instr & 0xFF00) == 0xB000) {
+        bool sub = (instr & (1 << 7)) != 0;
+        u32 imm = (instr & 0x7F) * 4;
+        if (sub) r[13] -= imm;
+        else r[13] += imm;
+        return;
+    }
+
+    // Format 14: Push/Pop registers
+    if ((instr & 0xF600) == 0xB400) { // PUSH
+        bool rBit = (instr & (1 << 8)) != 0; // LR
+        u32 count = 0;
+        for (int i = 0; i < 8; ++i) if (instr & (1 << i)) count++;
+        if (rBit) count++;
+        u32 addr = r[13] - count * 4;
+        r[13] = addr;
+        for (int i = 0; i < 8; ++i) {
+            if (instr & (1 << i)) {
+                bus.write32(addr, r[i]);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+                addr += 4;
+            }
+        }
+        if (rBit) {
+            bus.write32(addr, r[14]);
+            if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+        }
+        return;
+    }
+    if ((instr & 0xF600) == 0xBC00) { // POP
+        bool rBit = (instr & (1 << 8)) != 0; // PC
+        u32 addr = r[13];
+        for (int i = 0; i < 8; ++i) {
+            if (instr & (1 << i)) {
+                r[i] = bus.read32(addr);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+                addr += 4;
+            }
+        }
+        if (rBit) {
+            u32 target = bus.read32(addr);
+            if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+            addr += 4;
+            if (target & 1) {
+                cpsr |= FLAG_T;
+                r[15] = target & ~1;
+            } else {
+                cpsr &= ~FLAG_T;
+                r[15] = target & ~3;
+            }
+        }
+        r[13] = addr;
+        return;
+    }
+
+    // Format 15: Multiple load/store
+    if ((instr & 0xF000) == 0xC000) {
+        bool load = (instr & (1 << 11)) != 0;
+        u32 rb = (instr >> 8) & 7;
+        u32 addr = r[rb];
+        for (int i = 0; i < 8; ++i) {
+            if (instr & (1 << i)) {
+                if (load) {
+                    r[i] = bus.read32(addr);
+                    if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+                } else {
+                    bus.write32(addr, r[i]);
+                    if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+                }
+                addr += 4;
+            }
+        }
+        if (!load || !(instr & (1 << rb))) {
+            r[rb] = addr;
+        }
+        return;
+    }
+
+    // Format 17: Software Interrupt
+    if ((instr & 0xFF00) == 0xDF00) {
+        executeSWI(instr & 0xFF);
+        return;
+    }
+
+    // Format 16: Conditional branch
+    if ((instr & 0xF000) == 0xD000) {
+        u32 cond = (instr >> 8) & 0xF;
+        if (cond <= 0xD) {
+            if (evaluateCondition(cond)) {
+                i32 offset = static_cast<i32>(static_cast<i8>(instr & 0xFF)) * 2;
+                r[15] = (instrPC + 4) + offset;
+            }
+        }
+        return;
+    }
+
+    // Format 18: Unconditional branch
+    if ((instr & 0xF800) == 0xE000) {
+        i32 off = instr & 0x7FF;
+        if (off & 0x400) off |= ~0x7FF;
+        r[15] = (instrPC + 4) + (off * 2);
+        return;
+    }
+
+    // Format 19: Long branch with link / BLX
+    if ((instr & 0xE000) == 0xE000) {
+        u32 op19 = (instr >> 11) & 0x1F;
+        if (op19 == 0x1E) { // BL prefix
+            i32 off = instr & 0x7FF;
+            if (off & 0x400) off |= ~0x7FF;
+            r[14] = (instrPC + 4) + (off << 12);
+            return;
+        } else if (op19 == 0x1F) { // BL suffix
+            u32 target = r[14] + ((instr & 0x7FF) << 1);
+            r[14] = r[15] | 1;
+            r[15] = target;
+            return;
+        } else if (op19 == 0x1D) { // BLX suffix
+            u32 target = (r[14] + ((instr & 0x7FF) << 1)) & ~3;
+            r[14] = r[15] | 1;
+            cpsr &= ~FLAG_T;
+            r[15] = target;
+            return;
+        }
     }
 }
 
 std::string ARM920T::disassembleCurrentARM() const {
     std::stringstream ss;
-    u32 instr = bus.read32(r[15]);
-    ss << "0x" << std::hex << std::setw(8) << std::setfill('0') << r[15] << ": "
-       << std::setw(8) << instr;
+    u32 instr = 0;
+    if (bus.peek32(r[15], instr)) {
+        ss << "0x" << std::hex << std::setw(8) << std::setfill('0') << r[15] << ": "
+           << std::setw(8) << instr;
+    } else {
+        ss << "0x" << std::hex << std::setw(8) << std::setfill('0') << r[15] << ": [unmapped]";
+    }
     return ss.str();
 }
 

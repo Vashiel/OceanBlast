@@ -24,6 +24,9 @@ dumps/
 *.dump
 *.raw
 *.img
+*.sqsh
+*.bmp
+run_*.txt
 
 # IDE & OS files
 .vscode/

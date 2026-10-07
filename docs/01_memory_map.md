@@ -17,7 +17,7 @@
 
 ## 2. Integrated Peripheral MMIO Registers (Samsung S3C2410A)
 
-Referenz: *Samsung S3C2410A User's Manual (Rev 1.0, März 2004)*
+Reference: *Samsung S3C2410A User's Manual (Rev 1.0, March 2004)*
 
 | Base Address | Peripheral | Key Functions / Registers |
 | :--- | :--- | :--- |
@@ -34,7 +34,7 @@ Referenz: *Samsung S3C2410A User's Manual (Rev 1.0, März 2004)*
 | `0x53000000` | **Watchdog Timer (WDT)** | `WTCON`, `WTDAT`, `WTCNT` |
 | `0x54000000` | **IIC Bus Interface** | `IICCON`, `IICSTAT`, `IICADD`, `IICDS` |
 | `0x55000000` | **IIS Audio Interface** | `IISCON`, `IISMOD`, `IISPSR`, `IISFCON`, `IISFIFO` |
-| `0x56000000` | **I/O Ports (GPIO)** | `GPACON` bis `GPHCON`, Daten- und Pull-Up-Register |
+| `0x56000000` | **I/O Ports (GPIO)** | `GPACON` to `GPHCON`, Data and Pull-Up registers |
 | `0x57000000` | **Real-Time Clock (RTC)** | `RTCCON`, `TICNT`, `RTCALM`, `BCDSEC-YEAR` |
 | `0x58000000` | **ADC & Touch Screen** | `ADCCON`, `ADCTSC`, `ADCDAT0`, `ADCDAT1`, `ADCDLY` |
 | `0x59000000` | **SPI Interface** | `SPCON`, `SPSTA`, `SPPIN`, `SPPRE`, `SPTDAT`, `SPRDAT` |

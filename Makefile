@@ -1,5 +1,5 @@
 CXX ?= g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -Isrc
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -g -Isrc
 
 TARGET = bin/oceanblast.exe
 
@@ -13,7 +13,6 @@ OBJS = $(SRCS:.cpp=.o)
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	@if not exist bin mkdir bin
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 %.o: %.cpp
