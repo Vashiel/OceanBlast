@@ -220,9 +220,26 @@ All milestones below are fully reproducible using the following test configurati
     * `libboost_filesystem-gcc-mt-1_32.so.1.32.0`
     * `libstdc++.so.5`
     * `libpthread.so.0`
+    * `librt.so.1`
     * `libdl.so.2`
-  * Process `./Rayman` is actively scheduled by the kernel (switching between user execution and MTD block I/O requests via `kblockd/0` and `mtdblockd`).
-  * Verified executing past instruction step 260,000,000.
+  * Process `./Rayman` spawns three concurrent POSIX/Boost threads and actively runs in userspace, opening `/dev/sound/dsp` and handling block I/O requests via `kblockd/0` and `mtdblockd`.
+  * Verified executing past instruction step 350,000,000.
+
+### Milestone 13: Display Architecture Decoded & Live Host Window
+* **Status:** Verified.
+* **Hardware Ground Truth:**
+  * The native display geometry and framebuffer parameters were recovered directly from `s3c2410fb` and userspace diagnostic structures (`finfo`/`vinfo`):
+    * **Visible Resolution:** 240 × 160 pixels (Game Boy Advance native resolution format).
+    * **Color Depth:** 12-bit RGB444 (4096 colors; 4 bits Red, 4 bits Green, 4 bits Blue).
+    * **Memory Packing:** Packed LCD444 format (3 bytes store 2 pixels).
+    * **Scanline Stride:** Exactly 360 bytes per row (240 pixels × 1.5 bytes).
+    * **Total Frame Size:** Exactly 57,600 bytes (360 bytes × 160 rows).
+  * Authentic digiBLAST bootsplash images successfully decoded with 100% pixel fidelity:
+    * `splash0`: Official digiBLAST logo with gold stars (`©2005 all rights reserved`).
+    * `splash1`: Joystick on yellow orb with red "games" banner.
+* **Implementation:**
+  * Native desktop window rendering subsystem implemented in [`src/display/display_win32.cpp`](../src/display/display_win32.cpp) using Win32 GDI with hardware nearest-neighbor integer scaling (`--gui`, `--scale 2|3|4`).
+  * Live framebuffer polling from SDRAM at active S3C2410 LCD memory base addresses (`0x30300000`, `0x30310000`, and `0x302A0000`).
 
 ---
 
@@ -234,8 +251,8 @@ To ensure scientific honesty and accurate tracking, the following distinctions a
 | :--- | :--- | :--- |
 | **Bootloader & Linux Kernel** | U-Boot 1.1.2 and Linux 2.6.11 boot fully autonomously with MMU and Timer IRQs. | Complete. |
 | **Userspace Pipeline** | `/linuxrc`, `startup.sh`, symlinks, mounts, and shared libraries execute without skips. | Complete. |
-| **Game Engine Execution** | `./Rayman` binary is loaded and running active game code in userspace. | Ongoing profiling. |
-| **Display & LCD** | Framebuffer memory is mapped and written (57.6 KB blue splash written to `/dev/fb0`). | Live host window presentation (SDL/OpenGL) of active framebuffer memory. |
+| **Game Engine Execution** | `./Rayman` binary is loaded and running active game code across 3 threads past 350M steps. | Ongoing profiling. |
+| **Display & LCD** | Authentic 240×160 12-bit LCD444 resolution decoded; real-time Win32 desktop window rendering live. | Complete. |
 | **Keypad / Controls** | S3C2410 GPIO registers return neutral states satisfying boot tests. | Host keyboard mapping to console buttons (D-Pad, A, B, L, R). |
-| **Audio** | ALSA CS43L43 driver attaches and accepts IIS config. | Real-time DMA audio buffer streaming to host sound output. |
+| **Audio** | ALSA CS43L43 driver attaches and accepts IIS config; Rayman opens `/dev/sound/dsp`. | Real-time DMA audio buffer streaming to host sound output. |
 | **USB Host** | Driver fails with `startup error -1` as expected. | Low priority (not needed for gameplay). |

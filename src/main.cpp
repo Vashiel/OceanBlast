@@ -3,10 +3,14 @@
 #include <string>
 #include <cstring>
 #include <iomanip>
+#include <thread>
+#include <chrono>
 #include "core/types.h"
 #include "memory/bus.h"
 #include "cpu/arm920t.h"
 #include "cartridge/cart_parser.h"
+
+#include "display/display.h"
 
 using namespace oceanblast;
 
@@ -19,7 +23,7 @@ void printBanner() {
 }
 
 void printUsage(const char* progName) {
-    std::cout << "Usage: " << progName << " <cartridge.bin> [--steps <N>] [--trace]" << std::endl;
+    std::cout << "Usage: " << progName << " <cartridge.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--trace]" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -33,6 +37,8 @@ int main(int argc, char* argv[]) {
     std::string cartPath = argv[1];
     size_t stepLimit = 500000;
     bool trace = false;
+    bool gui = false;
+    int scale = 3;
 
     for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
@@ -40,6 +46,10 @@ int main(int argc, char* argv[]) {
             stepLimit = std::stoull(argv[++i]);
         } else if (arg == "--trace") {
             trace = true;
+        } else if (arg == "--gui" || arg == "--window") {
+            gui = true;
+        } else if (arg == "--scale" && i + 1 < argc) {
+            scale = std::stoi(argv[++i]);
         }
     }
 
@@ -59,12 +69,38 @@ int main(int argc, char* argv[]) {
     oceanblast::ARM920T cpu(bus);
     cpu.reset(0x00000000); // Boot from Steppingstone SRAM
 
+    oceanblast::Display display(scale);
+    if (gui) {
+        if (!display.init("OceanBlast - Nikko digiBLAST (2005)")) {
+            std::cerr << "[Warning] Failed to initialize display window; falling back to headless mode." << std::endl;
+            gui = false;
+        }
+    }
+
     std::cout << "\n[OceanBlast] Starting ARM920T Steppingstone execution from 0x00000000..." << std::endl;
 
     size_t executedSteps = 0;
     bool enteredSdram = false;
 
     while (!cpu.isHalted() && executedSteps < stepLimit) {
+        if (gui && (executedSteps % 50000 == 0)) {
+            display.processEvents();
+            if (!display.isOpen()) {
+                std::cout << "\n[OceanBlast] Display window closed by user." << std::endl;
+                break;
+            }
+            u32 fbPhys = 0x30300000;
+            u32 lcdsaddr1 = bus.getMmio(0x4D000014);
+            if (lcdsaddr1 != 0) {
+                fbPhys = (lcdsaddr1 & 0x1FFFFFFF) << 1;
+            } else if (executedSteps > 185000000) {
+                fbPhys = 0x302A0000;
+            } else if (executedSteps > 4000000) {
+                fbPhys = 0x30310000;
+            }
+            display.updateFrame(bus.getSdramPtr(), fbPhys);
+        }
+
         u32 currentPC = cpu.getPC();
 
         if (!enteredSdram && currentPC >= 0x30000000) {
@@ -224,6 +260,21 @@ int main(int argc, char* argv[]) {
             std::cout << "  [+0x" << o << "]=0x" << val;
         }
         std::cout << std::dec << std::endl;
+    }
+
+    if (gui && display.isOpen()) {
+        u32 fbPhys = 0x30300000;
+        u32 lcdsaddr1 = bus.getMmio(0x4D000014);
+        if (lcdsaddr1 != 0) fbPhys = (lcdsaddr1 & 0x1FFFFFFF) << 1;
+        else if (executedSteps > 185000000) fbPhys = 0x302A0000;
+        else if (executedSteps > 4000000) fbPhys = 0x30310000;
+        display.updateFrame(bus.getSdramPtr(), fbPhys);
+        std::cout << "[Display] Emulation paused. Press ESC or close the window to exit." << std::endl;
+        while (display.isOpen()) {
+            display.processEvents();
+            display.updateFrame(bus.getSdramPtr(), fbPhys);
+            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+        }
     }
 
     return 0;

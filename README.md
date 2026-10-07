@@ -70,7 +70,7 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 * [x] **Multi-Process Initialization (`startup.sh`):** `/linuxrc` and `/usr/packages/startupscripts/startup.sh` successfully execute all three symlinks (`/dev/dsp`, `/dev/fb0`, `/dev/video`), set dynamic library paths (`setpath`), and mount system filesystems via `/bin/mount` (`/bin/busybox`).
 * [x] **Diagnostic Keypad & Framebuffer Splash (`fb_test`):** `/usr/packages/showversion/bin/iskeydown` tests hardware button lines; `/usr/packages/fb_test/bin/fb_test` opens `/dev/fb0` and transfers 57,600 bytes of splash image data to framebuffer memory.
 * [x] **Commercial Game Binary Launch:** Startup script executes game binary (`./Rayman`); Linux dynamic linker maps `libSDL-1.2.so.0`, `libboost_thread`, `libboost_filesystem`, `libstdc++.so.5`, `libpthread.so.0`, and `libdl.so.2`; game code actively scheduled past 260M steps.
-* [ ] **Live Host Display Output:** Rendering the active framebuffer memory from SDRAM into a host window (SDL2/OpenGL).
+* [x] **Live Host Display Output:** Real-time native desktop window rendering the authentic S3C2410 240×160 12-bit packed LCD444 framebuffer directly from SDRAM with configurable integer scaling (`--gui`, `--scale 2|3|4`).
 * [ ] **Host Input Mapping:** Binding host keyboard/gamepad events to console buttons.
 * [ ] **Real-Time Audio Output:** Streaming DMA audio buffers from IIS controller to host sound driver.
 
@@ -95,17 +95,19 @@ g++ -std=c++17 -Wall -Wextra -O2 -Isrc \
     src/memory/bus.cpp \
     src/cpu/arm920t.cpp \
     src/cartridge/cart_parser.cpp \
+    src/display/display_win32.cpp \
+    -lgdi32 -luser32 \
     -o bin/oceanblast.exe
 ```
 
 ### Running
 ```bash
-bin/oceanblast.exe <path_to_cartridge_dump.bin> [--steps <N>] [--trace]
+bin/oceanblast.exe <path_to_cartridge_dump.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--trace]
 ```
 
-Example:
+Example (interactive GUI):
 ```bash
-bin/oceanblast.exe "cartridges/game.bin" --steps 10000000
+bin/oceanblast.exe "roms/test.bin" --gui --scale 3
 ```
 
 ---
