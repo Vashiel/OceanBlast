@@ -37,6 +37,7 @@ int main(int argc, char* argv[]) {
 
     std::string cartPath = argv[1];
     size_t stepLimit = 500000;
+    bool customSteps = false;
     bool trace = false;
     bool gui = false;
     int scale = 3;
@@ -47,6 +48,7 @@ int main(int argc, char* argv[]) {
         std::string arg = argv[i];
         if (arg == "--steps" && i + 1 < argc) {
             stepLimit = std::stoull(argv[++i]);
+            customSteps = true;
         } else if (arg == "--trace") {
             trace = true;
         } else if (arg == "--gui" || arg == "--window") {
@@ -56,6 +58,10 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--scale" && i + 1 < argc) {
             scale = std::stoi(argv[++i]);
         }
+    }
+
+    if (gui && !customSteps) {
+        stepLimit = std::numeric_limits<size_t>::max();
     }
 
     oceanblast::Bus bus;
@@ -80,6 +86,8 @@ int main(int argc, char* argv[]) {
         if (!display.init("OceanBlast - Nikko digiBLAST (2005)")) {
             std::cerr << "[Warning] Failed to initialize display window; falling back to headless mode." << std::endl;
             gui = false;
+        } else {
+            display.updateFrame(bus.getSdramPtr(), 0x30300000);
         }
     }
 
@@ -100,13 +108,7 @@ int main(int argc, char* argv[]) {
             return (lcdsaddr1 & 0x1FFFFFFF) << 1;
         }
         if (bus.isMmuEnabled()) {
-            const u8* sdram = bus.getSdramPtr();
-            if (sdram[0xce4000] != 0 || sdram[0xce4000 + 10] != 0 || sdram[0xce4000 + 100] != 0) {
-                return 0x30ce4000;
-            }
-            if (executedSteps > 4000000) {
-                return 0x30310000;
-            }
+            return 0x30310000;
         }
         return 0x30300000;
     };
@@ -114,7 +116,7 @@ int main(int argc, char* argv[]) {
     std::cout << "\n[OceanBlast] Starting ARM920T Steppingstone execution from 0x00000000..." << std::endl;
 
     while (!cpu.isHalted() && executedSteps < stepLimit) {
-        if (gui && (executedSteps % 50000 == 0)) {
+        if (gui && (executedSteps % 100000 == 0)) {
             display.processEvents();
             if (!display.isOpen()) {
                 std::cout << "\n[OceanBlast] Display window closed by user." << std::endl;
@@ -122,6 +124,7 @@ int main(int argc, char* argv[]) {
             }
             bus.setButtonMask(display.getButtonMask());
             display.updateFrame(bus.getSdramPtr(), getActiveFbPhys());
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
         }
 
         u32 currentPC = cpu.getPC();

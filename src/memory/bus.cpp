@@ -78,6 +78,24 @@ bool Bus::loadCartridge(const std::string& path) {
         }
 
         std::cout << "[Bus] Steppingstone: Autonomously loaded first 4096 boot bytes into SRAM at 0x00000000." << std::endl;
+
+        // Preload boot splash from NAND (page 384) into SDRAM 0x30300000 and 0x30310000 for immediate display
+        if (cartNand.size() >= (384 + 128) * pageSize) {
+            for (size_t p = 0; p < 128; ++p) {
+                size_t srcOff = (384 + p) * pageSize;
+                size_t dstOff0 = 0x300000 + (p * 512);
+                size_t dstOff1 = 0x310000 + (p * 512);
+                if (srcOff + 512 <= cartNand.size()) {
+                    if (dstOff0 + 512 <= ADDR_SDRAM_SIZE) {
+                        std::memcpy(sdram.data() + dstOff0, cartNand.data() + srcOff, 512);
+                    }
+                    if (dstOff1 + 512 <= ADDR_SDRAM_SIZE) {
+                        std::memcpy(sdram.data() + dstOff1, cartNand.data() + srcOff, 512);
+                    }
+                }
+            }
+        }
+
         return true;
     }
     return false;

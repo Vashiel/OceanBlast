@@ -11,7 +11,15 @@ static Display* g_currentDisplay = nullptr;
 
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (g_currentDisplay) {
-        if (msg == WM_KEYDOWN || msg == WM_KEYUP) {
+        if (msg == WM_PAINT) {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hwnd, &ps);
+            g_currentDisplay->renderToDc(hdc);
+            EndPaint(hwnd, &ps);
+            return 0;
+        } else if (msg == WM_ERASEBKGND) {
+            return 1;
+        } else if (msg == WM_KEYDOWN || msg == WM_KEYUP) {
             bool isDown = (msg == WM_KEYDOWN);
             uint32_t mask = 0;
             switch (wParam) {
@@ -60,10 +68,11 @@ bool Display::init(const char* title) {
     HINSTANCE hInstance = GetModuleHandleA(nullptr);
     WNDCLASSEXA wc = {};
     wc.cbSize = sizeof(WNDCLASSEXA);
+    wc.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc = WndProc;
     wc.hInstance = hInstance;
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-    wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+    wc.hbrBackground = nullptr;
     wc.lpszClassName = "OceanBlastDisplayClass";
 
     RegisterClassExA(&wc);
@@ -162,7 +171,16 @@ void Display::updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr) {
         m_pixels[pixelIdx++] = (r1 << 16) | (g1 << 8) | b1_val;
     }
 
-    HDC hdc = static_cast<HDC>(m_hdc);
+    renderToDc(m_hdc);
+    if (m_hwnd) {
+        InvalidateRect(static_cast<HWND>(m_hwnd), nullptr, FALSE);
+    }
+}
+
+void Display::renderToDc(void* targetHdc) {
+    if (!targetHdc || !m_bitmapInfo) return;
+
+    HDC hdc = static_cast<HDC>(targetHdc);
     BITMAPINFO* bmi = static_cast<BITMAPINFO*>(m_bitmapInfo);
 
     SetStretchBltMode(hdc, COLORONCOLOR);
