@@ -152,14 +152,16 @@ int main(int argc, char* argv[]) {
             auto now = Clock::now();
             if (now - lastFrame >= std::chrono::milliseconds(16)) {
                 const u32 fb = getActiveFbPhys();
-                if (fb >= ADDR_SDRAM_BASE && uint64_t(fb - ADDR_SDRAM_BASE) + 57600 <= ADDR_SDRAM_SIZE) {
+                const bool is16bpp = bus.isLcd16Bpp();
+                const size_t fbSize = bus.getFramebufferSize();
+                if (fb >= ADDR_SDRAM_BASE && uint64_t(fb - ADDR_SDRAM_BASE) + fbSize <= ADDR_SDRAM_SIZE) {
                     uint32_t hash = 2166136261u;
                     const uint32_t* words = reinterpret_cast<const uint32_t*>(bus.getSdramPtr() + (fb - ADDR_SDRAM_BASE));
-                    for (size_t i = 0; i < 57600 / 4; ++i) hash = (hash ^ words[i]) * 16777619u;
+                    for (size_t i = 0; i < fbSize / 4; ++i) hash = (hash ^ words[i]) * 16777619u;
                     if (haveHash && hash != previousHash) ++changed;
                     previousHash = hash; haveHash = true;
                 }
-                display.updateFrame(bus.getSdramPtr(), fb);
+                display.updateFrame(bus.getSdramPtr(), fb, is16bpp);
                 ++presented; lastFrame = now;
             }
             const double seconds = std::chrono::duration<double>(now - lastStats).count();
@@ -178,12 +180,14 @@ int main(int argc, char* argv[]) {
                 display.snapshot = false;
                 const std::string stem = "snapshot_" + std::to_string(executedSteps);
                 const u32 fb = getActiveFbPhys();
-                if (fb >= ADDR_SDRAM_BASE && uint64_t(fb - ADDR_SDRAM_BASE) + 57600 <= ADDR_SDRAM_SIZE) {
+                const bool is16bpp = bus.isLcd16Bpp();
+                const size_t fbSize = bus.getFramebufferSize();
+                if (fb >= ADDR_SDRAM_BASE && uint64_t(fb - ADDR_SDRAM_BASE) + fbSize <= ADDR_SDRAM_SIZE) {
                     std::ofstream image(stem + ".raw", std::ios::binary);
-                    image.write(reinterpret_cast<const char*>(bus.getSdramPtr() + (fb - ADDR_SDRAM_BASE)), 57600);
+                    image.write(reinterpret_cast<const char*>(bus.getSdramPtr() + (fb - ADDR_SDRAM_BASE)), fbSize);
                 }
                 std::ofstream state(stem + ".txt");
-                state << "steps=" << executedSteps << "\nPC=" << std::hex << cpu.getPC() << "\nCPSR=" << cpu.getCPSR() << "\nframebuffer=" << fb << '\n';
+                state << "steps=" << executedSteps << "\nPC=" << std::hex << cpu.getPC() << "\nCPSR=" << cpu.getCPSR() << "\nframebuffer=" << fb << "\nformat=" << (is16bpp ? "16bpp" : "12bpp") << '\n';
                 for (int reg = 0; reg < 16; ++reg) state << 'r' << std::dec << reg << '=' << std::hex << cpu.getReg(reg) << '\n';
             }
             if (display.paused && !display.singleStep) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); continue; }
@@ -336,13 +340,16 @@ int main(int argc, char* argv[]) {
         std::cout << "LCDSADDR3: 0x" << std::hex << bus.getMmio(0x4D00001C) << std::dec << std::endl;
         const u32 activeFb = getActiveFbPhys();
         std::cout << "Active framebuffer PA: 0x" << std::hex << activeFb << std::dec << std::endl;
-        if (activeFb >= ADDR_SDRAM_BASE && activeFb - ADDR_SDRAM_BASE <= ADDR_SDRAM_SIZE - 57600) {
+        const bool is16bpp = bus.isLcd16Bpp();
+        const size_t fbSize = bus.getFramebufferSize();
+        if (activeFb >= ADDR_SDRAM_BASE && activeFb - ADDR_SDRAM_BASE <= ADDR_SDRAM_SIZE - fbSize) {
             const u8* frame = sdram + activeFb - ADDR_SDRAM_BASE;
             size_t nonzero = 0;
-            for (size_t i = 0; i < 57600; ++i) nonzero += frame[i] != 0;
-            std::cout << "Active framebuffer nonzero bytes: " << nonzero << "/57600" << std::endl;
+            for (size_t i = 0; i < fbSize; ++i) nonzero += frame[i] != 0;
+            std::cout << "Active framebuffer nonzero bytes: " << nonzero << "/" << fbSize
+                      << " (" << (is16bpp ? "16bpp RGB565" : "12bpp packed") << ")" << std::endl;
             std::ofstream active("fb_active.raw", std::ios::binary);
-            active.write(reinterpret_cast<const char*>(frame), 57600);
+            active.write(reinterpret_cast<const char*>(frame), fbSize);
         }
 
         // Dump Framebuffer memory and full SDRAM
@@ -365,11 +372,11 @@ int main(int argc, char* argv[]) {
 
     if (gui && display.isOpen()) {
         u32 fbPhys = getActiveFbPhys();
-        display.updateFrame(bus.getSdramPtr(), fbPhys);
+        display.updateFrame(bus.getSdramPtr(), fbPhys, bus.isLcd16Bpp());
         std::cout << "[Display] Emulation paused. Press ESC or close the window to exit." << std::endl;
         while (display.isOpen()) {
             display.processEvents();
-            display.updateFrame(bus.getSdramPtr(), getActiveFbPhys());
+            display.updateFrame(bus.getSdramPtr(), getActiveFbPhys(), bus.isLcd16Bpp());
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
         }
     }

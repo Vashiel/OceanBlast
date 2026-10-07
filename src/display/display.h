@@ -32,7 +32,7 @@ public:
 
     bool init(const char* title = "OceanBlast - Nikko digiBLAST Emulator");
     void processEvents();
-    void updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr);
+    void updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is16bpp = true);
     void renderToDc(void* targetHdc);
     bool isOpen() const { return m_open; }
     void close();
