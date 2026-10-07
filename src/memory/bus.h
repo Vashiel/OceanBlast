@@ -268,6 +268,10 @@ public:
     void setAudioCallback(AudioCallback cb) { audioCallback = cb; }
     u32  getAudioSampleRate() const;
 
+    // S3C2410 LCD Subsystem
+    bool isLcd16Bpp() const;
+    u32  getFramebufferSize() const;
+
 private:
     // S3C2410 Keypad / GPIO Button State
     u32  buttonMask = 0;

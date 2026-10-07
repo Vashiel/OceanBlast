@@ -978,4 +978,26 @@ u32 Bus::getAudioSampleRate() const {
     return (rawRate > 0) ? rawRate : 22050;
 }
 
+bool Bus::isLcd16Bpp() const {
+    auto it = mmioRegs.find(0x4D000000); // S3C2410 LCDCON1
+    if (it != mmioRegs.end()) {
+        u32 lcdcon1 = it->second;
+        u32 bppMode = (lcdcon1 >> 1) & 0x0F;
+        if (bppMode == 12) return true; // TFT 16bpp (0b1100 = 64K color mode)
+        if (bppMode == 4 || bppMode == 8) return false; // STN 12bpp / TFT 12bpp (0b0100)
+    }
+    auto itS1 = mmioRegs.find(0x4D000014); // LCDSADDR1
+    auto itS2 = mmioRegs.find(0x4D000018); // LCDSADDR2
+    if (itS1 != mmioRegs.end() && itS2 != mmioRegs.end() && itS1->second != 0 && itS2->second != 0) {
+        u32 size = ((itS2->second & 0x1FFFFFFF) << 1) - ((itS1->second & 0x1FFFFFFF) << 1);
+        if (size >= 76800) return true;
+        if (size <= 57600) return false;
+    }
+    return isMmuEnabled(); // In Linux, default to 16bpp framebuffer unless programmed
+}
+
+u32 Bus::getFramebufferSize() const {
+    return isLcd16Bpp() ? 76800 : 57600;
+}
+
 } // namespace oceanblast
