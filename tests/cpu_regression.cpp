@@ -15,6 +15,24 @@ static void thumb(Bus& b, ARM920T& c, u16 instruction) {
     c.step();
 }
 int main() {
+    { Bus b;
+      b.write32(0x4b000080,0x30010000); b.write32(0x4b000090,16); b.write32(0x4b0000a0,2);
+      b.write32(0x4b000080,0x30020000); b.write32(0x4b000090,32);
+      check("DMA current count is independent of queued count",b.read32(0x4b000094)==16);
+      b.tick(150000);
+      check("DMA autoreload latches queued buffer before IRQ",b.read32(0x4b000094)==32 && (b.getMmio(0x4a000000)&(1u<<19)));
+      b.write32(0x4b000090,32|(1u<<22)); b.tick(150000);
+      check("DMA NORELOAD stops after current buffer",b.read32(0x4b000094)==0 && !(b.read32(0x4b0000a0)&2)); }
+    { Bus b; ARM920T c(b); b.write32(0,0xe1b00021); c.setReg(1,0x80000000); c.step();
+      check("ARM immediate LSR zero encoding means 32",c.getReg(0)==0 && (c.getCPSR()&FLAG_C)); }
+    { Bus b; ARM920T c(b); b.write32(0,0xe1b00041); c.setReg(1,0x80000000); c.step();
+      check("ARM immediate ASR zero encoding means 32",c.getReg(0)==0xffffffff && (c.getCPSR()&FLAG_C)); }
+    { Bus b; ARM920T c(b); b.write32(0,0xe1b00061); c.setReg(1,3); c.step();
+      check("ARM RRX uses old carry and bit zero",c.getReg(0)==1 && (c.getCPSR()&FLAG_C)); }
+    { Bus b; ARM920T c(b); b.write32(0,0xe0a00081); c.setReg(0,10); c.setReg(1,0x80000000); c.step();
+      check("ARM ADC uses CPSR carry rather than shifter carry",c.getReg(0)==10); }
+    { Bus b; ARM920T c(b); b.write32(0,0xe1b00271); c.setReg(1,0x80000000); c.setReg(2,32); c.step();
+      check("ARM register ROR 32 updates carry from bit31",c.getReg(0)==0x80000000 && (c.getCPSR()&FLAG_C)); }
     { Bus b; ARM920T c(b); b.write32(0,0xe2900001); c.setReg(0,0xffffffff); c.step();
       check("ARM ADDS overflow-to-zero carries",c.getReg(0)==0 && (c.getCPSR()&FLAG_C) && (c.getCPSR()&FLAG_Z)); }
     { Bus b; ARM920T c(b); c.setReg(0,0xffffffff); c.setReg(1,1); thumb(b,c,0x1840); // ADDS r0,r0,r1

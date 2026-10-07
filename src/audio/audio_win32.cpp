@@ -67,28 +67,42 @@ void Audio::writeSamples(const int16_t* samples, size_t sampleCount) {
     size_t offset = 0;
 
     while (offset < byteCount) {
-        AudioBuffer& buf = m_buffers[m_currentBuffer];
-        WAVEHDR* hdr = static_cast<WAVEHDR*>(buf.header);
+        AudioBuffer* targetBuf = nullptr;
+        WAVEHDR* targetHdr = nullptr;
 
-        // If buffer was previously submitted, wait for playback to finish
-        if (hdr->dwFlags & WHDR_PREPARED) {
-            while (!(hdr->dwFlags & WHDR_DONE)) {
-                Sleep(1);
+        // Find an available buffer starting from m_currentBuffer
+        for (size_t k = 0; k < NUM_BUFFERS; ++k) {
+            size_t idx = (m_currentBuffer + k) % NUM_BUFFERS;
+            WAVEHDR* hdr = static_cast<WAVEHDR*>(m_buffers[idx].header);
+            if (!(hdr->dwFlags & WHDR_PREPARED) || (hdr->dwFlags & WHDR_DONE)) {
+                m_currentBuffer = idx;
+                targetBuf = &m_buffers[idx];
+                targetHdr = hdr;
+                break;
             }
-            waveOutUnprepareHeader(hWave, hdr, sizeof(WAVEHDR));
+        }
+
+        // If all buffers are currently busy in waveOut, do NOT block the CPU thread with Sleep().
+        // Blocking the emulation thread causes severe stuttering and cuts MIPS performance.
+        if (!targetBuf || !targetHdr) {
+            return;
+        }
+
+        if (targetHdr->dwFlags & WHDR_PREPARED) {
+            waveOutUnprepareHeader(hWave, targetHdr, sizeof(WAVEHDR));
         }
 
         size_t chunkSize = std::min(byteCount - offset, static_cast<size_t>(BUFFER_BYTES));
-        std::memcpy(buf.data.data(), reinterpret_cast<const uint8_t*>(samples) + offset, chunkSize);
+        std::memcpy(targetBuf->data.data(), reinterpret_cast<const uint8_t*>(samples) + offset, chunkSize);
         if (chunkSize < BUFFER_BYTES) {
-            std::memset(buf.data.data() + chunkSize, 0, BUFFER_BYTES - chunkSize);
+            std::memset(targetBuf->data.data() + chunkSize, 0, BUFFER_BYTES - chunkSize);
         }
 
-        hdr->dwBufferLength = static_cast<DWORD>(chunkSize);
-        hdr->dwFlags = 0;
+        targetHdr->dwBufferLength = static_cast<DWORD>(chunkSize);
+        targetHdr->dwFlags = 0;
 
-        if (waveOutPrepareHeader(hWave, hdr, sizeof(WAVEHDR)) == MMSYSERR_NOERROR) {
-            waveOutWrite(hWave, hdr, sizeof(WAVEHDR));
+        if (waveOutPrepareHeader(hWave, targetHdr, sizeof(WAVEHDR)) == MMSYSERR_NOERROR) {
+            waveOutWrite(hWave, targetHdr, sizeof(WAVEHDR));
         }
 
         offset += chunkSize;

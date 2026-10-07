@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <thread>
 #include <chrono>
+#include <sstream>
 #include "core/types.h"
 #include "memory/bus.h"
 #include "cpu/arm920t.h"
@@ -12,6 +13,7 @@
 
 #include "display/display.h"
 #include "audio/audio.h"
+#include "display/launcher.h"
 
 using namespace oceanblast;
 
@@ -28,6 +30,12 @@ void printUsage(const char* progName) {
 }
 
 int main(int argc, char* argv[]) {
+#ifdef _WIN32
+    if (argc < 2) {
+        FreeConsole();
+        return oceanblast::launcher::run();
+    }
+#endif
     printBanner();
 
     if (argc < 2) {
@@ -43,12 +51,18 @@ int main(int argc, char* argv[]) {
     int scale = 3;
 
     bool sound = false;
+    bool debug = false;
+    bool profile = false;
 
     for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--steps" && i + 1 < argc) {
             stepLimit = std::stoull(argv[++i]);
             customSteps = true;
+        } else if (arg == "--debug") {
+            debug = true;
+        } else if (arg == "--profile") {
+            profile = true;
         } else if (arg == "--trace") {
             trace = true;
         } else if (arg == "--gui" || arg == "--window") {
@@ -79,6 +93,7 @@ int main(int argc, char* argv[]) {
     // Initialize ARM920T CPU
     oceanblast::ARM920T cpu(bus);
     cpu.reset(0x00000000); // Boot from Steppingstone SRAM
+    cpu.setDebugLogging(debug || trace);
 
     oceanblast::Display display(scale);
     oceanblast::Audio audio;
@@ -91,7 +106,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (gui || sound) {
+    if (sound) {
         if (audio.init(44100, 2)) {
             bus.setAudioCallback([&](const int16_t* s, size_t n) {
                 audio.writeSamples(s, n);
@@ -115,16 +130,60 @@ int main(int argc, char* argv[]) {
 
     std::cout << "\n[OceanBlast] Starting ARM920T Steppingstone execution from 0x00000000..." << std::endl;
 
+    using Clock = std::chrono::steady_clock;
+    auto lastFrame = Clock::now(), lastStats = lastFrame;
+    size_t statsSteps = 0, presented = 0, changed = 0;
+    uint32_t previousHash = 0;
+    bool haveHash = false;
+    std::ofstream metrics;
+    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer\n"; }
     while (!cpu.isHalted() && executedSteps < stepLimit) {
-        if (gui && (executedSteps % 100000 == 0)) {
+        if (gui && (display.paused || executedSteps % 50000 == 0)) {
             display.processEvents();
             if (!display.isOpen()) {
                 std::cout << "\n[OceanBlast] Display window closed by user." << std::endl;
                 break;
             }
             bus.setButtonMask(display.getButtonMask());
-            display.updateFrame(bus.getSdramPtr(), getActiveFbPhys());
-            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            auto now = Clock::now();
+            if (now - lastFrame >= std::chrono::milliseconds(16)) {
+                const u32 fb = getActiveFbPhys();
+                if (fb >= ADDR_SDRAM_BASE && uint64_t(fb - ADDR_SDRAM_BASE) + 57600 <= ADDR_SDRAM_SIZE) {
+                    uint32_t hash = 2166136261u;
+                    const uint32_t* words = reinterpret_cast<const uint32_t*>(bus.getSdramPtr() + (fb - ADDR_SDRAM_BASE));
+                    for (size_t i = 0; i < 57600 / 4; ++i) hash = (hash ^ words[i]) * 16777619u;
+                    if (haveHash && hash != previousHash) ++changed;
+                    previousHash = hash; haveHash = true;
+                }
+                display.updateFrame(bus.getSdramPtr(), fb);
+                ++presented; lastFrame = now;
+            }
+            const double seconds = std::chrono::duration<double>(now - lastStats).count();
+            if (seconds >= 1.0) {
+                const double mips = (executedSteps - statsSteps) / seconds / 1000000.0;
+                std::ostringstream title;
+                title << "OceanBlast | Anzeige " << std::fixed << std::setprecision(1) << presented / seconds
+                      << " FPS | Bildwechsel " << changed / seconds << "/s | " << mips << " MIPS"
+                      << " | PC " << std::hex << cpu.getPC() << " | FB " << getActiveFbPhys()
+                      << (display.paused ? " | PAUSE" : "");
+                display.setTitle(title.str());
+                if (metrics) { metrics << executedSteps << ',' << seconds << ',' << presented / seconds << ',' << changed / seconds << ',' << mips << ',' << cpu.getPC() << ',' << getActiveFbPhys() << '\n'; metrics.flush(); }
+                lastStats = now; statsSteps = executedSteps; presented = changed = 0;
+            }
+            if (display.snapshot) {
+                display.snapshot = false;
+                const std::string stem = "snapshot_" + std::to_string(executedSteps);
+                const u32 fb = getActiveFbPhys();
+                if (fb >= ADDR_SDRAM_BASE && uint64_t(fb - ADDR_SDRAM_BASE) + 57600 <= ADDR_SDRAM_SIZE) {
+                    std::ofstream image(stem + ".raw", std::ios::binary);
+                    image.write(reinterpret_cast<const char*>(bus.getSdramPtr() + (fb - ADDR_SDRAM_BASE)), 57600);
+                }
+                std::ofstream state(stem + ".txt");
+                state << "steps=" << executedSteps << "\nPC=" << std::hex << cpu.getPC() << "\nCPSR=" << cpu.getCPSR() << "\nframebuffer=" << fb << '\n';
+                for (int reg = 0; reg < 16; ++reg) state << 'r' << std::dec << reg << '=' << std::hex << cpu.getReg(reg) << '\n';
+            }
+            if (display.paused && !display.singleStep) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); continue; }
+            display.singleStep = false;
         }
 
         u32 currentPC = cpu.getPC();
@@ -158,7 +217,7 @@ int main(int argc, char* argv[]) {
 
         static int forkVisit = 0;
         static int forkTraceSteps = 0;
-        if (currentPC == 0x4012a608) {
+        if (debug && currentPC == 0x4012a608) {
             forkVisit++;
             forkTraceSteps = 40;
             std::cout << "\n>>> [HIT 0x4012a608 Visit #" << forkVisit << " at Step " << executedSteps
@@ -179,7 +238,7 @@ int main(int argc, char* argv[]) {
         }
 
         static bool hit93540 = false;
-        if (!hit93540 && currentPC == 0x93540) {
+        if (debug && !hit93540 && currentPC == 0x93540) {
             hit93540 = true;
             std::cout << "\n>>> [FIRST HIT 0x93540 at Step " << executedSteps << "] <<<\n";
             std::cout << "Last 16 PCs:\n";
@@ -261,14 +320,26 @@ int main(int argc, char* argv[]) {
         }
 
         std::cout << "\n--- [S3C2410 LCD Controller Registers] ---" << std::endl;
-        std::cout << "LCDCON1:   0x" << std::hex << bus.read32(0x4D000000) << std::endl;
-        std::cout << "LCDCON2:   0x" << std::hex << bus.read32(0x4D000004) << std::endl;
-        std::cout << "LCDCON3:   0x" << std::hex << bus.read32(0x4D000008) << std::endl;
-        std::cout << "LCDCON4:   0x" << std::hex << bus.read32(0x4D00000C) << std::endl;
-        std::cout << "LCDCON5:   0x" << std::hex << bus.read32(0x4D000010) << std::endl;
-        std::cout << "LCDSADDR1: 0x" << std::hex << bus.read32(0x4D000014) << std::endl;
-        std::cout << "LCDSADDR2: 0x" << std::hex << bus.read32(0x4D000018) << std::endl;
-        std::cout << "LCDSADDR3: 0x" << std::hex << bus.read32(0x4D00001C) << std::dec << std::endl;
+        // These are physical registers; read32 interprets its argument as a
+        // virtual address once the guest enables its MMU.
+        std::cout << "LCDCON1:   0x" << std::hex << bus.getMmio(0x4D000000) << std::endl;
+        std::cout << "LCDCON2:   0x" << std::hex << bus.getMmio(0x4D000004) << std::endl;
+        std::cout << "LCDCON3:   0x" << std::hex << bus.getMmio(0x4D000008) << std::endl;
+        std::cout << "LCDCON4:   0x" << std::hex << bus.getMmio(0x4D00000C) << std::endl;
+        std::cout << "LCDCON5:   0x" << std::hex << bus.getMmio(0x4D000010) << std::endl;
+        std::cout << "LCDSADDR1: 0x" << std::hex << bus.getMmio(0x4D000014) << std::endl;
+        std::cout << "LCDSADDR2: 0x" << std::hex << bus.getMmio(0x4D000018) << std::endl;
+        std::cout << "LCDSADDR3: 0x" << std::hex << bus.getMmio(0x4D00001C) << std::dec << std::endl;
+        const u32 activeFb = getActiveFbPhys();
+        std::cout << "Active framebuffer PA: 0x" << std::hex << activeFb << std::dec << std::endl;
+        if (activeFb >= ADDR_SDRAM_BASE && activeFb - ADDR_SDRAM_BASE <= ADDR_SDRAM_SIZE - 57600) {
+            const u8* frame = sdram + activeFb - ADDR_SDRAM_BASE;
+            size_t nonzero = 0;
+            for (size_t i = 0; i < 57600; ++i) nonzero += frame[i] != 0;
+            std::cout << "Active framebuffer nonzero bytes: " << nonzero << "/57600" << std::endl;
+            std::ofstream active("fb_active.raw", std::ios::binary);
+            active.write(reinterpret_cast<const char*>(frame), 57600);
+        }
 
         // Dump Framebuffer memory and full SDRAM
         std::ofstream fb0("fb_30300000.raw", std::ios::binary);

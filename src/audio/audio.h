@@ -22,7 +22,7 @@ private:
     bool m_initialized;
     void* m_hWaveOut;
 
-    static constexpr size_t NUM_BUFFERS = 8;
+    static constexpr size_t NUM_BUFFERS = 16;
     static constexpr size_t BUFFER_BYTES = 4096;
 
     struct AudioBuffer {

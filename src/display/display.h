@@ -36,6 +36,10 @@ public:
     void renderToDc(void* targetHdc);
     bool isOpen() const { return m_open; }
     void close();
+    void setTitle(const std::string& title);
+    bool paused = false;
+    bool singleStep = false;
+    bool snapshot = false;
 
     uint32_t getButtonMask() const { return m_buttonMask; }
     void setButtonState(uint32_t mask, bool down) {
