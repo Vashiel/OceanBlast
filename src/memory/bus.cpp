@@ -628,6 +628,24 @@ void Bus::writeMmio(u32 addr, u32 val) {
             mmioRegs[0x5400000C] = val;
             return;
 
+        case 0x4C000000: // LOCKTIME
+        case 0x4C000004: // MPLLCON
+        case 0x4C000008: // UPLLCON
+        case 0x4C00000C: // CLKCON
+        case 0x4C000010: // CLKSLOW
+        case 0x4C000014: // CLKDIVN
+            mmioRegs[addr] = val;
+            return;
+
+        // IIS Audio Controller (0x55000000)
+        case 0x55000000: // IISCON
+        case 0x55000004: // IISMOD
+        case 0x55000008: // IISPSR
+        case 0x5500000C: // IISFCON
+        case 0x55000010: // IISFIFO
+            mmioRegs[addr] = val;
+            return;
+
         // S3C2410 DMA Channel 2 (IIS Audio)
         case 0x4B0000A0: { // DMASKTRIG2
             mmioRegs[0x4B0000A0] = val;
@@ -644,11 +662,12 @@ void Bus::writeMmio(u32 addr, u32 val) {
                 u32 itemSize = (dsz == 1) ? 2 : ((dsz == 2) ? 4 : 1);
                 dma2Count = tc * itemSize;       // Total bytes
                 mmioRegs[0x4B000094] = tc;
-                // In S3C2410 IIS audio, DMA rate is paced by the audio DAC consumption rate.
-                // At ~20 MIPS guest clock, 44.1kHz 16-bit stereo (176.4 kB/s) is ~114 cycles/byte,
-                // and 22.05kHz 16-bit stereo (88.2 kB/s) is ~227 cycles/byte.
-                // Using ~220 cycles/byte prevents ALSA from racing ahead and triggering continuous XRUNs.
-                dma2Timer = (dma2Count > 0) ? (dma2Count * 220) : 150000;
+                // In S3C2410 IIS audio, DMA rate is paced by DAC consumption.
+                // Dynamic cycle calculation prevents ALSA from racing ahead or stalling.
+                u32 rate = getAudioSampleRate();
+                u32 bytesPerSec = rate * 4; // 16-bit stereo PCM
+                u32 cyclesPerByte = (bytesPerSec > 0) ? (20000000 / bytesPerSec) : 227;
+                dma2Timer = (dma2Count > 0) ? (dma2Count * cyclesPerByte) : 150000;
             }
             return;
         }
@@ -938,6 +957,25 @@ u32 Bus::translateSlow(u32 va, MmuFault* fault, bool isWrite) const {
 
     if (fault) *fault = MmuFault::SECTION_TRANSLATION_FAULT;
     return 0xFFFFFFFF;
+}
+
+u32 Bus::getAudioSampleRate() const {
+    auto itPsr = mmioRegs.find(0x55000008); // S3C2410 IISPSR
+    if (itPsr == mmioRegs.end()) return 22050;
+    u32 psr = itPsr->second;
+    u32 psrA = (psr >> 5) & 0x1F;
+    auto itMod = mmioRegs.find(0x55000004); // S3C2410 IISMOD
+    u32 mod = (itMod != mmioRegs.end()) ? itMod->second : 0x99;
+    u32 fsMul = (mod & (1 << 2)) ? 384 : 256;
+    u32 div = (psrA + 1) * fsMul;
+    if (div == 0) return 22050;
+    u32 rawRate = 45000000 / div;
+    // Map hardware prescaler division to standard audio sampling rates
+    if (rawRate >= 40000 && rawRate <= 48000) return 44100;
+    if (rawRate >= 20000 && rawRate <= 24000) return 22050;
+    if (rawRate >= 10000 && rawRate <= 13000) return 11025;
+    if (rawRate >= 7000  && rawRate <= 9000)  return 8000;
+    return (rawRate > 0) ? rawRate : 22050;
 }
 
 } // namespace oceanblast

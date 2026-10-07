@@ -266,6 +266,7 @@ public:
     // Audio / DMA Channel 2 Subsystem
     using AudioCallback = std::function<void(const int16_t* samples, size_t sampleCount)>;
     void setAudioCallback(AudioCallback cb) { audioCallback = cb; }
+    u32  getAudioSampleRate() const;
 
 private:
     // S3C2410 Keypad / GPIO Button State
