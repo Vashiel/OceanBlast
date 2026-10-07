@@ -10,7 +10,7 @@
 namespace oceanblast {
 
 Audio::Audio()
-    : m_initialized(false), m_hWaveOut(nullptr), m_currentBuffer(0) {
+    : m_initialized(false), m_hWaveOut(nullptr), m_sampleRate(22050), m_channels(2), m_currentBuffer(0) {
 }
 
 Audio::~Audio() {
@@ -21,6 +21,9 @@ bool Audio::init(int sampleRate, int channels) {
     if (m_initialized) {
         close();
     }
+
+    m_sampleRate = sampleRate;
+    m_channels = channels;
 
     WAVEFORMATEX wfx = {};
     wfx.wFormatTag = WAVE_FORMAT_PCM;
@@ -34,8 +37,20 @@ bool Audio::init(int sampleRate, int channels) {
     HWAVEOUT hWave = nullptr;
     MMRESULT res = waveOutOpen(&hWave, WAVE_MAPPER, &wfx, 0, 0, CALLBACK_NULL);
     if (res != MMSYSERR_NOERROR) {
-        std::cerr << "[Audio] Failed to open waveOut device (error " << res << ")." << std::endl;
-        return false;
+        // Fallback to 44100 Hz if device does not support native rate
+        if (sampleRate != 44100) {
+            std::cerr << "[Audio] waveOutOpen failed at " << sampleRate << " Hz; falling back to 44100 Hz." << std::endl;
+            wfx.nSamplesPerSec = 44100;
+            wfx.nAvgBytesPerSec = 44100 * wfx.nBlockAlign;
+            res = waveOutOpen(&hWave, WAVE_MAPPER, &wfx, 0, 0, CALLBACK_NULL);
+            if (res == MMSYSERR_NOERROR) {
+                m_sampleRate = 44100;
+            }
+        }
+        if (res != MMSYSERR_NOERROR) {
+            std::cerr << "[Audio] Failed to open waveOut device (error " << res << ")." << std::endl;
+            return false;
+        }
     }
 
     m_hWaveOut = static_cast<void*>(hWave);
@@ -54,16 +69,57 @@ bool Audio::init(int sampleRate, int channels) {
     m_currentBuffer = 0;
     m_initialized = true;
 
-    std::cout << "[Audio] Win32 waveOut initialized (" << sampleRate << " Hz, "
-              << channels << " channels, 16-bit PCM, " << NUM_BUFFERS << " buffers)." << std::endl;
+    std::cout << "[Audio] Win32 waveOut initialized (" << m_sampleRate << " Hz, "
+              << m_channels << " channels, 16-bit PCM, " << NUM_BUFFERS << " buffers)." << std::endl;
     return true;
 }
 
-void Audio::writeSamples(const int16_t* samples, size_t sampleCount) {
+void Audio::writeSamples(const int16_t* samples, size_t sampleCount, int inputSampleRate) {
     if (!m_initialized || !m_hWaveOut || !samples || sampleCount == 0) return;
 
+    if (inputSampleRate <= 0) {
+        inputSampleRate = m_sampleRate;
+    }
+
+    const int16_t* playSamples = samples;
+    size_t playSampleCount = sampleCount;
+
+    // High-fidelity resampling if input rate does not match waveOut device rate
+    if (inputSampleRate != m_sampleRate && m_channels == 2) {
+        if (inputSampleRate == 22050 && m_sampleRate == 44100) {
+            // 2x linear interpolation (22050 Hz stereo -> 44100 Hz stereo)
+            size_t frameCount = sampleCount / 2;
+            m_resampleBuffer.resize(frameCount * 4);
+            for (size_t i = 0; i < frameCount; ++i) {
+                int16_t l0 = samples[i * 2 + 0];
+                int16_t r0 = samples[i * 2 + 1];
+                int16_t l1 = (i + 1 < frameCount) ? samples[(i + 1) * 2 + 0] : l0;
+                int16_t r1 = (i + 1 < frameCount) ? samples[(i + 1) * 2 + 1] : r0;
+
+                // Frame 0: original sample
+                m_resampleBuffer[i * 4 + 0] = l0;
+                m_resampleBuffer[i * 4 + 1] = r0;
+                // Frame 1: interpolated midpoint
+                m_resampleBuffer[i * 4 + 2] = static_cast<int16_t>((static_cast<int32_t>(l0) + l1) / 2);
+                m_resampleBuffer[i * 4 + 3] = static_cast<int16_t>((static_cast<int32_t>(r0) + r1) / 2);
+            }
+            playSamples = m_resampleBuffer.data();
+            playSampleCount = m_resampleBuffer.size();
+        } else if (inputSampleRate == 44100 && m_sampleRate == 22050) {
+            // 2x decimation (44100 Hz stereo -> 22050 Hz stereo)
+            size_t frameCount = sampleCount / 4;
+            m_resampleBuffer.resize(frameCount * 2);
+            for (size_t i = 0; i < frameCount; ++i) {
+                m_resampleBuffer[i * 2 + 0] = samples[i * 4 + 0];
+                m_resampleBuffer[i * 2 + 1] = samples[i * 4 + 1];
+            }
+            playSamples = m_resampleBuffer.data();
+            playSampleCount = m_resampleBuffer.size();
+        }
+    }
+
     HWAVEOUT hWave = static_cast<HWAVEOUT>(m_hWaveOut);
-    size_t byteCount = sampleCount * sizeof(int16_t);
+    size_t byteCount = playSampleCount * sizeof(int16_t);
     size_t offset = 0;
 
     while (offset < byteCount) {
@@ -93,7 +149,7 @@ void Audio::writeSamples(const int16_t* samples, size_t sampleCount) {
         }
 
         size_t chunkSize = std::min(byteCount - offset, static_cast<size_t>(BUFFER_BYTES));
-        std::memcpy(targetBuf->data.data(), reinterpret_cast<const uint8_t*>(samples) + offset, chunkSize);
+        std::memcpy(targetBuf->data.data(), reinterpret_cast<const uint8_t*>(playSamples) + offset, chunkSize);
         if (chunkSize < BUFFER_BYTES) {
             std::memset(targetBuf->data.data() + chunkSize, 0, BUFFER_BYTES - chunkSize);
         }

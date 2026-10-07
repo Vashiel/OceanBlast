@@ -51,6 +51,7 @@ int main(int argc, char* argv[]) {
     int scale = 3;
 
     bool sound = false;
+    int audioRate = 22050; // Native digiBLAST S3C2410 audio rate
     bool debug = false;
     bool profile = false;
 
@@ -69,6 +70,8 @@ int main(int argc, char* argv[]) {
             gui = true;
         } else if (arg == "--sound" || arg == "--audio") {
             sound = true;
+        } else if ((arg == "--audio-rate" || arg == "--rate" || arg == "--samplerate") && i + 1 < argc) {
+            audioRate = std::stoi(argv[++i]);
         } else if (arg == "--scale" && i + 1 < argc) {
             scale = std::stoi(argv[++i]);
         }
@@ -107,9 +110,10 @@ int main(int argc, char* argv[]) {
     }
 
     if (sound) {
-        if (audio.init(44100, 2)) {
+        if (audio.init(audioRate, 2)) {
             bus.setAudioCallback([&](const int16_t* s, size_t n) {
-                audio.writeSamples(s, n);
+                u32 currentRate = bus.getAudioSampleRate();
+                audio.writeSamples(s, n, currentRate);
             });
         }
     }
