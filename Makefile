@@ -17,6 +17,7 @@ all: $(TARGET)
 
 src/main.o: src/display/display.h src/display/launcher.h src/core/input_script.h src/audio/audio.h src/audio/resampler.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
 src/audio/audio_win32.o: src/audio/audio.h src/audio/resampler.h
+src/cpu/arm920t.o: src/cpu/arm920t.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/core/types.h
 src/memory/bus.o: src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
 src/display/display_win32.o: src/display/display.h src/display/framebuffer.h
 

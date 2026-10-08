@@ -1,0 +1,2 @@
+rom,sha256,seconds,exit_code,timed_out,display_format,display_stride,steps,pc,framebuffer,nonzero_bytes,linux_boot,eeprom_error,invalid_pcm_pointer,kernel_panic,guest_segfaults,squashfs_error_messages,assessment
+Gormiti Agguato nella Valle [G] (IT).bin,be09c135ea705ceeedd1940908804be9ae47328c6fe6190809ed9c7122ee48e3,183.52,0,False,lcd,0,4500000000,0x40115414,0x302c0000,56418/57600,True,False,False,False,0,2,headless observation; gameplay/input/audio unverified
