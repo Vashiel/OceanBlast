@@ -17,3 +17,9 @@ bin/oceanblast.exe "roms/games/Wade Hixton's Counter Punch [G] (EN).bin" --gui -
 ```
 
 The command is intended for execution from the repository root. The launcher's corresponding controls preserve its normal session output directory. Compare submitted audio frames, queued frames, empty-queue observations and instruction throughput alongside listening results; zero dropped samples alone is insufficient acceptance evidence.
+
+### Sound Enabled, Debug Logging Disabled
+
+The repeated manual test still reports slow-motion startup after restarting with sound and FPS logging enabled and debug logging disabled. The process arguments confirm these settings. [Captured measurements](validation/2026-10-08_wade_manual_sound.csv) show 20.00 MIPS and 7.51 sampled framebuffer changes per second over the last 30.08 seconds. The backend has submitted 1,769,472 audio frames, with zero dropped samples and 24 empty-queue observations at capture time. This establishes that verbose logging alone does not explain the reported slow animation. Audible quality in this repeat has not yet been separately reported.
+
+The GUI pacing limit and Timer 4/DMA instruction time base both currently assume 20 million instructions per second. Maintaining that limit does not establish correct hardware speed. A follow-up should distinguish instruction throughput from guest timer delays and compare the same animation under controlled pacing. Simply increasing the host limit also accelerates instruction-based peripheral time and can alter audio production, so it must be treated as a diagnostic rather than a verified timing correction.
