@@ -6,6 +6,8 @@ Updated: October 7, 2026. This document establishes the technical reference foun
 
 ## 1. Primary Technical Sources
 
+Register-level clock and IIS corrections are specified in [Register clocks and IIS playback control](23_register_clocks_and_iis_pause.md), with direct links to the relevant Samsung manual sections, ARM920T instruction timing, and validation boundaries.
+
 * **Samsung S3C2410A User's Manual (Revision 1.0, March 2004)**
   * URL: https://bitsavers.org/components/samsung/S3C204x/S3C2410/21-S3-C2410A-032004_S3C2410A_Users_Manual_1.0_200403.pdf
   * Primary architectural reference for the Samsung S3C2410 application processor (the base architecture of the OCEAN-L-20 SoC), ARM920T core, MMU/CP15, bus memory controller, Steppingstone 4 KB boot SRAM, NAND Flash controller, interrupt controller, timers, and peripheral interfaces.

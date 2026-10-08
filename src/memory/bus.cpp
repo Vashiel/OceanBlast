@@ -10,6 +10,9 @@ Bus::Bus() {
     steppingstone.resize(ADDR_STEPPINGSTONE_SIZE, 0);
     sdram.resize(ADDR_SDRAM_SIZE, 0);
     sdramPtr = sdram.data();
+    mmioRegs[0x4C000004] = 0x5c080;
+    mmioRegs[0x4C000010] = 4;
+    mmioRegs[0x4C000014] = 0;
 }
 
 Bus::~Bus() {}
@@ -37,6 +40,10 @@ void Bus::reset() {
     std::fill(steppingstone.begin(), steppingstone.end(), 0);
     std::fill(sdram.begin(), sdram.end(), 0);
     mmioRegs.clear();
+    clocks.reset();
+    mmioRegs[0x4C000004] = 0x5c080;
+    mmioRegs[0x4C000010] = 4;
+    mmioRegs[0x4C000014] = 0;
     mmioRegs[0x4A000008] = 0xFFFFFFFF; // INTMSK default: all masked
     mmioRegs[0x4A00001C] = 0x000007FF; // INTSUBMSK default: all sub-masked
     mmioRegs[0x56000054] = 0x000000FF; // GPFDAT default: all pulled up
@@ -51,6 +58,7 @@ void Bus::reset() {
     regIntpnd = 0;
     regIntmsk = ~0u;
     dma2Active = false;
+    dma2Paused = false;
     dma2RedundantEnables = 0;
     dma2Timer = 0;
     dma2PcmPending.clear();
@@ -694,13 +702,19 @@ void Bus::writeMmio(u32 addr, u32 val) {
             return;
 
         case 0x4C000000: // LOCKTIME
-        case 0x4C000004: // MPLLCON
         case 0x4C000008: // UPLLCON
         case 0x4C00000C: // CLKCON
-        case 0x4C000010: // CLKSLOW
-        case 0x4C000014: // CLKDIVN
             mmioRegs[addr] = val;
             return;
+        case 0x4C000004: // MPLLCON
+            flushAudioClockBoundary();
+            clocks.setMpll(val); mmioRegs[addr] = val; updateClockedDevices(); return;
+        case 0x4C000010: // CLKSLOW
+            flushAudioClockBoundary();
+            clocks.setSlow(val); mmioRegs[addr] = val; updateClockedDevices(); return;
+        case 0x4C000014: // CLKDIVN
+            flushAudioClockBoundary();
+            clocks.setDivider(val); mmioRegs[addr] = val; updateClockedDevices(); return;
 
         // IIS Audio Controller (0x55000000)
         case 0x55000000: // IISCON
@@ -708,7 +722,9 @@ void Bus::writeMmio(u32 addr, u32 val) {
         case 0x55000008: // IISPSR
         case 0x5500000C: // IISFCON
         case 0x55000010: // IISFIFO
+            if (addr != 0x55000010 && addr != 0x5500000C) flushAudioClockBoundary();
             mmioRegs[addr] = val;
+            if (addr != 0x55000010 && addr != 0x5500000C) updateClockedDevices();
             return;
 
         // S3C2410 DMA Channel 2 (IIS Audio)
@@ -1114,15 +1130,37 @@ u32 Bus::getAudioSampleRate() const {
     auto itMod = mmioRegs.find(0x55000004); // S3C2410 IISMOD
     u32 mod = (itMod != mmioRegs.end()) ? itMod->second : 0x99;
     u32 fsMul = (mod & (1 << 2)) ? 384 : 256;
-    u32 div = (psrA + 1) * fsMul;
+    auto itCon = mmioRegs.find(0x55000000);
+    // Unconfigured diagnostic fixtures retain their default prescaler behavior.
+    const bool prescaler = itCon == mmioRegs.end() || (itCon->second & 2);
+    u32 div = (prescaler ? psrA + 1 : 1) * fsMul;
     if (div == 0) return 22050;
-    u32 rawRate = 45000000 / div;
-    // Map hardware prescaler division to standard audio sampling rates
-    if (rawRate >= 40000 && rawRate <= 48000) return 44100;
-    if (rawRate >= 20000 && rawRate <= 24000) return 22050;
-    if (rawRate >= 10000 && rawRate <= 13000) return 11025;
-    if (rawRate >= 7000  && rawRate <= 9000)  return 8000;
+    u32 rawRate = getPeripheralClock() / div;
     return (rawRate > 0) ? rawRate : 22050;
+}
+
+void Bus::updateClockedDevices() {
+    timer4.setClock(getPeripheralClock());
+    const auto con = mmioRegs.find(0x55000000), mod = mmioRegs.find(0x55000004);
+    dma2Paused = (con != mmioRegs.end() && ((con->second & 0x21) != 0x21 || (con->second & 8))) ||
+                 (mod != mmioRegs.end() && !(mod->second & 0x80));
+    if (!dma2Active || !dma2Period) return;
+    const uint64_t bytesPerSecond = uint64_t(getAudioSampleRate()) * 4;
+    const size_t period = std::max<uint64_t>(1, uint64_t(dma2Count) * 20000000 / bytesPerSecond);
+    if (period == dma2Period) return;
+    // Preserve transfer progress when the source clock changes. Long double
+    // avoids overflow for long transfers at a slow peripheral clock.
+    dma2Timer = std::max<size_t>(1, size_t((static_cast<long double>(dma2Timer) / dma2Period) * period + 0.5L));
+    dma2Period = period;
+    scheduleDma2Audio();
+}
+
+void Bus::flushAudioClockBoundary() {
+    const size_t ready = dma2PcmPending.size() & ~size_t(1);
+    if (audioCallback && ready) {
+        audioCallback(dma2PcmPending.data(), ready);
+        dma2PcmPending.erase(dma2PcmPending.begin(), dma2PcmPending.begin() + ready);
+    }
 }
 
 bool Bus::isLcd16Bpp() const {

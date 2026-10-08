@@ -2,10 +2,11 @@
 #include <cstdint>
 
 namespace oceanblast {
-// Timer input uses the board's observed 45 MHz PCLK and 20M-instruction time base.
+// Timer input follows PCLK; caller ticks retain the nominal 20M/s time base.
 class Timer4 {
 public:
     void reset() { *this = Timer4(); }
+    void setClock(uint32_t hz) { pclk = hz; }
     void configure(uint32_t cfg0, uint32_t cfg1) {
         const uint32_t count = observe();
         const uint32_t mux = (cfg1 >> 16) & 15;
@@ -23,7 +24,7 @@ public:
     bool isRunning() const { return running && !external && remaining != 0; }
     bool advance(uint64_t instructions) {
         if (!isRunning()) return false;
-        const uint64_t elapsed = instructions * 45000000ull;
+        const uint64_t elapsed = instructions * pclk;
         if (elapsed < remaining) { remaining -= elapsed; return false; }
         if (reload) {
             const uint64_t period = (uint64_t(buffer) + 1) * denominator;
@@ -34,6 +35,7 @@ public:
 private:
     uint64_t denominator = 40000000, remaining = 0;
     uint32_t buffer = 0;
+    uint32_t pclk = 12000000;
     bool running = false, reload = false, external = false;
 };
 }

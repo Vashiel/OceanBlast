@@ -1,5 +1,7 @@
 # CPU Budget and Runtime Timing
 
+[Register-derived clocks and IIS pause/resume](23_register_clocks_and_iis_pause.md) replace the fixed peripheral-clock and nominal audio-rate assumptions. IRQ entry now advances its supplied peripheral budget; the early-return limitation described in the original probe below no longer applies to new runs. The CPU work ratio remains an approximation.
+
 Wade Hixton's Counter Punch still shows slow and uneven animation after reported audio improvement. Audio quality and animation speed require separate validation. A recent standard GUI session averaged 20.01 MIPS and 11.08 sampled framebuffer changes per second over its last 30.07 seconds, with zero dropped samples and zero empty-queue observations. Reaching the instruction limit does not establish correct console speed.
 
 ## Separating CPU Work from Peripheral Time
