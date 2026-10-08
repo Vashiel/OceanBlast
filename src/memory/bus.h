@@ -236,8 +236,10 @@ public:
     void tickTimer4();
     void tickDma2();
     void tickAdcI2c(size_t cycles);
+    void updateUart0TxInterrupt(bool emptyTransition = false);
 
     inline void tick(size_t cycles = 1) {
+        if (uart0TxLevelActive) updateUart0TxInterrupt();
         if (regTcon & (1 << 20)) {
             timer4CycleCounter += cycles;
             if (timer4CycleCounter >= 100000) {
@@ -296,6 +298,7 @@ private:
     u32 regTcon = 0;
     u32 regIntmsk = ~0u;
     u32 regSrcpnd = 0;
+    bool uart0TxLevelActive = false;
     u32 regIntpnd = 0;
 
     std::vector<u8> steppingstone;

@@ -4,6 +4,8 @@ Date: 2026-10-08. Baseline: `2d305578`.
 
 Scope: ARM/Thumb execution correctness, reproducible runtime diagnostics, and compatibility of the eleven local `roms/games/*.bin` cartridges. Verified menu or scene output is distinguished from sustained gameplay and synchronized audio; full compatibility remains unverified.
 
+The later [UART0 interrupt validation](15_uart_video_startup.md) restores visible Superstar Chefs output. The baseline table below records the earlier configuration and remains evidence for that comparison.
+
 ## Execution fixes
 
 - Thumb register-offset memory instructions used the wrong format discriminator and load/byte bits. STR, STRH, STRB, LDSB, LDR, LDRH, LDRB and LDSH now decode independently and have individual regression checks.

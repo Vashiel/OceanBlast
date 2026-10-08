@@ -32,6 +32,9 @@ void printUsage(const char* progName) {
               << "  --audio-rate <Hz> Host output rate (default 22050)\n"
               << "  --profile          Write GUI performance.csv, including audio rate and dropped samples\n";
     std::cout << "  --snapshot-interval <N> Save framebuffer/state every N instructions\n"
+              << "  --exit-on-limit         Close GUI after the instruction budget is exhausted\n"
+              << "  --fault-log             Log all exception contexts, including expected page faults\n"
+              << "  --trace-pc <start> <end> Trace an inclusive PC range (decimal or 0x addresses)\n"
               << "  --input-script <path>   Replay step/mask events (decimal steps, hex masks)\n";
 }
 
@@ -59,6 +62,10 @@ int main(int argc, char* argv[]) {
     bool sound = false;
     int audioRate = 22050; // Native digiBLAST S3C2410 audio rate
     bool debug = false;
+    bool faultLog = false;
+    bool exitOnLimit = false;
+    bool traceRange = false;
+    u32 traceStart = 0, traceEnd = 0;
     bool profile = false;
     double clockMips = 20.0; // Timer/DMA model currently assumes 20M instructions/s.
     size_t snapshotInterval = 0;
@@ -71,6 +78,14 @@ int main(int argc, char* argv[]) {
             customSteps = true;
         } else if (arg == "--debug") {
             debug = true;
+        } else if (arg == "--fault-log") {
+            faultLog = true;
+        } else if (arg == "--trace-pc" && i + 2 < argc) {
+            traceStart = static_cast<u32>(std::stoul(argv[++i], nullptr, 0));
+            traceEnd = static_cast<u32>(std::stoul(argv[++i], nullptr, 0));
+            traceRange = true;
+        } else if (arg == "--exit-on-limit") {
+            exitOnLimit = true;
         } else if (arg == "--profile") {
             profile = true;
         } else if (arg == "--snapshot-interval" && i + 1 < argc) {
@@ -94,6 +109,10 @@ int main(int argc, char* argv[]) {
 
     if (gui && !customSteps) {
         stepLimit = std::numeric_limits<size_t>::max();
+    }
+    if (traceRange && traceStart > traceEnd) {
+        std::cerr << "[Error] Invalid trace PC range." << std::endl;
+        return 1;
     }
     if (!(clockMips >= 0 && clockMips <= 1000) || audioRate < 4000 || audioRate > 192000) {
         std::cerr << "[Error] Invalid clock or audio rate." << std::endl;
@@ -126,6 +145,7 @@ int main(int argc, char* argv[]) {
     oceanblast::ARM920T cpu(bus);
     cpu.reset(0x00000000); // Boot from Steppingstone SRAM
     cpu.setDebugLogging(debug || trace);
+    cpu.setFaultLogging(faultLog);
 
     oceanblast::Display display(scale);
     oceanblast::Audio audio;
@@ -181,7 +201,13 @@ int main(int argc, char* argv[]) {
               << "\niismod=" << bus.getMmio(0x55000004)
               << "\niispsr=" << bus.getMmio(0x55000008)
               << "\niiccon=" << bus.getMmio(0x54000000)
-              << "\niicstat=" << bus.getMmio(0x54000004) << '\n';
+              << "\niicstat=" << bus.getMmio(0x54000004)
+              << "\nucon0=" << bus.getMmio(0x50000004)
+              << "\nsrcpnd=" << bus.getMmio(0x4A000000)
+              << "\nintpnd=" << bus.getMmio(0x4A000010)
+              << "\nintmsk=" << bus.getMmio(0x4A000008)
+              << "\nsubsrcpnd=" << bus.getMmio(0x4A000018)
+              << "\nintsubmsk=" << bus.getMmio(0x4A00001C) << '\n';
         for (int reg = 0; reg < 16; ++reg) state << 'r' << std::dec << reg << '=' << std::hex << cpu.getReg(reg) << '\n';
     };
 
@@ -327,6 +353,12 @@ int main(int argc, char* argv[]) {
                       << currentPC << " CPSR=0x" << cpu.getCPSR() << " " << cpu.disassembleCurrentARM() << std::dec << std::endl;
         }
 
+        if (traceRange && currentPC >= traceStart && currentPC <= traceEnd) {
+            std::cout << "[PC TRACE] step=" << executedSteps << " PC=0x" << std::hex << currentPC
+                      << " TTB=0x" << bus.getTtb() << " " << cpu.disassembleCurrentARM()
+                      << std::dec << '\n';
+            cpu.dumpState();
+        }
         cpu.step();
         executedSteps++;
     }
@@ -433,7 +465,7 @@ int main(int argc, char* argv[]) {
         std::cout << std::dec << std::endl;
     }
 
-    if (gui && display.isOpen()) {
+    if (gui && display.isOpen() && !exitOnLimit) {
         u32 fbPhys = getActiveFbPhys();
         display.updateFrame(bus.getSdramPtr(), fbPhys, bus.isLcd16Bpp());
         std::cout << "[Display] Emulation paused. Press ESC or close the window to exit." << std::endl;

@@ -21,6 +21,7 @@ public:
     void reset(u32 startAddress = 0x00000000);
     void step();
     void setDebugLogging(bool enabled) { debugLogging = enabled; }
+    void setFaultLogging(bool enabled) { faultLogging = enabled; }
 
     // Register Access
     u32 getReg(int index) const { return (index >= 0 && index < 16) ? r[index] : 0; }
@@ -46,6 +47,8 @@ private:
     u32 spsr;
     bool halted;
     bool debugLogging = false;
+    bool faultLogging = false;
+    void logFaultContext(const char* kind, u32 instructionPC, u32 faultAddress);
 
     // Banked Registers for ARM Exception Modes
     u32 r13_usr = 0, r14_usr = 0;

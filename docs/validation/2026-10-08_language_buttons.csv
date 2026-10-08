@@ -1,0 +1,2 @@
+rom,sha256,seconds,exit_code,timed_out,steps,pc,framebuffer,nonzero_bytes,linux_boot,eeprom_error,invalid_pcm_pointer,kernel_panic,guest_segfaults,squashfs_error_messages,assessment
+Winx Club + 5 Atari Games [V+G] (IT ES).bin,d48139a3b9d07d3005af3533e178d1f0955454e3099a365467da0d90f71e5ad3,60.64,0,False,3000000000,0xc001afc0,0x302a0000,74394/76800,True,True,False,False,0,0,headless observation; gameplay/input/audio unverified

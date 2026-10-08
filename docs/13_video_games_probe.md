@@ -4,6 +4,8 @@ Date: 2026-10-08. Baseline: `29391853`.
 
 Scope: Linux boot, launcher startup and active framebuffer output for the three extracted `.bin` cartridges in `roms/video_games`. Movie playback requires successful launcher and player startup; a loading splash is not playback validation.
 
+The [UART0 interrupt correction](15_uart_video_startup.md) subsequently restores the Italian/Spanish language menus. The table below describes the pre-correction baseline.
+
 Each run uses 1.2 billion instructions, `--debug`, snapshots every 100 million instructions and the generic `tests/start_buttons.txt` replay. The emulator runs headlessly without host audio; this does not validate movie playback, controls or sound.
 
 | Cartridge | Final active frame | Guest observation |

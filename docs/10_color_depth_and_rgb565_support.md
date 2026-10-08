@@ -68,4 +68,4 @@ Updated `Display::updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is
 
 1. **Test Suite:** `make test` passes **22 / 22 PASS (0 failures)**.
 2. **Pitfall The Lost Expedition:** Correctly recognized as `12bpp packed` (57,600 bytes).
-3. **Crazy Jack:** Correctly recognized as `16bpp RGB565` (76,800 bytes); all splashscreen graphics and gameplay visuals render crisp, pixel-perfect, and artifact-free.
+3. **Crazy Jack:** Recognized as `16bpp RGB565` (76,800 bytes). This establishes the framebuffer format, not gameplay compatibility. Later controlled audits find its active gameplay buffer almost empty; see [game cartridge compatibility](12_game_cartridge_compatibility.md).

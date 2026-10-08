@@ -29,6 +29,8 @@ def run_one(rom, args):
                 command += ['--input-script', str(args.input_script)]
             if args.debug:
                 command += ['--debug']
+            if args.fault_log:
+                command += ['--fault-log']
             completed = subprocess.run(command,
                                        cwd=directory, stdout=log, stderr=subprocess.STDOUT,
                                        timeout=args.timeout)
@@ -49,6 +51,8 @@ def run_one(rom, args):
                   eeprom_error='No I2C adapter attached' in text,
                   invalid_pcm_pointer='res cfcb0000' in text,
                   kernel_panic='Kernel panic' in text,
+                  guest_segfaults=text.count('Segmentation fault'),
+                  squashfs_error_messages=text.count('SQUASHFS error:'),
                   assessment='headless observation; gameplay/input/audio unverified')
     (directory / 'result.json').write_text(json.dumps(result, indent=2)+'\n', encoding='utf-8')
     print(f"{rom.name}: PC={result['pc']} frame={frame} timeout={timed_out}", flush=True)
@@ -67,6 +71,7 @@ def main():
     parser.add_argument('--snapshots', type=int, default=0, help='snapshot instruction interval')
     parser.add_argument('--input-script', type=Path)
     parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--fault-log', action='store_true')
     args = parser.parse_args()
     if args.steps <= 0 or args.timeout <= 0 or args.jobs < 1:
         parser.error('steps, timeout and jobs must be positive')
@@ -81,7 +86,7 @@ def main():
     args.output.mkdir(parents=True, exist_ok=False)
     metadata = dict(exe=str(args.exe), exe_sha256=digest(args.exe), steps=args.steps,
                     timeout=args.timeout, jobs=args.jobs, sound=False, gui=False, debug=args.debug,
-                    snapshots=args.snapshots, input_script=str(args.input_script) if args.input_script else None,
+                    snapshots=args.snapshots, fault_log=args.fault_log, input_script=str(args.input_script) if args.input_script else None,
                     input_sha256=digest(args.input_script) if args.input_script else None)
     (args.output / 'audit.json').write_text(json.dumps(metadata, indent=2)+'\n', encoding='utf-8')
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
