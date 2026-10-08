@@ -1,0 +1,26 @@
+file,size,crc32,sha1,mame_match,mame_dump_status,mame_supported,assessment
+games/Crazy Jack [G] (EN).bin,17301504,9bce041a,221d68d590bf8b716a69e330da83e9fab2b48c04,crzyjack,good,no,MATCH
+games/Cuccioli Cerca Amici [G] (IT).bin,69206016,40a18574,7d5d2201a0f93b083ea32e116da8d2fe530f36f5,cuccioli,good,no,MATCH
+games/DigiQUAD [G] (EN).bin,17301504,c57e4b7c,17aff879b64ebba5574a787cb78b763b04d7efea,digiquad,good,no,MATCH
+games/Gormiti Agguato nella Valle [G] (IT).bin,34603008,ddeec7ea,aa13942508b086f6aa4b1d26595a9ecf577849e3,,,,NO_CATALOG_MATCH
+games/Gormiti Lotta Oscura [G] (IT).bin,34603008,d11135f5,9538995c2fd9344be1e3b64c754488fac7ad3985,gormitil,good,no,MATCH
+games/Gormiti Masters of the Gorm Island [G] (IT).bin,17301504,f890f74c,26431663f87e3549eab3c36e5d89ef0dbbadd489,gormitim,good,no,MATCH
+games/Pitfall The Lost Expedition [G] (EN).bin,17301504,d1d6118f,8f7027041c5a02ac8128a4fa2cb3a5dc6e45c357,pitfall,good,no,MATCH
+games/Rayman 3 [G] (M10).bin,17301504,e3e1953e,015df5c3b9c7a6f1be4d58bedb49b6d0f5674bf9,rayman3,good,no,MATCH
+games/Spider-Man Mysterio's Menace [G] (EN).bin,17301504,142577ee,ddf13723b44ab1cdbb80d73a8b55601a98f7e1b6,spidmm,good,no,MATCH
+games/Superstar Chefs [G] (EN).bin,17301504,93209877,026494753c9c35feee362342ff96bd4f05f241b1,sschefs,good,no,MATCH
+games/Wade Hixton's Counter Punch [G] (EN).bin,17301504,eba2a2c3,10e52e59d0be41db6f1e9ba4d895237569890c22,wadehix,good,no,MATCH
+hardware/MP3 player 256MB.zip::MP3 player 256MB.bin,17301504,b048a789,83c9efaa1c57044d27bc4cb5819b01b2b9c8979a,,,,NO_CATALOG_MATCH
+test.bin,17301504,e3e1953e,015df5c3b9c7a6f1be4d58bedb49b6d0f5674bf9,rayman3,good,no,MATCH
+video_games/Sponge Bob + 5 Atari Games [V+G] (IT ES).bin,34603008,69ab74c0,f454bc13b5b2cde1dcee1cc6a5861ee0e9bc032c,sbatari,good,no,MATCH
+video_games/Winx Club + 5 Atari Games [V+G] (IT ES).bin,34603008,6b5ca82e,e934ace84ba44defb4e4c0967236ad8803837409,wxatari,good,no,MATCH
+video_games/Winx Club + 5 Atari Games [V+G] (NL FR DE TR).bin,34603008,eb1d8fda,f192ffe38eadcc8e3b9b59db76379806e400892f,wxatarib,good,no,MATCH
+videos/Gormiti 2 episodi [V] (IT).zip::Gormiti 2 episodi [V] (IT).bin,34603008,b0b98ad1,78cdd5a11af87a762ef689ede4afe1f1852f124b,gormiti2,good,no,MATCH
+videos/Gormiti Dalle Origini all_Eclissi [V] (IT).zip::Gormiti Dalle Origini all'Eclissi [V] (IT).bin,69206016,8bf52908,c51ffd002be5dc3cc330a704334f3d795965f542,,,,NO_CATALOG_MATCH
+videos/Sonic X 1 [V] (IT ES).zip::Sonic X 1 [V] (IT ES).bin,69206016,c24cb643,62d73be42aa4e104ec980a467bae01b233194579,sonicx1,good,no,MATCH
+videos/Sponge Bob Square Pants 1 [V] (IT ES).zip::Sponge Bob Square Pants 1 [V] (IT ES).bin,69206016,56deccb3,251967cdc72cf06bb92957ecc3ad8a3b1573c91e,sbsp1,good,no,MATCH
+videos/Totally Spies! 1 [V] (IT).zip::Totally Spies! 1 [V] (IT).bin,69206016,2f88baaf,5cda9f4844cd708e577426285a0d7f0024e83168,totsp1i,good,no,MATCH
+videos/Totally Spies! 1 [V] (NL EN FR TR).zip::Totally Spies! 1 [V] (NL EN FR TR).bin,69206016,93e46afb,0495f2b468cbd9cfd2ef74a306a639c4fc9d3c57,totsp1,good,no,MATCH
+videos/Winx Club 1 [V] (IT ES).zip::Winx Club 1 [V] (IT ES).bin,69206016,a870766e,ade470b1e574761bf35254064b2437dccf1a3c2c,winx1,good,no,MATCH
+videos/Winx Club 1 [V] (NL FR EN TR).zip::Winx Club 1 [V] (NL FR EN TR).bin,69206016,ee696172,97e001d615d75aaaed321e3b97c08d44f7898f51,,,,NO_CATALOG_MATCH
+videos/Yu-Gi-Oh! 1 [V] (IT ES).zip::Yu-Gi-Oh! 1 [V] (IT ES).bin,69206016,2494e958,76594cebc642c61afa84d20370b40d18e9aabc80,yugi,good,no,MATCH
