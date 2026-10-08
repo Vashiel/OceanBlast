@@ -72,12 +72,17 @@ build/input_test.exe: tests/input_test.cpp src/cpu/arm920t.cpp src/memory/bus.cp
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp %.o,$^) $(LDFLAGS)
 
 clean:
+	rm -f build/runtime_probe.exe
 	rm -f build/capture_audio.exe
 	rm -f $(OBJS) $(TARGET) build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe
 	rm -f build/i2c_eeprom.exe
 	rm -f build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
 
 .PHONY: all clean test
+
+build/runtime_probe.exe: tools/runtime_probe.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cpu/arm920t.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
 
 build/capture_audio.exe: tools/capture_audio.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cpu/arm920t.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/audio/resampler.h
 	@mkdir -p build

@@ -10,6 +10,8 @@ A generated-PCM excerpt also sounds defective. [Consumed-sample DMA capture](20_
 
 ## Wade Hixton's Counter Punch
 
+Subsequent listening feedback reports substantially improved sound, while animation remains slow and uneven. [Controlled CPU-budget comparisons](22_cpu_budget_and_runtime_timing.md) advance startup at the same scheduled peripheral budget, but the 2x GUI test cannot consistently reach its required 40 MIPS and repeatedly empties the audio queue. Neither setting has established correct hardware speed or sustained gameplay acceptance.
+
 Manual observation: the engine splash and Inferno logo animate very slowly; the title animation stutters and music has slight interruptions. This report covers startup and title presentation, not sustained gameplay.
 
 The inspected session uses the current EEPROM/Timer 4 build with 3x scaling, the default 20-MIPS pacing limit, FPS logging, verbose debug logging and persistent device settings. Sound is disabled in this particular session. It therefore cannot validate the reported music interruptions.
