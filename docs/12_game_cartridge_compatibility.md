@@ -1,6 +1,6 @@
 # Game Cartridge Compatibility & CPU Execution Validation
 
-Date: 2026-10-08. Baseline: `e2f9611`.
+Date: 2026-10-08. Baseline: `2d305578`.
 
 Scope: ARM/Thumb execution correctness, reproducible runtime diagnostics, and compatibility of the eleven local `roms/games/*.bin` cartridges. Verified menu or scene output is distinguished from sustained gameplay and synchronized audio; full compatibility remains unverified.
 

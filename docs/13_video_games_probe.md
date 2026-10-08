@@ -1,6 +1,6 @@
 # Video-and-Game Cartridge Startup Compatibility
 
-Date: 2026-10-08. Baseline: `41cf707`.
+Date: 2026-10-08. Baseline: `29391853`.
 
 Scope: Linux boot, launcher startup and active framebuffer output for the three extracted `.bin` cartridges in `roms/video_games`. Movie playback requires successful launcher and player startup; a loading splash is not playback validation.
 
