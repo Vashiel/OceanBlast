@@ -6,6 +6,13 @@
 
 namespace oceanblast {
 
+// ARMv4T word loads rotate an aligned word; they do not join bytes from two words.
+static u32 readRotatedWord(Bus& bus, u32 address) {
+    const u32 word = bus.read32(address & ~3u);
+    const u32 shift = (address & 3u) * 8;
+    return shift ? (word >> shift) | (word << (32 - shift)) : word;
+}
+
 ARM920T::ARM920T(Bus& bus) : bus(bus), cpsr(0x00000013), spsr(0), halted(false) {
     reset();
 }
@@ -647,8 +654,15 @@ void ARM920T::executeDataProcessing(u32 instr) {
             }
             break;
         }
-        case 0x8: result = op1 & op2; writeResult = false; if (setCond) setNZFlags(result); break; // TST
-        case 0x9: result = op1 ^ op2; writeResult = false; if (setCond) setNZFlags(result); break; // TEQ
+        case 0x8: // TST
+        case 0x9: // TEQ
+            result = opcode == 0x8 ? (op1 & op2) : (op1 ^ op2);
+            writeResult = false;
+            if (setCond) {
+                setNZFlags(result);
+                if (carry) cpsr |= FLAG_C; else cpsr &= ~FLAG_C;
+            }
+            break;
         case 0xA: result = op1 - op2; writeResult = false; if (setCond) setSubFlags(op1, op2, result); break; // CMP
         case 0xB: result = op1 + op2; writeResult = false; if (setCond) setAddFlags(op1, op2, result); break; // CMN
         case 0xC: result = op1 | op2; break; // ORR
@@ -698,14 +712,14 @@ void ARM920T::executeSingleDataTransfer(u32 instr) {
         offset = (rm == 15) ? (r[15] + 4) : r[rm];
         u32 shiftType = (instr >> 5) & 3;
         u32 shiftAmt = (instr >> 7) & 0x1F;
-        bool dummyCarry = false;
+        bool dummyCarry = (cpsr & FLAG_C) != 0;
         offset = shiftOperand(offset, shiftType, shiftAmt, dummyCarry, true);
     }
 
     u32 targetAddr = pre ? (up ? (baseVal + offset) : (baseVal - offset)) : baseVal;
 
     if (isLoad) {
-        u32 val = isByte ? bus.read8(targetAddr) : bus.read32(targetAddr);
+        u32 val = isByte ? bus.read8(targetAddr) : readRotatedWord(bus, targetAddr);
         if (bus.getLastFault() != Bus::MmuFault::NONE) {
             handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
             bus.clearLastFault();
@@ -725,7 +739,7 @@ void ARM920T::executeSingleDataTransfer(u32 instr) {
     } else {
         u32 val = (rd == 15) ? (r[15] + 4) : r[rd];
         if (isByte) bus.write8(targetAddr, val & 0xFF);
-        else bus.write32(targetAddr, val);
+        else bus.write32(targetAddr & ~3u, val);
         if (bus.getLastFault() != Bus::MmuFault::NONE) {
             handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
             bus.clearLastFault();
@@ -909,13 +923,13 @@ void ARM920T::executeSwap(u32 instr) {
         }
         r[rd] = temp;
     } else {
-        u32 temp = bus.read32(addr);
+        u32 temp = readRotatedWord(bus, addr);
         if (bus.getLastFault() != Bus::MmuFault::NONE) {
             handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
             bus.clearLastFault();
             return;
         }
-        bus.write32(addr, r[rm]);
+        bus.write32(addr & ~3u, r[rm]);
         if (bus.getLastFault() != Bus::MmuFault::NONE) {
             handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
             bus.clearLastFault();
@@ -971,7 +985,8 @@ void ARM920T::executeSWI(u32 instr) {
                       << " pgoff=0x" << std::hex << r[5] << std::dec << std::endl;
         } else {
             std::cout << "[SWI] Syscall 0x" << std::hex << swiNum << " called from 0x" << (retAddr - 4)
-                      << " -> vector 0x" << r[15] << std::dec << std::endl;
+                      << " -> vector 0x" << r[15] << " r0=0x" << r[0] << " r1=0x" << r[1]
+                      << " r2=0x" << r[2] << std::dec << std::endl;
         }
     }
 }
@@ -1256,21 +1271,21 @@ void ARM920T::stepThumb(u32 physAddr) {
 
     // Format 7 & Format 8: Load/store register offset / sign-extended byte/halfword
     if ((instr & 0xF000) == 0x5000) {
-        bool bit11 = (instr & (1 << 11)) != 0;
+        bool signedOrHalfword = (instr & (1 << 9)) != 0;
         u32 ro = (instr >> 6) & 7;
         u32 rb = (instr >> 3) & 7;
         u32 rd = instr & 7;
         u32 addr = r[rb] + r[ro];
-        if (!bit11) { // Format 7: Load/store with register offset
-            bool load = (instr & (1 << 10)) != 0;
-            bool isByte = (instr & (1 << 9)) != 0;
+        if (!signedOrHalfword) { // Format 7: Load/store with register offset
+            bool load = (instr & (1 << 11)) != 0;
+            bool isByte = (instr & (1 << 10)) != 0;
             if (load) {
                 if (isByte) {
                     u8 val = bus.read8(addr);
                     if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
                     r[rd] = val;
                 } else {
-                    u32 val = bus.read32(addr);
+                    u32 val = readRotatedWord(bus, addr);
                     if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
                     r[rd] = val;
                 }
@@ -1279,12 +1294,12 @@ void ARM920T::stepThumb(u32 physAddr) {
                     bus.write8(addr, r[rd] & 0xFF);
                     if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
                 } else {
-                    bus.write32(addr, r[rd]);
+                    bus.write32(addr & ~3u, r[rd]);
                     if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
                 }
             }
         } else { // Format 8: Load/store sign-extended byte/halfword
-            u32 op8 = (instr >> 9) & 3;
+            u32 op8 = (instr >> 10) & 3;
             if (op8 == 0) { // STRH
                 bus.write16(addr, r[rd] & 0xFFFF);
                 if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
@@ -1319,7 +1334,7 @@ void ARM920T::stepThumb(u32 physAddr) {
                 if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
                 r[rd] = val;
             } else {
-                u32 val = bus.read32(addr);
+                u32 val = readRotatedWord(bus, addr);
                 if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
                 r[rd] = val;
             }
@@ -1328,7 +1343,7 @@ void ARM920T::stepThumb(u32 physAddr) {
                 bus.write8(addr, r[rd] & 0xFF);
                 if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
             } else {
-                bus.write32(addr, r[rd]);
+                bus.write32(addr & ~3u, r[rd]);
                 if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
             }
         }
@@ -1390,7 +1405,7 @@ void ARM920T::stepThumb(u32 physAddr) {
     }
 
     // Format 14: Push/Pop registers
-    if ((instr & 0xF600) == 0xB400) { // PUSH
+    if ((instr & 0xFE00) == 0xB400) { // PUSH
         bool rBit = (instr & (1 << 8)) != 0; // LR
         u32 count = 0;
         for (int i = 0; i < 8; ++i) if (instr & (1 << i)) count++;
@@ -1410,7 +1425,7 @@ void ARM920T::stepThumb(u32 physAddr) {
         }
         return;
     }
-    if ((instr & 0xF600) == 0xBC00) { // POP
+    if ((instr & 0xFE00) == 0xBC00) { // POP
         bool rBit = (instr & (1 << 8)) != 0; // PC
         u32 addr = r[13];
         for (int i = 0; i < 8; ++i) {

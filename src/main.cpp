@@ -7,6 +7,7 @@
 #include <chrono>
 #include <sstream>
 #include "core/types.h"
+#include "core/input_script.h"
 #include "memory/bus.h"
 #include "cpu/arm920t.h"
 #include "cartridge/cart_parser.h"
@@ -30,6 +31,8 @@ void printUsage(const char* progName) {
     std::cout << "  --clock-mips <N>  GUI speed limit (default 20; 0 disables pacing)\n"
               << "  --audio-rate <Hz> Host output rate (default 22050)\n"
               << "  --profile          Write GUI performance.csv, including audio rate and dropped samples\n";
+    std::cout << "  --snapshot-interval <N> Save framebuffer/state every N instructions\n"
+              << "  --input-script <path>   Replay step/mask events (decimal steps, hex masks)\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -58,6 +61,8 @@ int main(int argc, char* argv[]) {
     bool debug = false;
     bool profile = false;
     double clockMips = 20.0; // Timer/DMA model currently assumes 20M instructions/s.
+    size_t snapshotInterval = 0;
+    std::string inputScriptPath;
 
     for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
@@ -68,6 +73,10 @@ int main(int argc, char* argv[]) {
             debug = true;
         } else if (arg == "--profile") {
             profile = true;
+        } else if (arg == "--snapshot-interval" && i + 1 < argc) {
+            snapshotInterval = std::stoull(argv[++i]);
+        } else if (arg == "--input-script" && i + 1 < argc) {
+            inputScriptPath = argv[++i];
         } else if (arg == "--clock-mips" && i + 1 < argc) {
             clockMips = std::stod(argv[++i]);
         } else if (arg == "--trace") {
@@ -92,6 +101,16 @@ int main(int argc, char* argv[]) {
     }
 
     oceanblast::Bus bus;
+    std::vector<InputEvent> inputEvents;
+    if (!inputScriptPath.empty()) {
+        std::ifstream input(inputScriptPath);
+        std::string error;
+        if (!input || !readInputScript(input, inputEvents, error)) {
+            std::cerr << "[Error] Input script: " << (error.empty() ? "cannot open file" : error) << std::endl;
+            return 1;
+        }
+    }
+    size_t nextInput = 0, nextSnapshot = snapshotInterval;
 
     std::cout << "[Loader] Opening digiBLAST Cartridge: " << cartPath << std::endl;
     if (!bus.loadCartridge(cartPath)) {
@@ -142,6 +161,30 @@ int main(int argc, char* argv[]) {
         return 0x30300000;
     };
 
+    auto saveSnapshot = [&]() {
+        const std::string stem = "snapshot_" + std::to_string(executedSteps);
+        const u32 fb = getActiveFbPhys();
+        const bool is16bpp = bus.isLcd16Bpp();
+        const size_t fbSize = bus.getFramebufferSize();
+        if (fb >= ADDR_SDRAM_BASE && uint64_t(fb - ADDR_SDRAM_BASE) + fbSize <= ADDR_SDRAM_SIZE) {
+            std::ofstream image(stem + ".raw", std::ios::binary);
+            image.write(reinterpret_cast<const char*>(bus.getSdramPtr() + (fb - ADDR_SDRAM_BASE)), fbSize);
+        }
+        std::ofstream state(stem + ".txt");
+        state << "steps=" << executedSteps << "\nPC=" << std::hex << cpu.getPC()
+              << "\nCPSR=" << cpu.getCPSR() << "\nTTB=" << bus.getTtb()
+              << "\nframebuffer=" << fb << "\nformat=" << (is16bpp ? "16bpp" : "12bpp")
+              << "\naudio_rate=" << std::dec << bus.getAudioSampleRate()
+              << "\ndropped_samples=" << audio.getDroppedSamples()
+              << "\ndma_source=" << std::hex << bus.getMmio(0x4B000098)
+              << "\ndma_remaining=" << bus.getMmio(0x4B000094)
+              << "\niismod=" << bus.getMmio(0x55000004)
+              << "\niispsr=" << bus.getMmio(0x55000008)
+              << "\niiccon=" << bus.getMmio(0x54000000)
+              << "\niicstat=" << bus.getMmio(0x54000004) << '\n';
+        for (int reg = 0; reg < 16; ++reg) state << 'r' << std::dec << reg << '=' << std::hex << cpu.getReg(reg) << '\n';
+    };
+
     std::cout << "\n[OceanBlast] Starting ARM920T Steppingstone execution from 0x00000000..." << std::endl;
 
     using Clock = std::chrono::steady_clock;
@@ -154,13 +197,22 @@ int main(int argc, char* argv[]) {
     std::ofstream metrics;
     if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples\n"; }
     while (!cpu.isHalted() && executedSteps < stepLimit) {
+        if (nextInput < inputEvents.size() && executedSteps == inputEvents[nextInput].step) {
+            bus.setButtonMask(inputEvents[nextInput].mask);
+            ++nextInput;
+        }
+        if (snapshotInterval && executedSteps == nextSnapshot) {
+            saveSnapshot();
+            if (nextSnapshot > std::numeric_limits<size_t>::max() - snapshotInterval) snapshotInterval = 0;
+            else nextSnapshot += snapshotInterval;
+        }
         if (gui && (display.paused || executedSteps % 50000 == 0)) {
             display.processEvents();
             if (!display.isOpen()) {
                 std::cout << "\n[OceanBlast] Display window closed by user." << std::endl;
                 break;
             }
-            bus.setButtonMask(display.getButtonMask());
+            if (inputScriptPath.empty()) bus.setButtonMask(display.getButtonMask());
             auto now = Clock::now();
             if (now - lastFrame >= std::chrono::milliseconds(16)) {
                 const u32 fb = getActiveFbPhys();
@@ -191,23 +243,7 @@ int main(int argc, char* argv[]) {
             }
             if (display.snapshot) {
                 display.snapshot = false;
-                const std::string stem = "snapshot_" + std::to_string(executedSteps);
-                const u32 fb = getActiveFbPhys();
-                const bool is16bpp = bus.isLcd16Bpp();
-                const size_t fbSize = bus.getFramebufferSize();
-                if (fb >= ADDR_SDRAM_BASE && uint64_t(fb - ADDR_SDRAM_BASE) + fbSize <= ADDR_SDRAM_SIZE) {
-                    std::ofstream image(stem + ".raw", std::ios::binary);
-                    image.write(reinterpret_cast<const char*>(bus.getSdramPtr() + (fb - ADDR_SDRAM_BASE)), fbSize);
-                }
-                std::ofstream state(stem + ".txt");
-                state << "steps=" << executedSteps << "\nPC=" << std::hex << cpu.getPC() << "\nCPSR=" << cpu.getCPSR() << "\nframebuffer=" << fb << "\nformat=" << (is16bpp ? "16bpp" : "12bpp") << '\n';
-                state << "audio_rate=" << std::dec << bus.getAudioSampleRate()
-                      << "\ndropped_samples=" << audio.getDroppedSamples()
-                      << "\ndma_source=" << std::hex << bus.getMmio(0x4B000098)
-                      << "\ndma_remaining=" << bus.getMmio(0x4B000094)
-                      << "\niiccon=" << bus.getMmio(0x54000000)
-                      << "\niicstat=" << bus.getMmio(0x54000004) << '\n';
-                for (int reg = 0; reg < 16; ++reg) state << 'r' << std::dec << reg << '=' << std::hex << cpu.getReg(reg) << '\n';
+                saveSnapshot();
             }
             if (display.paused) { paceStart = Clock::now(); paceSteps = executedSteps; }
             if (display.paused && !display.singleStep) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); continue; }

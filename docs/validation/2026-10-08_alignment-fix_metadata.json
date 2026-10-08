@@ -1,0 +1,11 @@
+{
+  "exe_sha256": "3eb535a1f7752fa69522f33dc5a6f98e86da314cf18922e2d410839f9b18b1ea",
+  "steps": 2000000000,
+  "timeout": 180.0,
+  "jobs": 2,
+  "sound": false,
+  "gui": false,
+  "debug": false,
+  "snapshots": 100000000,
+  "input_sha256": "8e7c18f1f62ba07dc96e8e693e58b7557f128a107eeb14b3d1fd36f1fdec3fa8"
+}
