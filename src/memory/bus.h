@@ -332,6 +332,9 @@ private:
     size_t dma2Timer = 0;
     u32    dma2Src = 0;
     u32    dma2Count = 0;
+    size_t dma2Period = 0;
+    u32 dma2Dst = 0, dma2ItemSize = 1;
+    bool dma2SrcFixed = false, dma2DstFixed = false;
     AudioCallback audioCallback = nullptr;
 
     // S3C2410 MMIO Register Storage
