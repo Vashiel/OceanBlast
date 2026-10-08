@@ -250,6 +250,7 @@ public:
                 tickDma2();
             } else {
                 dma2Timer -= cycles;
+                if (audioCallback && dma2Timer <= dma2NextAudioTimer) streamDma2Audio(false);
             }
         }
         if (adcPending || i2cPending) {
@@ -341,6 +342,11 @@ private:
     size_t dma2Period = 0;
     u32 dma2Dst = 0, dma2ItemSize = 1;
     bool dma2SrcFixed = false, dma2DstFixed = false;
+    u32 dma2EmittedBytes = 0;
+    size_t dma2NextAudioTimer = 0;
+    void streamDma2Audio(bool complete);
+    void scheduleDma2Audio();
+    void selectPendingIrq();
     AudioCallback audioCallback = nullptr;
 
     // S3C2410 MMIO Register Storage

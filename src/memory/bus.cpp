@@ -625,21 +625,11 @@ void Bus::writeMmio(u32 addr, u32 val) {
             regIntmsk = val;
             mmioRegs[0x4A000008] = val;
             updateUart0TxInterrupt();
+            selectPendingIrq();
             return;
         case 0x4A000010: { // INTPND: Write 1 to clear
             regIntpnd &= ~val;
-            u32 pending = regSrcpnd & ~regIntmsk;
-            if (pending != 0) {
-                for (int b = 0; b < 32; ++b) {
-                    if (pending & (1 << b)) {
-                        regIntpnd = (1 << b);
-                        mmioRegs[0x4A000014] = b;
-                        break;
-                    }
-                }
-            } else {
-                mmioRegs[0x4A000014] = 0;
-            }
+            selectPendingIrq();
             mmioRegs[0x4A000010] = regIntpnd;
             return;
         }
@@ -748,6 +738,8 @@ void Bus::writeMmio(u32 addr, u32 val) {
                 dma2Timer = (dma2Count > 0 && bytesPerSec > 0)
                     ? std::max<uint64_t>(1, uint64_t(dma2Count) * 20000000 / bytesPerSec) : 150000;
                 dma2Period = dma2Timer;
+                dma2EmittedBytes = 0;
+                scheduleDma2Audio();
             }
             return;
         }
@@ -816,13 +808,47 @@ void Bus::updateUart0TxInterrupt(bool emptyTransition) {
 void Bus::requestIrq(u32 bit) {
     regSrcpnd |= (1 << bit);
     mmioRegs[0x4A000000] = regSrcpnd;
-    if ((regIntmsk & (1 << bit)) == 0) {
-        if (regIntpnd == 0) {
-            regIntpnd |= (1 << bit);
-            mmioRegs[0x4A000010] = regIntpnd;
-            mmioRegs[0x4A000014] = bit;
+    selectPendingIrq();
+}
+
+void Bus::selectPendingIrq() {
+    if (regIntpnd) return; // Keep the selected source until acknowledgement.
+    const u32 pending = regSrcpnd & ~regIntmsk;
+    u32 selected = 0;
+    if (pending) {
+        while (!(pending & (1u << selected))) ++selected;
+        regIntpnd = 1u << selected;
+    }
+    mmioRegs[0x4A000010] = regIntpnd;
+    mmioRegs[0x4A000014] = selected;
+}
+
+void Bus::scheduleDma2Audio() {
+    const u32 next = std::min(dma2Count, dma2EmittedBytes + 512u);
+    dma2NextAudioTimer = dma2Period - std::min<uint64_t>(dma2Period,
+        (uint64_t(next) * dma2Period + dma2Count - 1) / std::max(dma2Count, 1u));
+}
+
+void Bus::streamDma2Audio(bool complete) {
+    const u32 consumed = complete ? dma2Count : u32(uint64_t(dma2Count) * (dma2Period - dma2Timer) / dma2Period);
+    const u32 end = consumed & ~3u; // Complete stereo frames only.
+    if (end > dma2EmittedBytes && audioCallback && dma2Dst == 0x55000010 &&
+        dma2Src >= ADDR_SDRAM_BASE && uint64_t(dma2Src - ADDR_SDRAM_BASE) + dma2Count <= ADDR_SDRAM_SIZE) {
+        if (!dma2SrcFixed) {
+            const auto* pcm = reinterpret_cast<const int16_t*>(sdram.data() + dma2Src - ADDR_SDRAM_BASE + dma2EmittedBytes);
+            audioCallback(pcm, (end - dma2EmittedBytes) / 2);
+        } else {
+            std::vector<int16_t> pcm((end - dma2EmittedBytes) / 2);
+            const auto* source = sdram.data() + dma2Src - ADDR_SDRAM_BASE;
+            for (size_t i = 0; i < pcm.size(); ++i) {
+                const size_t offset = ((dma2EmittedBytes + i * 2) % dma2ItemSize);
+                pcm[i] = int16_t(source[offset] | (uint16_t(source[(offset + 1) % dma2ItemSize]) << 8));
+            }
+            audioCallback(pcm.data(), pcm.size());
         }
     }
+    dma2EmittedBytes = end;
+    scheduleDma2Audio();
 }
 
 void Bus::setButtonMask(u32 newMask) {
@@ -857,17 +883,12 @@ void Bus::setButtonMask(u32 newMask) {
 }
 
 void Bus::tickDma2() {
+    streamDma2Audio(true);
     dma2Active = false;
     dma2Timer = 0;
     mmioRegs[0x4B000094] = 0; // DSTAT2: CurTC = 0
     mmioRegs[0x4B000098] = dma2Src + (dma2SrcFixed ? 0 : dma2Count);
     mmioRegs[0x4B00009C] = dma2Dst + (dma2DstFixed ? 0 : dma2Count);
-
-    // Forward PCM audio buffer if source is valid SDRAM
-    if (audioCallback && dma2Src >= ADDR_SDRAM_BASE && (dma2Src - ADDR_SDRAM_BASE) + dma2Count <= ADDR_SDRAM_SIZE) {
-        const int16_t* pcm = reinterpret_cast<const int16_t*>(sdram.data() + (dma2Src - ADDR_SDRAM_BASE));
-        audioCallback(pcm, dma2Count / sizeof(int16_t));
-    }
 
     // DCON/DISRC are reload registers. Linux queues a second buffer
     // while the first runs and expects it to load before the IRQ.
@@ -1074,7 +1095,7 @@ u32 Bus::getAudioSampleRate() const {
     u32 psrA = (psr >> 5) & 0x1F;
     auto itMod = mmioRegs.find(0x55000004); // S3C2410 IISMOD
     u32 mod = (itMod != mmioRegs.end()) ? itMod->second : 0x99;
-    u32 fsMul = (mod & (1 << 1)) ? 384 : 256;
+    u32 fsMul = (mod & (1 << 2)) ? 384 : 256;
     u32 div = (psrA + 1) * fsMul;
     if (div == 0) return 22050;
     u32 rawRate = 45000000 / div;

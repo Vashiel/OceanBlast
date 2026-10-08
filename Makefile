@@ -28,7 +28,7 @@ $(TARGET): $(OBJS)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-test: build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe
+test: build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
 	./build/cpu_regression.exe
 	./build/input_test.exe
 	./build/audio_resampler.exe
@@ -37,6 +37,7 @@ test: build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe bu
 	./build/framebuffer.exe
 	./build/timer4.exe
 	./build/audio_clock.exe
+	./build/dma_audio_stream.exe
 
 build/audio_clock.exe: tests/audio_clock.cpp src/memory/bus.cpp src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
 	@mkdir -p build
@@ -73,6 +74,10 @@ build/input_test.exe: tests/input_test.cpp src/cpu/arm920t.cpp src/memory/bus.cp
 clean:
 	rm -f $(OBJS) $(TARGET) build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe
 	rm -f build/i2c_eeprom.exe
-	rm -f build/framebuffer.exe build/timer4.exe build/audio_clock.exe
+	rm -f build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
 
 .PHONY: all clean test
+
+build/dma_audio_stream.exe: tests/dma_audio_stream.cpp src/memory/bus.cpp src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)

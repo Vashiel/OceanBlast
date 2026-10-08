@@ -14,7 +14,7 @@ During boot and audio playback, the guest Linux ALSA driver (`s3c2410-iis` + `cs
   - Bits [7:6] = `0b10` -> Transmit mode (`S3C2410_IISMOD_TXMODE`)
   - Bit 4 = `1` -> MSB-justified serial format (`S3C2410_IISMOD_MSB`)
   - Bit 3 = `1` -> 16-bit word length (`S3C2410_IISMOD_16BIT`)
-  - Bit 1 = `0` -> 256fs master clock ratio (`S3C2410_IISMOD_256FS`)
+  - Bit 2 = `0` -> 256fs master clock ratio (`S3C2410_IISMOD_256FS`)
   - Bit 0 = `1` -> 32fs bit clock (`S3C2410_IISMOD_32FS`, 16-bit Left + 16-bit Right)
 - `IISPSR` (`0x55000008`) is set to `0xE7`:
   - Prescaler A = `(0xE7 >> 5) & 0x1F` = `7`
@@ -83,3 +83,5 @@ For 22.05 kHz stereo, this provides 226 cycles/byte (~46.4 ms per 4KB buffer at 
 - **Initialization Log:**
   `[Audio] Win32 waveOut initialized (22050 Hz, 2 channels, 16-bit PCM, 16 buffers).`
 - **Audio Timing & Pitch:** The original rate mismatch was addressed. Per-cartridge pitch, underruns and audio/video synchronization remain subject to runtime verification; the later investigation found additional failures.
+
+Hardware-reference correction: Samsung S3C2410A User Manual section 21-6 selects 256fs/384fs with IISMOD bit 2, while bits 1:0 select the serial bit clock. Conflicting early Linux header definitions must not override this hardware register layout. See [DMA streaming and interrupt delivery](19_dma_streaming_and_interrupt_delivery.md).
