@@ -30,7 +30,8 @@ void printBanner() {
 
 void printUsage(const char* progName) {
     std::cout << "Usage: " << progName << " <cartridge.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--sound] [--trace]" << std::endl;
-    std::cout << "  --clock-mips <N>  GUI speed limit (default 20; 0 disables pacing)\n"
+    std::cout << "  --clock-mips <N>  GUI step-rate limit (default 20 times CPU ratio; 0 disables pacing)\n"
+              << "  --cpu-steps-per-tick <N> Diagnostic CPU work per peripheral tick (1..16; default 1)\n"
               << "  --audio-rate <Hz> Host output rate (default 22050)\n"
               << "  --profile          Write GUI performance.csv, including audio rate and dropped samples\n";
     std::cout << "  --snapshot-interval <N> Save framebuffer/state every N instructions\n"
@@ -79,6 +80,8 @@ int main(int argc, char* argv[]) {
     u32 traceStart = 0, traceEnd = 0;
     bool profile = false;
     double clockMips = 20.0; // Timer/DMA model currently assumes 20M instructions/s.
+    bool explicitClock = false;
+    size_t cpuStepsPerTick = 1;
     size_t snapshotInterval = 0;
     size_t pcProfileInterval = 0, nextPcProfile = 0;
     std::map<std::pair<u32, u32>, uint64_t> pcProfile;
@@ -121,6 +124,10 @@ int main(int argc, char* argv[]) {
             inputScriptPath = argv[++i];
         } else if (arg == "--clock-mips" && i + 1 < argc) {
             clockMips = std::stod(argv[++i]);
+            explicitClock = true;
+        } else if (arg == "--cpu-steps-per-tick" && i + 1 < argc) {
+            try { cpuStepsPerTick = std::stoull(argv[++i]); }
+            catch (...) { std::cerr << "[Error] Invalid CPU/peripheral ratio.\n"; return 1; }
         } else if (arg == "--trace") {
             trace = true;
         } else if (arg == "--gui" || arg == "--window") {
@@ -134,6 +141,10 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    if (!cpuStepsPerTick || cpuStepsPerTick > 16) {
+        std::cerr << "[Error] CPU steps per tick must be between 1 and 16.\n"; return 1;
+    }
+    if (!explicitClock) clockMips *= cpuStepsPerTick;
     if (gui && !customSteps) {
         stepLimit = std::numeric_limits<size_t>::max();
     }
@@ -207,6 +218,8 @@ int main(int argc, char* argv[]) {
     }
 
     size_t executedSteps = 0;
+    std::cout << "[Timing] CPU steps per peripheral tick: " << cpuStepsPerTick
+              << "; GUI instruction-rate limit: " << clockMips << " MIPS\n";
     bool enteredSdram = false;
 
     auto getActiveFbPhys = [&]() -> u32 {
@@ -248,6 +261,7 @@ int main(int argc, char* argv[]) {
               << "\nframebuffer=" << fb << "\nformat=" << (is16bpp ? "16bpp" : "12bpp")
               << "\nlcd_format=" << (bus.isLcd16Bpp() ? "16bpp" : "12bpp")
               << "\nstride=" << std::dec << displayRowStride()
+              << "\ncpu_steps_per_tick=" << cpuStepsPerTick
               << "\ndisplay_override=" << (displayFormat != 0 || displayStride != 0)
               << "\naudio_rate=" << std::dec << bus.getAudioSampleRate()
               << "\ndropped_samples=" << audio.getDroppedSamples()
@@ -437,7 +451,7 @@ int main(int argc, char* argv[]) {
                       << std::dec << '\n';
             cpu.dumpState();
         }
-        cpu.step();
+        cpu.step(executedSteps % cpuStepsPerTick == 0 ? 1 : 0);
         executedSteps++;
     }
 

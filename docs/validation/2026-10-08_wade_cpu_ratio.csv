@@ -1,0 +1,4 @@
+ratio,scheduled_tick_budget,cpu_steps,poll_count,framebuffer_changes,changes_last_ten_model_seconds,pcm_samples,kernel_pc_samples,total_pc_samples
+1,600000000,600000000,3000,310,301,2309762,1316,3000
+2,600000000,1200000000,3000,469,273,1813946,697,3000
+4,600000000,2400000000,3000,519,175,1559310,415,3000

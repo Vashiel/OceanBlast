@@ -1,5 +1,7 @@
 # Runtime diagnostics and performance
 
+`--cpu-steps-per-tick N` separates interpreter work from scheduled peripheral advancement. Default: 1; range: 1–16. The automatic GUI limit scales with this ratio unless `--clock-mips` is supplied. See [controlled timing probes](22_cpu_budget_and_runtime_timing.md) for reproduction, counter limitations and host-throughput results.
+
 2026-10-07. The game window title now displays one-second measurements: **Anzeige FPS** (host display updates), **Bildwechsel/s** (sampled changes in the active framebuffer), **MIPS** (emulated instructions per wall-clock second), PC and physical framebuffer address. These are distinct measures: refreshing an unchanged screen is not a new game frame. Framebuffer changes are detected with a full-buffer FNV-1a hash at display refresh time. This can miss changes between samples and count partial renders; it is an estimate, not a guest-vsync frame counter. Splash/loading changes also count.
 
 The host polls input every 10,000 instructions and schedules presentation using a monotonic clock at approximately 60 updates/s. The former mandatory 2ms sleep every 100,000 instructions is removed. Guest timers/DMA still use the existing instruction-based model; no claim of accurate emulated clock speed or 60 game FPS is made.

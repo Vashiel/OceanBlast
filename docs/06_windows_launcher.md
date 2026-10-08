@@ -1,5 +1,7 @@
 # Windows Launcher
 
+**CPU Timing Test** defaults to Standard. Experimental 2x/4x options increase CPU work per peripheral tick and automatically raise the GUI instruction limit. Host throughput may be insufficient, causing audio starvation. See [CPU budget and runtime timing](22_cpu_budget_and_runtime_timing.md) before using these diagnostic settings.
+
 2026-10-07. Double-click `bin/oceanblast.exe` without arguments to open the graphical launcher. Select a cartridge with **Browse ROM…**, choose 2x/3x/4x scaling, optionally enable sound, then click **Start Game**. The **File** menu includes ROM selection and exit; **Help / Controls** lists the keyboard controls. The game uses its own display window; click that window for input.
 
 The launcher starts the same executable as a child process with `--gui --scale N` and optional `--sound`. Only one session is allowed at a time. **Stop Game** requests normal window closure; after process exit, Start becomes available again. Closing the launcher during a session first requests game closure; close it again after the session ends. ROM selection does not modify the cartridge. No downloads or external dependencies are needed.
