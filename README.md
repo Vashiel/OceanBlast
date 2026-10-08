@@ -39,6 +39,8 @@ The [game cartridge compatibility and CPU validation](docs/12_game_cartridge_com
 
 The separate [video-and-game cartridge probe](docs/13_video_games_probe.md) covers SpongeBob and both Winx compilations: two remain black, while the international Winx retains its loading splash and repeatedly crashes the guest launcher. Movie playback has not been validated.
 
+Cartridge identity and source-data limitations are documented in the [MAME checksum and ROM integrity report](docs/14_rom_integrity.md). Twenty-one of 25 checked files/archive members match the reference in size, CRC32 and SHA-1; four variants are unlisted. The matching international Winx combined dump contains independently reproducible invalid SquashFS/zlib blocks.
+
 Gameplay compatibility is still incomplete. Some cartridges show images but have stutter or audio/video drift; others remain blank after loading. **Crazy Jack [G] (EN)** still has a nearly empty active framebuffer after 1.2 billion instructions. Its invalid ALSA DMA-pointer errors have been fixed, but gameplay images have not been restored. EEPROM/I2C failures are an investigation lead, not a confirmed explanation.
 
 The latest changes add streaming audio-rate conversion, aggregation of small audio fragments, DMA current-position registers, GUI pacing at 20 MIPS, and audio diagnostics. The short Spider-Man comparison reported zero dropped output samples after these changes; this is a boot-only measurement and does not establish synchronized gameplay audio. See the [audio timing investigation, verification and open issues](docs/11_audio_timing_followup.md) for reproduction steps and the next investigation targets. The component milestones below do not imply complete game support.
