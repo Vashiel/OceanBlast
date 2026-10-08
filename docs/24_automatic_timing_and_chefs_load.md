@@ -24,6 +24,8 @@ The latest profile-guided build was also run with audio and scripted input to a 
 
 The legacy **More CPU work: 2×** setting was tested separately with audio and proportionally scaled scripted input to a 30-second peripheral-time limit. The performance records span 29.05 seconds and average 39.99 MIPS at 99.99% of this mode's instruction-ratio pacing target. The last record reports a 21,972 Hz output rate, 571,392 submitted frames, 7,168 queued frames, zero empty-queue observations and zero dropped samples. The captured framebuffer shows the game level. Sampled framebuffer changes average 2.44/s overall and 2.91/s after the first six seconds; these are memory observations, not measured display FPS. This supports uninterrupted audio output in the 2× run, while not measuring pitch accuracy or confirming subjective sound quality. It also does not establish original-console gameplay speed.
 
+A direct listening comparison found the 2× output much better than automatic timing. The listening result agrees with the uninterrupted audio queue, but does not by itself establish exact pitch or waveform fidelity.
+
 ## Validation and Limits
 
 The ROM-free timing suite checks fractional conversion, clock changes, branch and transfer costs, multiplier ranges, CP15 clock selection, wait/wake behavior and return links, exact timer deadlines and complete DMA sample capture during bounded idle advancement. The preceding CPU, input, resampler, UART, EEPROM, framebuffer, timer, IIS clock and DMA suites also pass.
