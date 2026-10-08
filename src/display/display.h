@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <deque>
 
 namespace oceanblast {
 
@@ -32,7 +33,7 @@ public:
 
     bool init(const char* title = "OceanBlast - Nikko digiBLAST Emulator");
     void processEvents();
-    void updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is16bpp = true);
+    void updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is16bpp = true, size_t stride = 0);
     void renderToDc(void* targetHdc);
     bool isOpen() const { return m_open; }
     void close();
@@ -43,14 +44,26 @@ public:
 
     uint32_t getButtonMask() const { return m_buttonMask; }
     void setButtonState(uint32_t mask, bool down) {
-        if (down) m_buttonMask |= mask;
-        else      m_buttonMask &= ~mask;
+        const uint32_t next = down ? m_buttonMask | mask : m_buttonMask & ~mask;
+        if (next != m_buttonMask) { m_buttonMask = next; m_buttonTransitions.push_back(next); }
+    }
+    uint32_t consumeButtonMask() {
+        if (!m_buttonTransitions.empty()) {
+            m_guestButtonMask = m_buttonTransitions.front(); m_buttonTransitions.pop_front();
+        }
+        return m_guestButtonMask;
+    }
+    void synchronizeButtons() { m_buttonTransitions.clear(); m_guestButtonMask = m_buttonMask; }
+    void releaseButtons() {
+        if (m_buttonMask) { m_buttonMask = 0; m_buttonTransitions.push_back(0); }
     }
 
 private:
     int m_scale;
     bool m_open;
     uint32_t m_buttonMask;
+    uint32_t m_guestButtonMask = 0;
+    std::deque<uint32_t> m_buttonTransitions;
 
     void* m_hwnd;
     void* m_hdc;

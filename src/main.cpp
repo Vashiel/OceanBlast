@@ -1,11 +1,13 @@
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 #include <string>
 #include <cstring>
 #include <iomanip>
 #include <thread>
 #include <chrono>
 #include <sstream>
+#include <map>
 #include "core/types.h"
 #include "core/input_script.h"
 #include "memory/bus.h"
@@ -33,6 +35,11 @@ void printUsage(const char* progName) {
               << "  --profile          Write GUI performance.csv, including audio rate and dropped samples\n";
     std::cout << "  --snapshot-interval <N> Save framebuffer/state every N instructions\n"
               << "  --exit-on-limit         Close GUI after the instruction budget is exhausted\n"
+              << "  --nvram <path>          Load/save a separate 2048-byte EEPROM image\n"
+              << "  --pc-profile <N>        Sample execution pages every N instructions\n"
+              << "  --i2c-log               Trace I2C register writes and byte completions\n"
+              << "  --display-format <lcd|rgb444|rgb565> Diagnostic host decoder (default lcd)\n"
+              << "  --display-stride <bytes> Diagnostic host scanline stride\n"
               << "  --fault-log             Log all exception contexts, including expected page faults\n"
               << "  --trace-pc <start> <end> Trace an inclusive PC range (decimal or 0x addresses)\n"
               << "  --input-script <path>   Replay step/mask events (decimal steps, hex masks)\n";
@@ -63,12 +70,18 @@ int main(int argc, char* argv[]) {
     int audioRate = 22050; // Native digiBLAST S3C2410 audio rate
     bool debug = false;
     bool faultLog = false;
+    bool i2cLog = false;
+    std::string nvramPath;
+    int displayFormat = 0; // 0: LCD registers, 1: RGB444, 2: RGB565.
+    size_t displayStride = 0;
     bool exitOnLimit = false;
     bool traceRange = false;
     u32 traceStart = 0, traceEnd = 0;
     bool profile = false;
     double clockMips = 20.0; // Timer/DMA model currently assumes 20M instructions/s.
     size_t snapshotInterval = 0;
+    size_t pcProfileInterval = 0, nextPcProfile = 0;
+    std::map<std::pair<u32, u32>, uint64_t> pcProfile;
     std::string inputScriptPath;
 
     for (int i = 2; i < argc; ++i) {
@@ -80,6 +93,20 @@ int main(int argc, char* argv[]) {
             debug = true;
         } else if (arg == "--fault-log") {
             faultLog = true;
+        } else if (arg == "--display-format" && i + 1 < argc) {
+            const std::string format = argv[++i];
+            if (format == "lcd") displayFormat = 0;
+            else if (format == "rgb444") displayFormat = 1;
+            else if (format == "rgb565") displayFormat = 2;
+            else { std::cerr << "[Error] Invalid display format." << std::endl; return 1; }
+        } else if (arg == "--display-stride" && i + 1 < argc) {
+            displayStride = std::stoull(argv[++i]);
+        } else if (arg == "--pc-profile" && i + 1 < argc) {
+            pcProfileInterval = std::stoull(argv[++i]);
+        } else if (arg == "--i2c-log") {
+            i2cLog = true;
+        } else if (arg == "--nvram" && i + 1 < argc) {
+            nvramPath = argv[++i];
         } else if (arg == "--trace-pc" && i + 2 < argc) {
             traceStart = static_cast<u32>(std::stoul(argv[++i], nullptr, 0));
             traceEnd = static_cast<u32>(std::stoul(argv[++i], nullptr, 0));
@@ -110,6 +137,9 @@ int main(int argc, char* argv[]) {
     if (gui && !customSteps) {
         stepLimit = std::numeric_limits<size_t>::max();
     }
+    if (displayStride && (displayStride < (displayFormat == 1 ? 360u : 480u) || displayStride > 8192 || displayStride % 4)) {
+        std::cerr << "[Error] Invalid display stride." << std::endl; return 1;
+    }
     if (traceRange && traceStart > traceEnd) {
         std::cerr << "[Error] Invalid trace PC range." << std::endl;
         return 1;
@@ -120,6 +150,14 @@ int main(int argc, char* argv[]) {
     }
 
     oceanblast::Bus bus;
+    if (!nvramPath.empty()) {
+        std::error_code error;
+        const bool existing = std::filesystem::exists(nvramPath, error);
+        if (error || (existing && !bus.loadEeprom(nvramPath))) {
+            std::cerr << "[Error] NVRAM file must contain exactly 2048 bytes." << std::endl;
+            return 1;
+        }
+    }
     std::vector<InputEvent> inputEvents;
     if (!inputScriptPath.empty()) {
         std::ifstream input(inputScriptPath);
@@ -146,6 +184,7 @@ int main(int argc, char* argv[]) {
     cpu.reset(0x00000000); // Boot from Steppingstone SRAM
     cpu.setDebugLogging(debug || trace);
     cpu.setFaultLogging(faultLog);
+    bus.setI2cLogging(i2cLog);
 
     oceanblast::Display display(scale);
     oceanblast::Audio audio;
@@ -181,11 +220,24 @@ int main(int argc, char* argv[]) {
         return 0x30300000;
     };
 
+    auto displayIs16Bpp = [&]() { return displayFormat ? displayFormat == 2 : bus.isLcd16Bpp(); };
+    auto displayRowStride = [&]() { return displayStride ? displayStride : std::max(bus.getFramebufferStride(), displayIs16Bpp() ? size_t(480) : size_t(360)); };
+
+    auto writePcProfile = [&]() {
+        if (pcProfile.empty()) return;
+        std::ofstream output("pc_profile.csv");
+        output << "ttb,pc_page,samples\n";
+        for (const auto& entry : pcProfile)
+            output << "0x" << std::hex << entry.first.first << ",0x" << entry.first.second
+                   << ',' << std::dec << entry.second << '\n';
+    };
+
     auto saveSnapshot = [&]() {
+        writePcProfile();
         const std::string stem = "snapshot_" + std::to_string(executedSteps);
         const u32 fb = getActiveFbPhys();
-        const bool is16bpp = bus.isLcd16Bpp();
-        const size_t fbSize = bus.getFramebufferSize();
+        const bool is16bpp = displayIs16Bpp();
+        const size_t fbSize = displayRowStride() * 160;
         if (fb >= ADDR_SDRAM_BASE && uint64_t(fb - ADDR_SDRAM_BASE) + fbSize <= ADDR_SDRAM_SIZE) {
             std::ofstream image(stem + ".raw", std::ios::binary);
             image.write(reinterpret_cast<const char*>(bus.getSdramPtr() + (fb - ADDR_SDRAM_BASE)), fbSize);
@@ -194,11 +246,22 @@ int main(int argc, char* argv[]) {
         state << "steps=" << executedSteps << "\nPC=" << std::hex << cpu.getPC()
               << "\nCPSR=" << cpu.getCPSR() << "\nTTB=" << bus.getTtb()
               << "\nframebuffer=" << fb << "\nformat=" << (is16bpp ? "16bpp" : "12bpp")
+              << "\nlcd_format=" << (bus.isLcd16Bpp() ? "16bpp" : "12bpp")
+              << "\nstride=" << std::dec << displayRowStride()
+              << "\ndisplay_override=" << (displayFormat != 0 || displayStride != 0)
               << "\naudio_rate=" << std::dec << bus.getAudioSampleRate()
               << "\ndropped_samples=" << audio.getDroppedSamples()
+              << "\naudio_submitted_frames=" << audio.getSubmittedFrames()
+              << "\naudio_queued_frames=" << audio.getQueuedFrames()
+              << "\naudio_empty_queue_events=" << audio.getEmptyQueueEvents()
               << "\ndma_source=" << std::hex << bus.getMmio(0x4B000098)
               << "\ndma_remaining=" << bus.getMmio(0x4B000094)
               << "\niismod=" << bus.getMmio(0x55000004)
+              << "\ntcfg0=" << bus.getMmio(0x51000000)
+              << "\ntcfg1=" << bus.getMmio(0x51000004)
+              << "\ntcon=" << bus.getMmio(0x51000008)
+              << "\ntcntb4=" << bus.getMmio(0x5100003c)
+              << "\ntcnto4=" << bus.getMmio(0x51000040)
               << "\niispsr=" << bus.getMmio(0x55000008)
               << "\niiccon=" << bus.getMmio(0x54000000)
               << "\niicstat=" << bus.getMmio(0x54000004)
@@ -219,9 +282,12 @@ int main(int argc, char* argv[]) {
     size_t paceSteps = 0;
     size_t statsSteps = 0, presented = 0, changed = 0;
     uint32_t previousHash = 0;
+    u32 previousFb = 0;
+    size_t previousStride = 0;
+    bool previousIs16bpp = false;
     bool haveHash = false;
     std::ofstream metrics;
-    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples\n"; }
+    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples,audio_submitted_frames,audio_queued_frames,audio_empty_queue_events\n"; }
     while (!cpu.isHalted() && executedSteps < stepLimit) {
         if (nextInput < inputEvents.size() && executedSteps == inputEvents[nextInput].step) {
             bus.setButtonMask(inputEvents[nextInput].mask);
@@ -238,21 +304,28 @@ int main(int argc, char* argv[]) {
                 std::cout << "\n[OceanBlast] Display window closed by user." << std::endl;
                 break;
             }
-            if (inputScriptPath.empty()) bus.setButtonMask(display.getButtonMask());
+            if (inputScriptPath.empty()) {
+                if (display.paused) { display.synchronizeButtons(); bus.setButtonMask(display.getButtonMask()); }
+                else bus.setButtonMask(display.consumeButtonMask());
+            }
             auto now = Clock::now();
             if (now - lastFrame >= std::chrono::milliseconds(16)) {
                 const u32 fb = getActiveFbPhys();
-                const bool is16bpp = bus.isLcd16Bpp();
-                const size_t fbSize = bus.getFramebufferSize();
+                const bool is16bpp = displayIs16Bpp();
+                const size_t fbSize = displayRowStride() * 160;
                 if (fb >= ADDR_SDRAM_BASE && uint64_t(fb - ADDR_SDRAM_BASE) + fbSize <= ADDR_SDRAM_SIZE) {
                     uint32_t hash = 2166136261u;
                     const uint32_t* words = reinterpret_cast<const uint32_t*>(bus.getSdramPtr() + (fb - ADDR_SDRAM_BASE));
                     for (size_t i = 0; i < fbSize / 4; ++i) hash = (hash ^ words[i]) * 16777619u;
-                    if (haveHash && hash != previousHash) ++changed;
-                    previousHash = hash; haveHash = true;
+                    const size_t stride = displayRowStride();
+                    const bool redraw = !haveHash || hash != previousHash || fb != previousFb ||
+                                        stride != previousStride || is16bpp != previousIs16bpp;
+                    if (haveHash && redraw) ++changed;
+                    previousHash = hash; previousFb = fb; previousStride = stride;
+                    previousIs16bpp = is16bpp; haveHash = true;
+                    if (redraw) { display.updateFrame(bus.getSdramPtr(), fb, is16bpp, stride); ++presented; }
                 }
-                display.updateFrame(bus.getSdramPtr(), fb, is16bpp);
-                ++presented; lastFrame = now;
+                lastFrame = now;
             }
             const double seconds = std::chrono::duration<double>(now - lastStats).count();
             if (seconds >= 1.0) {
@@ -261,10 +334,10 @@ int main(int argc, char* argv[]) {
                 title << "OceanBlast | Display " << std::fixed << std::setprecision(1) << presented / seconds
                       << " FPS | Flips " << changed / seconds << "/s | " << mips << " MIPS"
                       << " | PC " << std::hex << cpu.getPC() << " | FB " << getActiveFbPhys()
-                      << " | Audio " << std::dec << bus.getAudioSampleRate() << " Hz | Drop " << audio.getDroppedSamples()
+                      << " | Audio " << std::dec << bus.getAudioSampleRate() << " Hz | Queue " << audio.getQueuedFrames() << "f | Empty " << audio.getEmptyQueueEvents() << " | Drop " << audio.getDroppedSamples()
                       << (display.paused ? " | PAUSE" : "");
                 display.setTitle(title.str());
-                if (metrics) { metrics << executedSteps << ',' << seconds << ',' << presented / seconds << ',' << changed / seconds << ',' << mips << ',' << cpu.getPC() << ',' << getActiveFbPhys() << ',' << bus.getAudioSampleRate() << ',' << audio.getDroppedSamples() << '\n'; metrics.flush(); }
+                if (metrics) { metrics << executedSteps << ',' << seconds << ',' << presented / seconds << ',' << changed / seconds << ',' << mips << ',' << cpu.getPC() << ',' << getActiveFbPhys() << ',' << bus.getAudioSampleRate() << ',' << audio.getDroppedSamples() << ',' << audio.getSubmittedFrames() << ',' << audio.getQueuedFrames() << ',' << audio.getEmptyQueueEvents() << '\n'; metrics.flush(); }
                 lastStats = now; statsSteps = executedSteps; presented = changed = 0;
             }
             if (display.snapshot) {
@@ -284,6 +357,11 @@ int main(int argc, char* argv[]) {
         }
 
         u32 currentPC = cpu.getPC();
+        if (pcProfileInterval && executedSteps == nextPcProfile) {
+            ++pcProfile[{bus.getTtb(), currentPC & ~0xfffu}];
+            if (nextPcProfile > std::numeric_limits<size_t>::max() - pcProfileInterval) pcProfileInterval = 0;
+            else nextPcProfile += pcProfileInterval;
+        }
 
         if (!enteredSdram && currentPC >= 0x30000000) {
             enteredSdram = true;
@@ -435,8 +513,8 @@ int main(int argc, char* argv[]) {
         std::cout << "LCDSADDR3: 0x" << std::hex << bus.getMmio(0x4D00001C) << std::dec << std::endl;
         const u32 activeFb = getActiveFbPhys();
         std::cout << "Active framebuffer PA: 0x" << std::hex << activeFb << std::dec << std::endl;
-        const bool is16bpp = bus.isLcd16Bpp();
-        const size_t fbSize = bus.getFramebufferSize();
+        const bool is16bpp = displayIs16Bpp();
+        const size_t fbSize = displayRowStride() * 160;
         if (activeFb >= ADDR_SDRAM_BASE && activeFb - ADDR_SDRAM_BASE <= ADDR_SDRAM_SIZE - fbSize) {
             const u8* frame = sdram + activeFb - ADDR_SDRAM_BASE;
             size_t nonzero = 0;
@@ -467,14 +545,19 @@ int main(int argc, char* argv[]) {
 
     if (gui && display.isOpen() && !exitOnLimit) {
         u32 fbPhys = getActiveFbPhys();
-        display.updateFrame(bus.getSdramPtr(), fbPhys, bus.isLcd16Bpp());
+        display.updateFrame(bus.getSdramPtr(), fbPhys, displayIs16Bpp(), displayRowStride());
         std::cout << "[Display] Emulation paused. Press ESC or close the window to exit." << std::endl;
         while (display.isOpen()) {
             display.processEvents();
-            display.updateFrame(bus.getSdramPtr(), getActiveFbPhys(), bus.isLcd16Bpp());
+            display.updateFrame(bus.getSdramPtr(), getActiveFbPhys(), displayIs16Bpp(), displayRowStride());
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
         }
     }
 
+    writePcProfile();
+    if (!nvramPath.empty() && !bus.saveEeprom(nvramPath)) {
+        std::cerr << "[Error] Cannot save NVRAM file." << std::endl;
+        return 1;
+    }
     return 0;
 }

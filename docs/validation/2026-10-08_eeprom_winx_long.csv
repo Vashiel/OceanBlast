@@ -1,0 +1,3 @@
+rom,sha256,seconds,exit_code,timed_out,steps,pc,framebuffer,nonzero_bytes,linux_boot,eeprom_error,invalid_pcm_pointer,kernel_panic,guest_segfaults,squashfs_error_messages,assessment,display_format,display_stride
+Winx Club 1 [V] (IT ES).bin,cb04f4f45e3483f152f918fe7780ea8b94c6ee0832479dba1f2f850a962f2aed,218.49,0,False,6500000000,0xc004bb64,0x302a0000,0/76800,True,False,False,False,0,0,headless observation; gameplay/input/audio unverified,lcd,0
+Winx Club 1 [V] (NL FR EN TR).bin,6aa154bad5c2551670f0ef5bfd4b87bb7d1d47c86372791069d347c8316e6ff1,219.04,0,False,6500000000,0xc00b99a4,0x302a0000,0/76800,True,False,False,False,0,0,headless observation; gameplay/input/audio unverified,lcd,0

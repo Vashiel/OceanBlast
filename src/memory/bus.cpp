@@ -14,6 +14,24 @@ Bus::Bus() {
 
 Bus::~Bus() {}
 
+bool Bus::loadEeprom(const std::string& path) {
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    std::array<u8, 2048> image;
+    if (!file || file.tellg() != std::streampos(image.size())) return false;
+    file.seekg(0);
+    if (!file.read(reinterpret_cast<char*>(image.data()), image.size())) return false;
+    eeprom.restore(image);
+    return true;
+}
+
+bool Bus::saveEeprom(const std::string& path) const {
+    std::ofstream file(path, std::ios::binary);
+    const auto& image = eeprom.contents();
+    file.write(reinterpret_cast<const char*>(image.data()), image.size());
+    file.flush();
+    return static_cast<bool>(file);
+}
+
 void Bus::reset() {
     sdramPtr = sdram.data();
     std::fill(steppingstone.begin(), steppingstone.end(), 0);
@@ -27,6 +45,19 @@ void Bus::reset() {
     mmioRegs[0x560000A8] = 0x00000000; // EINTPEND default: clear
     buttonMask = 0;
     uart0TxLevelActive = false;
+    timer4.reset();
+    regTcon = 0;
+    regSrcpnd = 0;
+    regIntpnd = 0;
+    regIntmsk = ~0u;
+    dma2Active = false;
+    dma2Timer = 0;
+    adcPending = false;
+    adcTimer = 0;
+    i2cPending = false;
+    i2cTimer = 0;
+    i2cAddressPhase = false;
+    eeprom.resetBus();
 
     nfconf = 0;
     nfcmd  = 0;
@@ -524,10 +555,7 @@ u32 Bus::readMmio(u32 addr) {
 
         // PWM Timers (0x51000000)
         case 0x51000008: return regTcon;
-        case 0x51000040: { // TCNTO4 (Timer 4 Count Observation Register)
-            timer4Cnt -= 64;
-            return timer4Cnt;
-        }
+        case 0x51000040: return timer4.observe(); // Read-only countdown observation.
 
         // Watchdog Timer (0x53000000)
         case 0x53000000: return mmioRegs[0x53000000]; // WTCON
@@ -583,6 +611,10 @@ u32 Bus::readMmio(u32 addr) {
 }
 
 void Bus::writeMmio(u32 addr, u32 val) {
+    if (i2cLogging && addr >= ADDR_IIC_BASE && addr <= ADDR_IIC_BASE + 0x0c)
+        std::cout << "[I2C WRITE] register=0x" << std::hex << addr << " value=0x" << val
+                  << " control=0x" << mmioRegs[ADDR_IIC_BASE] << " status=0x" << mmioRegs[ADDR_IIC_BASE + 4]
+                  << " data=0x" << mmioRegs[ADDR_IIC_BASE + 12] << std::dec << '\n';
     switch (addr) {
         // S3C2410 Interrupt Controller (W1C registers)
         case 0x4A000000: // SRCPND: Write 1 to clear
@@ -627,20 +659,39 @@ void Bus::writeMmio(u32 addr, u32 val) {
         }
 
         // PWM Timers
+        case 0x51000000: // TCFG0: timer 2..4 prescaler.
+        case 0x51000004: // TCFG1: timer 4 input divider.
+            mmioRegs[addr] = val;
+            timer4.configure(mmioRegs[0x51000000], mmioRegs[0x51000004]);
+            return;
+        case 0x5100003C: // TCNTB4: applied on manual update or reload.
+            mmioRegs[addr] = val;
+            timer4.setBuffer(val);
+            return;
         case 0x51000008: // TCON
+            timer4.control(val);
             regTcon = val;
             mmioRegs[0x51000008] = val;
             return;
 
         // I2C Controller (0x54000000)
         case 0x54000000: // IICCON
+            if ((mmioRegs[addr] & 0x10) && !(val & 0x10) && (mmioRegs[0x54000004] & 0x20)) {
+                i2cPending = true;
+                i2cTimer = 50;
+            }
             mmioRegs[0x54000000] = val;
             return;
         case 0x54000004: // IICSTAT
-            mmioRegs[0x54000004] = val;
-            if (val & (1 << 5)) { // START condition generated
+            mmioRegs[0x54000004] = (val & ~1u) | (mmioRegs[0x54000004] & 1u);
+            if ((val & 0x30) == 0x30) { // START or repeated START.
+                i2cAddressPhase = true;
                 i2cPending = true;
                 i2cTimer = 50; // Complete transfer in 50 cycles
+            } else {
+                eeprom.stop();
+                i2cPending = false;
+                i2cTimer = 0;
             }
             return;
         case 0x54000008: // IICADD
@@ -805,11 +856,6 @@ void Bus::setButtonMask(u32 newMask) {
     }
 }
 
-void Bus::tickTimer4() {
-    timer4CycleCounter = 0;
-    requestIrq(14); // INT_TIMER4
-}
-
 void Bus::tickDma2() {
     dma2Active = false;
     dma2Timer = 0;
@@ -868,15 +914,30 @@ void Bus::tickAdcI2c(size_t cycles) {
         if (cycles >= i2cTimer) {
             i2cPending = false;
             i2cTimer = 0;
-            mmioRegs[0x54000000] |= (1 << 4); // IICCON bit 4: interrupt pending
-            mmioRegs[0x54000004] |= 1;        // IICSTAT bit 0: NACK
-
-            // Trigger IRQ 27 (INT_IIC) in SRCPND
-            requestIrq(27);
+            completeI2cByte();
         } else {
             i2cTimer -= cycles;
         }
     }
+}
+
+void Bus::completeI2cByte() {
+    bool ack = false;
+    if (i2cAddressPhase) {
+        ack = eeprom.start(static_cast<u8>(mmioRegs[ADDR_IIC_BASE + 12]));
+        i2cAddressPhase = false;
+    } else if ((mmioRegs[ADDR_IIC_BASE + 4] & 0xc0) == 0x80) {
+        mmioRegs[ADDR_IIC_BASE + 12] = eeprom.read();
+        ack = (mmioRegs[ADDR_IIC_BASE] & 0x80) != 0;
+    } else {
+        ack = eeprom.write(static_cast<u8>(mmioRegs[ADDR_IIC_BASE + 12]));
+    }
+    mmioRegs[ADDR_IIC_BASE + 4] = (mmioRegs[ADDR_IIC_BASE + 4] & ~1u) | (ack ? 0u : 1u);
+    mmioRegs[ADDR_IIC_BASE] |= 0x10;
+    if (mmioRegs[ADDR_IIC_BASE] & 0x20) requestIrq(27);
+    if (i2cLogging)
+        std::cout << "[I2C COMPLETE] ack=" << ack << " data=0x" << std::hex
+                  << mmioRegs[ADDR_IIC_BASE + 12] << std::dec << '\n';
 }
 
 void Bus::flushTlb() const {
@@ -1013,7 +1074,7 @@ u32 Bus::getAudioSampleRate() const {
     u32 psrA = (psr >> 5) & 0x1F;
     auto itMod = mmioRegs.find(0x55000004); // S3C2410 IISMOD
     u32 mod = (itMod != mmioRegs.end()) ? itMod->second : 0x99;
-    u32 fsMul = (mod & (1 << 2)) ? 384 : 256;
+    u32 fsMul = (mod & (1 << 1)) ? 384 : 256;
     u32 div = (psrA + 1) * fsMul;
     if (div == 0) return 22050;
     u32 rawRate = 45000000 / div;
@@ -1043,8 +1104,16 @@ bool Bus::isLcd16Bpp() const {
     return isMmuEnabled(); // In Linux, default to 16bpp framebuffer unless programmed
 }
 
+size_t Bus::getFramebufferStride() const {
+    const auto it = mmioRegs.find(0x4D00001C);
+    const size_t minimum = isLcd16Bpp() ? 480 : 360;
+    if (it == mmioRegs.end()) return minimum;
+    const size_t stride = ((it->second & 0x7ff) + ((it->second >> 11) & 0x7ff)) * 2;
+    return stride >= minimum ? stride : minimum;
+}
+
 u32 Bus::getFramebufferSize() const {
-    return isLcd16Bpp() ? 76800 : 57600;
+    return static_cast<u32>(getFramebufferStride() * 160);
 }
 
 } // namespace oceanblast

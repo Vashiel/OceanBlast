@@ -11,3 +11,11 @@ Implementation: `src/display/launcher.h`, no-argument dispatch in `src/main.cpp`
 Validation: optimized Windows build with `-Wall -Wextra` passed. The launcher opened and exposed ROM selection, scale selector, sound checkbox, Start/Stop and help/menu controls through Windows accessibility. A local ROM path was entered; Start opened the child display and disabled duplicate starts. Stop requested its closure. Sustained gameplay and audio acceptance remain separate from launcher validation.
 
 Validation confirms normal process exit, the stopped status message and re-enabled Start button.
+
+## Device Settings and Display Diagnostics
+
+**Keep Device Settings** is enabled by default. The launcher passes `--nvram` with a shared `bin/sessions/board.nvram` image. EEPROM changes are saved on normal emulator exit; a new image starts erased. Disable the checkbox for a fresh device state without replacing the saved image. This is a device EEPROM, not a game save-state system.
+
+**Display Decoder** defaults to **LCD registers**. Explicit RGB444/RGB565 options assist framebuffer investigation. Crazy Jack currently requires **RGB444, 480-byte rows (diagnostic)** for correct colors. This selection changes host interpretation and does not repair the unresolved guest LCD-mode discrepancy. See [EEPROM and player startup](16_i2c_eeprom_and_player_startup.md).
+
+The updated launcher exposes both controls through Windows accessibility, starts the selected cartridge with the chosen decoder, and saves a 2048-byte device image on normal exit. English control labels and keyboard shortcuts are retained.

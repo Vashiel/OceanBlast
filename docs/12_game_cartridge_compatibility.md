@@ -72,3 +72,7 @@ Summary CSVs are published under `docs/validation/` with cartridge hashes and ex
 3. Validate navigation, game start, sustained play and stop/restart separately for each of the eleven titles.
 4. Measure actual underruns, audio queue latency and audio/video drift during gameplay; the dropped-sample counter alone is insufficient.
 5. Complete board-device identification and I2C transactions using hardware/driver evidence, then validate saves and settings persistence.
+
+## EEPROM Follow-up
+
+The results above describe the preceding implementation. [EEPROM and player-startup validation](16_i2c_eeprom_and_player_startup.md) records restored Crazy Jack startup and combined-cartridge episode images, alongside the unresolved video-only Winx output and LCD-format discrepancy.

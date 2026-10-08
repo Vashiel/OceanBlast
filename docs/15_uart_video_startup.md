@@ -71,3 +71,7 @@ Required follow-up:
 5. Obtain independent source-data evidence for the international Winx erased page before modifying its NAND contents or attributing its launcher crash to CPU execution.
 
 ROMs, images and full memory dumps are excluded from source publication. The published CSVs contain filenames, hashes, budgets and observations only.
+
+## EEPROM Follow-up
+
+The results above describe the preceding implementation. [EEPROM and player-startup validation](16_i2c_eeprom_and_player_startup.md) records restored Crazy Jack startup and combined-cartridge episode images, alongside the unresolved video-only Winx output and LCD-format discrepancy.

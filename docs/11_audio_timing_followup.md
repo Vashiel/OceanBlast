@@ -50,3 +50,7 @@ Reproduce from a separate working directory so dumps do not overwrite other runs
 For GUI/audio comparisons, use `--gui --sound --profile`; the default GUI limit is 20 MIPS. `--clock-mips 0` is an unpaced diagnostic, not a synchronization fix. Compare `changed_fps` (observed framebuffer changes) separately from `present_fps` (host presentations).
 
 The complete-pitch and uninterrupted-playback claims in `09_audio_sample_rate_fix.md` are superseded by these observed limitations. No acceptance claim is made for all cartridges.
+
+## Timer and Runtime Follow-up
+
+The historical blank Crazy Jack result above is superseded by [EEPROM startup validation](16_i2c_eeprom_and_player_startup.md). [Timer and runtime validation](17_timer_and_runtime_validation.md) records coherent timer observations, the IIS ratio-bit correction and audio queue diagnostics. Zero dropped samples alone does not establish uninterrupted playback.
