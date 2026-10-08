@@ -52,4 +52,6 @@ A bounded Windows GUI/audio run completes 1.3 billion steps and exits normally t
 
 ## 5. Remaining Investigation
 
+[Pitfall's original-hardware reference and generated PCM baseline](21_pitfall_original_hardware_reference.md) provide an additional comparison target. Matching display motifs and numerical PCM checks do not yet establish equivalent sound.
+
 Residual discontinuities and reported distortion remain after the source-lifetime fix. Further work should correlate captured samples with guest mixer writes and DMA reloads, verify IIS/codec interpretation against hardware, and distinguish guest production delays from host queue starvation. The approximate CPU/peripheral time base remains a separate constraint on game speed and synchronization. Increasing instruction throughput alone is not a verified timing correction.

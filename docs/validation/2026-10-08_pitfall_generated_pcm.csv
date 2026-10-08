@@ -1,0 +1,2 @@
+steps,output_frames,output_rate,duration_seconds,tail_seconds,tail_peak_abs,tail_rms,tail_clip_count,tail_low_byte_zero_fraction,identical_stereo_channels,boundary_count,boundary_mean_abs_delta,boundary_delta_above_10000
+1600000000,1626477,22050,73.763129,20,13568,1735.364447,0,1.000000,0,3667,334.468503,0

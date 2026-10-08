@@ -1,0 +1,3 @@
+cpu_steps_per_peripheral_tick,steps,output_frames,output_rate,duration_seconds,first_nonzero_pcm_seconds,excerpt_seconds,excerpt_512_byte_chunks,consecutive_identical_chunks,unique_chunks
+1,1600000000,1626477,22050,73.763129,22.349705,20,3407,579,1373
+2,2400000000,1248181,22050,56.606848,14.882086,20,3445,416,1957
