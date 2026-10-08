@@ -1,6 +1,6 @@
 # Audio timing and unresolved blank frames
 
-Date: 2026-10-08. Baseline: `1c74bb3`. Report: some cartridges still display no gameplay image; others have stutter, changing playback speed or audio/video drift. The English launcher and the existing RGB565 support are preserved.
+Date: 2026-10-08. Baseline: `83ff740b`. Report: some cartridges still display no gameplay image; others have stutter, changing playback speed or audio/video drift. The English launcher and the existing RGB565 support are preserved.
 
 ## Confirmed audio issues
 

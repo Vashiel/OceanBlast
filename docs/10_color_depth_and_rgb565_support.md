@@ -1,6 +1,6 @@
 # S3C2410 Color Depth Resolution & 16-bit RGB565 Display Support
 
-Date: 2026-10-07. Baseline: `8c4a07e`.
+Date: 2026-10-07. Baseline: `2d66c3db`.
 Reported symptom: *Crazy Jack [G] (EN).bin* boots and runs, but the splashscreen and in-game visuals display severe graphics glitches, horizontal shearing, and pixel artifacts across the entire screen.
 
 ---
