@@ -26,6 +26,7 @@ void Bus::reset() {
     mmioRegs[0x560000A4] = 0xFFFFFFF0; // EINTMASK default: all ext masked
     mmioRegs[0x560000A8] = 0x00000000; // EINTPEND default: clear
     buttonMask = 0;
+    uart0TxLevelActive = false;
 
     nfconf = 0;
     nfcmd  = 0;
@@ -591,6 +592,7 @@ void Bus::writeMmio(u32 addr, u32 val) {
         case 0x4A000008: // INTMSK
             regIntmsk = val;
             mmioRegs[0x4A000008] = val;
+            updateUart0TxInterrupt();
             return;
         case 0x4A000010: { // INTPND: Write 1 to clear
             regIntpnd &= ~val;
@@ -611,7 +613,18 @@ void Bus::writeMmio(u32 addr, u32 val) {
         }
         case 0x4A000018: // SUBSRCPND: Write 1 to clear
             mmioRegs[0x4A000018] &= ~val;
+            updateUart0TxInterrupt();
             return;
+        case 0x4A00001C: // INTSUBMSK
+            mmioRegs[addr] = val;
+            updateUart0TxInterrupt();
+            return;
+        case 0x50000004: { // UCON0: transmit mode and interrupt trigger
+            const bool wasIrqMode = ((mmioRegs[addr] >> 2) & 3u) == 1u;
+            mmioRegs[addr] = val;
+            updateUart0TxInterrupt(!wasIrqMode);
+            return;
+        }
 
         // PWM Timers
         case 0x51000008: // TCON
@@ -711,13 +724,14 @@ void Bus::writeMmio(u32 addr, u32 val) {
         case 0x4E00000C:
             break;
 
-        // UART 0 TX FIFO / Buffer (0x50000020 or 0x50000024)
-        case 0x50000020:
-        case 0x50000024: {
+        // UART0 transmit holding register; URXH at +0x24 is receive-only.
+        case 0x50000020: {
             char ch = static_cast<char>(val & 0xFF);
             std::cout << ch << std::flush;
+            updateUart0TxInterrupt(true);
             break;
         }
+        case 0x50000024: return;
 
         // S3C2410 GPIO & External Interrupt Registers
         case 0x560000A4: // EINTMASK
@@ -731,6 +745,21 @@ void Bus::writeMmio(u32 addr, u32 val) {
             mmioRegs[addr] = val;
             break;
     }
+}
+
+void Bus::updateUart0TxInterrupt(bool emptyTransition) {
+    // The existing UART sink consumes each byte immediately. Its transmit FIFO
+    // remains empty, so IRQ mode must expose that condition to the guest driver.
+    const u32 control = mmioRegs[0x50000004];
+    const bool irqMode = ((control >> 2) & 3u) == 1u;
+    const bool levelMode = (control & (1u << 9)) != 0;
+    const u32 txBit = 1u << 1; // SUBSRCPND TXD0 -> main INT_UART0 (28)
+    const bool subUnmasked = (mmioRegs[0x4A00001C] & txBit) == 0;
+    uart0TxLevelActive = irqMode && levelMode && subUnmasked;
+    if (irqMode && (levelMode || emptyTransition))
+        mmioRegs[0x4A000018] |= txBit;
+    if (subUnmasked && (mmioRegs[0x4A000018] & txBit))
+        requestIrq(28);
 }
 
 void Bus::requestIrq(u32 bit) {

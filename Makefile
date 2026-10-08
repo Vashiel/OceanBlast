@@ -24,10 +24,15 @@ $(TARGET): $(OBJS)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-test: build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe
+test: build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe
 	./build/cpu_regression.exe
 	./build/input_test.exe
 	./build/audio_resampler.exe
+	./build/uart_interrupt.exe
+
+build/uart_interrupt.exe: tests/uart_interrupt.cpp src/memory/bus.cpp src/memory/bus.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
 
 build/audio_resampler.exe: tests/audio_resampler.cpp src/audio/resampler.h
 	@mkdir -p build
@@ -42,6 +47,6 @@ build/input_test.exe: tests/input_test.cpp src/cpu/arm920t.cpp src/memory/bus.cp
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 clean:
-	rm -f $(OBJS) $(TARGET) build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe
+	rm -f $(OBJS) $(TARGET) build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe
 
 .PHONY: all clean test

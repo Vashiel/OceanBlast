@@ -123,6 +123,7 @@ void ARM920T::handleIrq() {
 }
 
 void ARM920T::handlePrefetchAbort(u32 faultPC) {
+    if (faultLogging) logFaultContext("prefetch", faultPC, faultPC);
     u32 retAddr = faultPC + 4;
     u32 oldCpsr = cpsr;
     switchMode(0x17); // Abort mode
@@ -140,6 +141,7 @@ void ARM920T::handlePrefetchAbort(u32 faultPC) {
 }
 
 void ARM920T::handleDataAbort(u32 faultAddr, Bus::MmuFault faultType) {
+    if (faultLogging) logFaultContext("data", r[15] - (isThumb() ? 2 : 4), faultAddr);
     cp15_far = faultAddr;
     cp15_fsr = static_cast<u32>(faultType);
     u32 retAddr = (cpsr & FLAG_T) ? (r[15] + 6) : (r[15] + 4); // instruction_pc + 8
@@ -160,6 +162,7 @@ void ARM920T::handleDataAbort(u32 faultAddr, Bus::MmuFault faultType) {
 }
 
 void ARM920T::handleUndefinedInstruction(u32 instr) {
+    if (faultLogging) logFaultContext("undefined", r[15] - (isThumb() ? 2 : 4), instr);
     u32 retAddr = r[15]; // address after the undefined instruction
     u32 oldCpsr = cpsr;
     switchMode(0x1B); // UND mode
@@ -176,17 +179,31 @@ void ARM920T::handleUndefinedInstruction(u32 instr) {
     }
 }
 
+void ARM920T::logFaultContext(const char* kind, u32 instructionPC, u32 faultAddress) {
+    std::cout << "[FAULT CONTEXT] kind=" << kind << " PC=0x" << std::hex << instructionPC
+              << " address=0x" << faultAddress << " TTB=0x" << bus.getTtb() << std::dec << '\n';
+    dumpState();
+    for (int offset = -16; offset <= 16; offset += 4) {
+        const u32 address = instructionPC + offset;
+        u32 word = 0;
+        if (bus.peek32(address & ~3u, word))
+            std::cout << "  code[0x" << std::hex << (address & ~3u) << "]=0x" << word << '\n';
+    }
+    std::cout << std::dec;
+}
+
 void ARM920T::dumpState() const {
     std::cout << "[CPU] PC: 0x" << std::hex << std::setw(8) << std::setfill('0') << r[15]
               << " SP: 0x" << std::setw(8) << r[13]
               << " LR: 0x" << std::setw(8) << r[14]
               << " CPSR: 0x" << std::setw(8) << cpsr
               << (isThumb() ? " (Thumb)" : " (ARM)") << std::dec << std::endl;
+    std::cout << "  r12: 0x" << std::hex << std::setw(8) << r[12] << std::dec << '\n';
     for (int i = 0; i < 12; i += 4) {
         std::cout << "  r" << i << ": 0x" << std::hex << std::setw(8) << r[i]
-                  << "  r" << (i+1) << ": 0x" << std::setw(8) << r[i+1]
-                  << "  r" << (i+2) << ": 0x" << std::setw(8) << r[i+2]
-                  << "  r" << (i+3) << ": 0x" << std::setw(8) << r[i+3] << std::dec << std::endl;
+                  << "  r" << std::dec << (i+1) << ": 0x" << std::hex << std::setw(8) << r[i+1]
+                  << "  r" << std::dec << (i+2) << ": 0x" << std::hex << std::setw(8) << r[i+2]
+                  << "  r" << std::dec << (i+3) << ": 0x" << std::hex << std::setw(8) << r[i+3] << std::dec << std::endl;
     }
 }
 
