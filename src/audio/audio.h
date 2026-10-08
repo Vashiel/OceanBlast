@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <vector>
+#include "resampler.h"
 
 namespace oceanblast {
 
@@ -19,6 +20,7 @@ public:
     bool isInitialized() const { return m_initialized; }
     int getSampleRate() const { return m_sampleRate; }
     int getChannels() const { return m_channels; }
+    uint64_t getDroppedSamples() const { return m_droppedSamples; }
 
 private:
     bool m_initialized;
@@ -37,6 +39,9 @@ private:
     std::vector<AudioBuffer> m_buffers;
     size_t m_currentBuffer;
     std::vector<int16_t> m_resampleBuffer;
+    std::vector<int16_t> m_pendingSamples;
+    PcmResampler m_resampler;
+    uint64_t m_droppedSamples = 0;
 };
 
 } // namespace oceanblast

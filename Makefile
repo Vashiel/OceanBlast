@@ -23,9 +23,14 @@ $(TARGET): $(OBJS)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-test: build/cpu_regression.exe build/input_test.exe
+test: build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe
 	./build/cpu_regression.exe
 	./build/input_test.exe
+	./build/audio_resampler.exe
+
+build/audio_resampler.exe: tests/audio_resampler.cpp src/audio/resampler.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $<
 
 build/cpu_regression.exe: tests/cpu_regression.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cartridge/cart_parser.cpp src/display/display_win32.cpp src/audio/audio_win32.cpp
 	@mkdir -p build

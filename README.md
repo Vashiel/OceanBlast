@@ -33,6 +33,12 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 
 ## 📈 Emulation Progress
 
+### Current compatibility status (2026-10-08)
+
+Gameplay compatibility is still incomplete. Some cartridges show images but have stutter or audio/video drift; others remain blank after loading. **Crazy Jack [G] (EN)** still has a nearly empty active framebuffer after 1.2 billion instructions. Its invalid ALSA DMA-pointer errors have been fixed, but gameplay images have not been restored. EEPROM/I2C failures are an investigation lead, not a confirmed explanation.
+
+The latest changes add streaming audio-rate conversion, aggregation of small audio fragments, DMA current-position registers, GUI pacing at 20 MIPS, and audio diagnostics. The short Spider-Man comparison reported zero dropped output samples after these changes; this is a boot-only measurement and does not establish synchronized gameplay audio. See the [audio timing investigation, verification and open issues](docs/11_audio_timing_followup.md) for reproduction steps and the next investigation targets. The component milestones below do not imply complete game support.
+
 * [x] **Autonomous Boot SRAM:** S3C2410 Steppingstone hardware logic autonomously parsing initial 4 KB bootloader into internal SRAM (`0x00000000`).
 * [x] **ARM920T CPU Core & CP15:** 32-bit ARM instruction interpreter with condition evaluation, branch exchange (`BX`), block transfer (`LDM`/`STM`), barrel shifter, coprocessor CP15 transfers (`MRC`/`MCR`), and virtual memory address translation.
 * [x] **SDRAM & Memory Controller:** Dynamic physical bus mapping with SDRAM mirroring and MMIO routing.
@@ -53,7 +59,7 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 * [x] **Live Host Display Output:** Real-time native desktop window with dynamic S3C2410 dual color depth support (16-bit RGB565 true-color for commercial games like *Crazy Jack* and 12-bit packed LCD444 for bootloader splashes and titles like *Pitfall*) directly from SDRAM with configurable integer scaling (`--gui`, `--scale 2|3|4`).
 * [x] **Host Keypad & GPIO Input Subsystem:** Reverse-engineered hardware pin wiring from the kernel `greykbd.c` driver; host keyboard events are converted into active-low S3C2410 GPIO states (`GPFDAT`, `GPGDAT`) and trigger `EINT0..3`, `EINT4_7`, and `EINT8_23` interrupts directly to the Linux input subsystem (`/dev/input/event0`).
 * [x] **Real-Time Audio Output:** Hardware modeling of S3C2410 DMA Channel 2 (`0x4B000080`) and IIS FIFO; periodic audio buffer delivery generates `INT_DMA2` (IRQ 35), driving ALSA `snd-pcm-oss` buffer replenishment and streaming live 16-bit signed stereo PCM through a Win32 `waveOut` audio backend (`--sound`, `--gui`).
-* [x] **Optimized Jitter-Free Audio Execution:** Hardware-synchronized 22.05 kHz audio streaming with dynamic prescaler clock calculation, eliminating ALSA XRUN storms, double-speed playback, and audio buffer starvation.
+* [x] **Audio Timing and Diagnostics:** Dynamic IIS rate detection, streaming linear resampling, aggregated waveOut submissions and DMA current-position registers. GUI pacing defaults to the existing 20-MIPS timing model. Per-cartridge pitch, underruns and audio/video synchronization remain under investigation; jitter-free playback is not established.
 
 ---
 
@@ -83,7 +89,7 @@ g++ -std=c++17 -Wall -Wextra -O2 -Isrc \
 ```
 
 ### Running Test Suites
-OceanBlast includes ROM-free CPU regression and GPIO keypad verification suites:
+OceanBlast includes ROM-free CPU/DMA regression, GPIO keypad and streaming audio resampler verification suites:
 ```bash
 make test
 ```
@@ -91,13 +97,15 @@ make test
 ### Running
 Double-click `bin/oceanblast.exe` for the Windows GUI launcher, or run via command line:
 ```bash
-bin/oceanblast.exe <path_to_cartridge_dump.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--sound] [--audio-rate <Hz>] [--trace]
+bin/oceanblast.exe <path_to_cartridge_dump.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--sound] [--audio-rate <Hz>] [--clock-mips <N>] [--profile] [--trace]
 ```
 
 Example (interactive GUI with sound):
 ```bash
 bin/oceanblast.exe "roms/test.bin" --gui --scale 3 --sound
 ```
+
+GUI execution defaults to a 20-MIPS limit; `--clock-mips 0` disables it for diagnostics. This is an instruction-based approximation, not cycle-accurate ARM920T timing. `--profile` writes `performance.csv` in the working directory with presentation rate, framebuffer-change rate, MIPS, inferred audio rate and cumulative dropped output samples. The window title shows the audio rate and dropped-sample counter too. Zero dropped samples does not rule out underruns or audio/video drift.
 
 #### Default Keyboard Controls
 | Console Button | Hardware Line | Host Keyboard Key |

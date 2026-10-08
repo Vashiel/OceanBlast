@@ -1,6 +1,7 @@
 # Audio Sample Rate Resolution & Dynamic Resampling
 
 Date: 2026-10-07. Baseline: `06142fd`.
+Follow-up: [2026-10-08 audio timing investigation](11_audio_timing_followup.md) corrects the remaining rate-conversion, buffering and DMA-pointer issues. This document describes the earlier implementation, not acceptance of all cartridges.
 Reported symptom: Audio sounds like it is playing at double speed (pitch shifted up one octave) and stutters heavily during gameplay.
 
 ---
@@ -59,13 +60,13 @@ For 22.05 kHz stereo, this provides 226 cycles/byte (~46.4 ms per 4KB buffer at 
 - Defaulted `Audio::init()` to 22,050 Hz stereo 16-bit PCM.
 - If a host sound device rejects 22,050 Hz, `init()` automatically falls back to standard 44,100 Hz.
 
-### 4. High-Fidelity Linear-Interpolation Resampler (`src/audio/audio_win32.cpp`)
+### 4. Initial Linear-Interpolation Resampler (`src/audio/audio_win32.cpp`)
 - `Audio::writeSamples(samples, count, inputSampleRate)` compares the incoming stream rate against the opened `waveOut` device rate.
 - When input is 22,050 Hz and device is 44,100 Hz, an internal resampler generates 2x interpolated frames:
   $$L_{\text{out}}[2i] = L[i], \quad R_{\text{out}}[2i] = R[i]$$
   $$L_{\text{out}}[2i+1] = \frac{L[i] + L[i+1]}{2}, \quad R_{\text{out}}[2i+1] = \frac{R[i] + R[i+1]}{2}$$
 - When input is 44,100 Hz and device is 22,050 Hz, 2x decimation is applied.
-- Preserves 100% natural pitch and authentic timing regardless of the host sound card configuration.
+- These two conversions address the original rate mismatch. They do not establish correct timing at other input rates, uninterrupted playback or hardware-equivalent pitch.
 
 ### 5. CLI & Launcher Options (`src/main.cpp`)
 - Added `--audio-rate <Hz>` (alias `--rate`, `--samplerate`) flag to allow overriding the host sample rate.
@@ -81,4 +82,4 @@ For 22.05 kHz stereo, this provides 226 cycles/byte (~46.4 ms per 4KB buffer at 
   - Total: **22 / 22 PASS (0 failures)**
 - **Initialization Log:**
   `[Audio] Win32 waveOut initialized (22050 Hz, 2 channels, 16-bit PCM, 16 buffers).`
-- **Audio Timing & Pitch:** Playback rate and pitch match the authentic hardware behavior (1.0x tempo, natural pitch, continuous underrun-free stream).
+- **Audio Timing & Pitch:** The original rate mismatch was addressed. Per-cartridge pitch, underruns and audio/video synchronization remain subject to runtime verification; the later investigation found additional failures.

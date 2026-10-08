@@ -16,6 +16,15 @@ static void thumb(Bus& b, ARM920T& c, u16 instruction) {
 }
 int main() {
     { Bus b;
+      b.write32(0x4b000080,0x30010000); b.write32(0x4b000088,0x55000010);
+      b.write32(0x4b00008c,1); b.write32(0x4b000090,16|(1u<<20)|(1u<<22)); b.write32(0x4b0000a0,2);
+      check("DMA current source starts at configured buffer",b.read32(0x4b000098)==0x30010000);
+      b.write32(0x4b000080,0x30020000); b.tick((uint64_t(32)*20000000/22050/4)/2);
+      check("DMA pointer advances through latched source",b.read32(0x4b000098)==0x30010010 && b.read32(0x4b000094)==8);
+      check("DMA fixed IIS destination does not advance",b.read32(0x4b00009c)==0x55000010);
+      b.tick(100000);
+      check("DMA completion exposes end pointer",b.read32(0x4b000098)==0x30010020 && b.read32(0x4b000094)==0); }
+    { Bus b;
       b.write32(0x4b000080,0x30010000); b.write32(0x4b000090,16); b.write32(0x4b0000a0,2);
       b.write32(0x4b000080,0x30020000); b.write32(0x4b000090,32);
       check("DMA current count is independent of queued count",b.read32(0x4b000094)==16);

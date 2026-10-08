@@ -27,6 +27,9 @@ void printBanner() {
 
 void printUsage(const char* progName) {
     std::cout << "Usage: " << progName << " <cartridge.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--sound] [--trace]" << std::endl;
+    std::cout << "  --clock-mips <N>  GUI speed limit (default 20; 0 disables pacing)\n"
+              << "  --audio-rate <Hz> Host output rate (default 22050)\n"
+              << "  --profile          Write GUI performance.csv, including audio rate and dropped samples\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -54,6 +57,7 @@ int main(int argc, char* argv[]) {
     int audioRate = 22050; // Native digiBLAST S3C2410 audio rate
     bool debug = false;
     bool profile = false;
+    double clockMips = 20.0; // Timer/DMA model currently assumes 20M instructions/s.
 
     for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
@@ -64,6 +68,8 @@ int main(int argc, char* argv[]) {
             debug = true;
         } else if (arg == "--profile") {
             profile = true;
+        } else if (arg == "--clock-mips" && i + 1 < argc) {
+            clockMips = std::stod(argv[++i]);
         } else if (arg == "--trace") {
             trace = true;
         } else if (arg == "--gui" || arg == "--window") {
@@ -79,6 +85,10 @@ int main(int argc, char* argv[]) {
 
     if (gui && !customSteps) {
         stepLimit = std::numeric_limits<size_t>::max();
+    }
+    if (!(clockMips >= 0 && clockMips <= 1000) || audioRate < 4000 || audioRate > 192000) {
+        std::cerr << "[Error] Invalid clock or audio rate." << std::endl;
+        return 1;
     }
 
     oceanblast::Bus bus;
@@ -136,11 +146,13 @@ int main(int argc, char* argv[]) {
 
     using Clock = std::chrono::steady_clock;
     auto lastFrame = Clock::now(), lastStats = lastFrame;
+    auto paceStart = lastFrame;
+    size_t paceSteps = 0;
     size_t statsSteps = 0, presented = 0, changed = 0;
     uint32_t previousHash = 0;
     bool haveHash = false;
     std::ofstream metrics;
-    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer\n"; }
+    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples\n"; }
     while (!cpu.isHalted() && executedSteps < stepLimit) {
         if (gui && (display.paused || executedSteps % 50000 == 0)) {
             display.processEvents();
@@ -171,9 +183,10 @@ int main(int argc, char* argv[]) {
                 title << "OceanBlast | Display " << std::fixed << std::setprecision(1) << presented / seconds
                       << " FPS | Flips " << changed / seconds << "/s | " << mips << " MIPS"
                       << " | PC " << std::hex << cpu.getPC() << " | FB " << getActiveFbPhys()
+                      << " | Audio " << std::dec << bus.getAudioSampleRate() << " Hz | Drop " << audio.getDroppedSamples()
                       << (display.paused ? " | PAUSE" : "");
                 display.setTitle(title.str());
-                if (metrics) { metrics << executedSteps << ',' << seconds << ',' << presented / seconds << ',' << changed / seconds << ',' << mips << ',' << cpu.getPC() << ',' << getActiveFbPhys() << '\n'; metrics.flush(); }
+                if (metrics) { metrics << executedSteps << ',' << seconds << ',' << presented / seconds << ',' << changed / seconds << ',' << mips << ',' << cpu.getPC() << ',' << getActiveFbPhys() << ',' << bus.getAudioSampleRate() << ',' << audio.getDroppedSamples() << '\n'; metrics.flush(); }
                 lastStats = now; statsSteps = executedSteps; presented = changed = 0;
             }
             if (display.snapshot) {
@@ -188,10 +201,24 @@ int main(int argc, char* argv[]) {
                 }
                 std::ofstream state(stem + ".txt");
                 state << "steps=" << executedSteps << "\nPC=" << std::hex << cpu.getPC() << "\nCPSR=" << cpu.getCPSR() << "\nframebuffer=" << fb << "\nformat=" << (is16bpp ? "16bpp" : "12bpp") << '\n';
+                state << "audio_rate=" << std::dec << bus.getAudioSampleRate()
+                      << "\ndropped_samples=" << audio.getDroppedSamples()
+                      << "\ndma_source=" << std::hex << bus.getMmio(0x4B000098)
+                      << "\ndma_remaining=" << bus.getMmio(0x4B000094)
+                      << "\niiccon=" << bus.getMmio(0x54000000)
+                      << "\niicstat=" << bus.getMmio(0x54000004) << '\n';
                 for (int reg = 0; reg < 16; ++reg) state << 'r' << std::dec << reg << '=' << std::hex << cpu.getReg(reg) << '\n';
             }
+            if (display.paused) { paceStart = Clock::now(); paceSteps = executedSteps; }
             if (display.paused && !display.singleStep) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); continue; }
             display.singleStep = false;
+            if (!display.paused && clockMips > 0) {
+                const auto target = paceStart + std::chrono::duration_cast<Clock::duration>(
+                    std::chrono::duration<double>((executedSteps - paceSteps) / (clockMips * 1000000.0)));
+                const auto current = Clock::now();
+                if (target > current) std::this_thread::sleep_until(target);
+                else if (current - target > std::chrono::milliseconds(250)) { paceStart = current; paceSteps = executedSteps; }
+            }
         }
 
         u32 currentPC = cpu.getPC();
@@ -359,7 +386,7 @@ int main(int argc, char* argv[]) {
         if (fb1.is_open()) fb1.write(reinterpret_cast<const char*>(sdram + 0x310000), 153600);
         std::ofstream sdr("sdram.bin", std::ios::binary);
         if (sdr.is_open()) sdr.write(reinterpret_cast<const char*>(sdram), ADDR_SDRAM_SIZE);
-        std::cout << "\n[Debug] Dumped sdram.bin (16 MB)" << std::endl;
+        std::cout << "\n[Debug] Dumped sdram.bin (" << ADDR_SDRAM_SIZE / (1024 * 1024) << " MB)" << std::endl;
 
         std::cout << "[Debug] Memory at PA 0x30204ba0:" << std::hex;
         for (u32 o = 0; o < 32; o += 4) {

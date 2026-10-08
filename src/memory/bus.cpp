@@ -499,7 +499,16 @@ u32 Bus::readMmio(u32 addr) {
         case 0x5000001C: return 0x00; // UMSTAT0
 
         // DMA Controller Channel 2 (0x4B000080 - IIS Audio)
-        case 0x4B000094: return mmioRegs[0x4B000094]; // DSTAT2: latched current transfer, independent of reload DCON
+        case 0x4B000094: // DSTAT2
+        case 0x4B000098: // DCSRC2: current source address, used by ALSA's PCM pointer
+        case 0x4B00009C: { // DCDST2
+            if (!dma2Active || !dma2Period) return mmioRegs[addr];
+            const u32 totalItems = dma2Count / dma2ItemSize;
+            const u32 done = uint64_t(totalItems) * (dma2Period - dma2Timer) / dma2Period;
+            if (addr == 0x4B000094) return totalItems - done;
+            if (addr == 0x4B000098) return dma2Src + (dma2SrcFixed ? 0 : done * dma2ItemSize);
+            return dma2Dst + (dma2DstFixed ? 0 : done * dma2ItemSize);
+        }
         case 0x4B0000A0: return mmioRegs[0x4B0000A0]; // DMASKTRIG2
 
         // Interrupt Controller (0x4A000000)
@@ -661,13 +670,20 @@ void Bus::writeMmio(u32 addr, u32 val) {
                 u32 dsz = (dcon >> 20) & 3;      // Data size (00=1B, 01=2B, 10=4B)
                 u32 itemSize = (dsz == 1) ? 2 : ((dsz == 2) ? 4 : 1);
                 dma2Count = tc * itemSize;       // Total bytes
+                dma2ItemSize = itemSize;
+                dma2Dst = mmioRegs[0x4B000088];
+                dma2SrcFixed = (mmioRegs[0x4B000084] & 1) != 0;
+                dma2DstFixed = (mmioRegs[0x4B00008C] & 1) != 0;
+                mmioRegs[0x4B000098] = dma2Src;
+                mmioRegs[0x4B00009C] = dma2Dst;
                 mmioRegs[0x4B000094] = tc;
                 // In S3C2410 IIS audio, DMA rate is paced by DAC consumption.
                 // Dynamic cycle calculation prevents ALSA from racing ahead or stalling.
                 u32 rate = getAudioSampleRate();
                 u32 bytesPerSec = rate * 4; // 16-bit stereo PCM
-                u32 cyclesPerByte = (bytesPerSec > 0) ? (20000000 / bytesPerSec) : 227;
-                dma2Timer = (dma2Count > 0) ? (dma2Count * cyclesPerByte) : 150000;
+                dma2Timer = (dma2Count > 0 && bytesPerSec > 0)
+                    ? std::max<uint64_t>(1, uint64_t(dma2Count) * 20000000 / bytesPerSec) : 150000;
+                dma2Period = dma2Timer;
             }
             return;
         }
@@ -769,6 +785,8 @@ void Bus::tickDma2() {
     dma2Active = false;
     dma2Timer = 0;
     mmioRegs[0x4B000094] = 0; // DSTAT2: CurTC = 0
+    mmioRegs[0x4B000098] = dma2Src + (dma2SrcFixed ? 0 : dma2Count);
+    mmioRegs[0x4B00009C] = dma2Dst + (dma2DstFixed ? 0 : dma2Count);
 
     // Forward PCM audio buffer if source is valid SDRAM
     if (audioCallback && dma2Src >= ADDR_SDRAM_BASE && (dma2Src - ADDR_SDRAM_BASE) + dma2Count <= ADDR_SDRAM_SIZE) {

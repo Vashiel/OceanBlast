@@ -18,6 +18,7 @@ Audio::~Audio() {
 }
 
 bool Audio::init(int sampleRate, int channels) {
+    if (sampleRate < 4000 || sampleRate > 192000 || channels < 1 || channels > 2) return false;
     if (m_initialized) {
         close();
     }
@@ -67,6 +68,9 @@ bool Audio::init(int sampleRate, int channels) {
     }
 
     m_currentBuffer = 0;
+    m_droppedSamples = 0;
+    m_resampler.reset();
+    m_pendingSamples.clear();
     m_initialized = true;
 
     std::cout << "[Audio] Win32 waveOut initialized (" << m_sampleRate << " Hz, "
@@ -76,6 +80,7 @@ bool Audio::init(int sampleRate, int channels) {
 
 void Audio::writeSamples(const int16_t* samples, size_t sampleCount, int inputSampleRate) {
     if (!m_initialized || !m_hWaveOut || !samples || sampleCount == 0) return;
+    sampleCount -= sampleCount % m_channels;
 
     if (inputSampleRate <= 0) {
         inputSampleRate = m_sampleRate;
@@ -84,45 +89,22 @@ void Audio::writeSamples(const int16_t* samples, size_t sampleCount, int inputSa
     const int16_t* playSamples = samples;
     size_t playSampleCount = sampleCount;
 
-    // High-fidelity resampling if input rate does not match waveOut device rate
-    if (inputSampleRate != m_sampleRate && m_channels == 2) {
-        if (inputSampleRate == 22050 && m_sampleRate == 44100) {
-            // 2x linear interpolation (22050 Hz stereo -> 44100 Hz stereo)
-            size_t frameCount = sampleCount / 2;
-            m_resampleBuffer.resize(frameCount * 4);
-            for (size_t i = 0; i < frameCount; ++i) {
-                int16_t l0 = samples[i * 2 + 0];
-                int16_t r0 = samples[i * 2 + 1];
-                int16_t l1 = (i + 1 < frameCount) ? samples[(i + 1) * 2 + 0] : l0;
-                int16_t r1 = (i + 1 < frameCount) ? samples[(i + 1) * 2 + 1] : r0;
-
-                // Frame 0: original sample
-                m_resampleBuffer[i * 4 + 0] = l0;
-                m_resampleBuffer[i * 4 + 1] = r0;
-                // Frame 1: interpolated midpoint
-                m_resampleBuffer[i * 4 + 2] = static_cast<int16_t>((static_cast<int32_t>(l0) + l1) / 2);
-                m_resampleBuffer[i * 4 + 3] = static_cast<int16_t>((static_cast<int32_t>(r0) + r1) / 2);
-            }
-            playSamples = m_resampleBuffer.data();
-            playSampleCount = m_resampleBuffer.size();
-        } else if (inputSampleRate == 44100 && m_sampleRate == 22050) {
-            // 2x decimation (44100 Hz stereo -> 22050 Hz stereo)
-            size_t frameCount = sampleCount / 4;
-            m_resampleBuffer.resize(frameCount * 2);
-            for (size_t i = 0; i < frameCount; ++i) {
-                m_resampleBuffer[i * 2 + 0] = samples[i * 4 + 0];
-                m_resampleBuffer[i * 2 + 1] = samples[i * 4 + 1];
-            }
-            playSamples = m_resampleBuffer.data();
-            playSampleCount = m_resampleBuffer.size();
-        }
+    if (inputSampleRate != m_sampleRate) {
+        m_resampleBuffer = m_resampler.process(samples, sampleCount, inputSampleRate, m_sampleRate, m_channels);
+        playSamples = m_resampleBuffer.data();
+        playSampleCount = m_resampleBuffer.size();
+    } else {
+        m_resampler.reset();
     }
 
+    if (playSampleCount == 0) return;
     HWAVEOUT hWave = static_cast<HWAVEOUT>(m_hWaveOut);
-    size_t byteCount = playSampleCount * sizeof(int16_t);
+    m_pendingSamples.insert(m_pendingSamples.end(), playSamples, playSamples + playSampleCount);
+    playSamples = m_pendingSamples.data();
+    size_t byteCount = m_pendingSamples.size() * sizeof(int16_t);
     size_t offset = 0;
 
-    while (offset < byteCount) {
+    while (offset + BUFFER_BYTES <= byteCount) {
         AudioBuffer* targetBuf = nullptr;
         WAVEHDR* targetHdr = nullptr;
 
@@ -141,6 +123,8 @@ void Audio::writeSamples(const int16_t* samples, size_t sampleCount, int inputSa
         // If all buffers are currently busy in waveOut, do NOT block the CPU thread with Sleep().
         // Blocking the emulation thread causes severe stuttering and cuts MIPS performance.
         if (!targetBuf || !targetHdr) {
+            m_droppedSamples += (byteCount - offset) / sizeof(int16_t);
+            m_pendingSamples.clear();
             return;
         }
 
@@ -158,12 +142,16 @@ void Audio::writeSamples(const int16_t* samples, size_t sampleCount, int inputSa
         targetHdr->dwFlags = 0;
 
         if (waveOutPrepareHeader(hWave, targetHdr, sizeof(WAVEHDR)) == MMSYSERR_NOERROR) {
-            waveOutWrite(hWave, targetHdr, sizeof(WAVEHDR));
+            if (waveOutWrite(hWave, targetHdr, sizeof(WAVEHDR)) != MMSYSERR_NOERROR)
+                m_droppedSamples += chunkSize / sizeof(int16_t);
+        } else {
+            m_droppedSamples += chunkSize / sizeof(int16_t);
         }
 
         offset += chunkSize;
         m_currentBuffer = (m_currentBuffer + 1) % NUM_BUFFERS;
     }
+    m_pendingSamples.erase(m_pendingSamples.begin(), m_pendingSamples.begin() + offset / sizeof(int16_t));
 }
 
 void Audio::close() {
@@ -198,10 +186,10 @@ void Audio::close() {
 #else // Non-Windows fallback
 
 namespace oceanblast {
-Audio::Audio() : m_initialized(false), m_hWaveOut(nullptr), m_currentBuffer(0) {}
+Audio::Audio() : m_initialized(false), m_hWaveOut(nullptr), m_sampleRate(22050), m_channels(2), m_currentBuffer(0) {}
 Audio::~Audio() {}
 bool Audio::init(int, int) { return false; }
-void Audio::writeSamples(const int16_t*, size_t) {}
+void Audio::writeSamples(const int16_t*, size_t, int) {}
 void Audio::close() {}
 }
 
