@@ -1,0 +1,3 @@
+phase,recorded_wall_interval_seconds,guest_seconds_at_last_stats,guest_speed_percent,mips,sampled_framebuffer_changes_per_wall_second,audio_rate_hz,audio_submitted_frames,audio_queued_frames,dropped_samples,cumulative_audio_empty_events
+full-30-second-peripheral-time-run,29.05,29.05,99.99,39.99,2.44,21972,571392,7168,0,0
+after-6-guest-seconds,24.04,29.05,100.01,40.00,2.91,21972,571392,7168,0,0
