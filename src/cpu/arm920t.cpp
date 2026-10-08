@@ -212,6 +212,7 @@ void ARM920T::step(size_t peripheralTicks) {
 
     if (!(cpsr & FLAG_I) && bus.hasPendingIrq()) {
         handleIrq();
+        bus.tick(peripheralTicks);
         return;
     }
 

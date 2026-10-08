@@ -2,6 +2,8 @@
 
 **OceanBlast** is an open-source, independent research and emulation project targeting the **Nikko digiBLAST** (2005), a European multimedia handheld console powered by the Samsung OCEAN-L-20 System-on-a-Chip (Samsung S3C2410 architecture, ARM920T CPU core).
 
+[Register-derived clocks and IIS playback control](docs/23_register_clocks_and_iis_pause.md) make Timer 4 and audio follow programmed clocks, preserve exact integer audio rates, pause IIS DMA when the transmit path is disabled, and advance peripheral time on IRQ entry. These corrections do not establish hardware-equivalent CPU speed or complete cartridge compatibility.
+
 The goal of this project is digital preservation, architectural documentation, and software interoperability for an obscure and historically undocumented platform.
 
 ---
@@ -26,7 +28,7 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 | **NAND Format** | 528 bytes per page (512 data bytes + 16 spare/OOB bytes) |
 | **Operating System** | Embedded Das U-Boot 1.1.2 bootloader loading Linux 2.4/2.6 kernel and SquashFS root filesystem |
 | **Display** | 2.7" TFT LCD (S3C2410 LCD controller at `0x4D000000`, 4096 colors / 16-bit RGB) |
-| **Audio** | S3C2410 IIS bus (`0x55000000`) with DMA playback (22.05 kHz stereo native, dynamic resampling) |
+| **Audio** | S3C2410 IIS bus (`0x55000000`) with DMA playback (nominal 22.05 kHz stereo, register-derived source rates and dynamic resampling) |
 | **Debug Console** | S3C2410 UART0 (`0x50000000`) streamed via 115200 baud serial console |
 
 ---

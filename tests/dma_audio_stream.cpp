@@ -5,8 +5,9 @@ using namespace oceanblast;
 int main() {
     int failures=0;
     auto check=[&](const char* name,bool ok){std::cout<<(ok?"PASS ":"FAIL ")<<name<<'\n';failures+=!ok;};
-    const uint64_t period=uint64_t(1024)*20000000/22050/4;
+    const uint64_t period=uint64_t(1024)*20000000/21972/4;
     auto setup=[](Bus& b,u32 destination=0x55000010,u32 sourceControl=0){
+        b.write32(0x4c000004,0x52011);b.write32(0x4c000014,3);b.write32(0x55000000,0x23);
         b.write32(0x55000008,0xe7);b.write32(0x55000004,0x99);
         b.write32(0x4b000080,0x30010000);b.write32(0x4b000084,sourceControl);
         b.write32(0x4b000088,destination);b.write32(0x4b00008c,1);
@@ -78,6 +79,27 @@ int main() {
       check("Unrelated INTPND acknowledgement preserves selected source",b.getMmio(0x4a000010)==2);
       b.write32(0x4a000000,2);b.write32(0x4a000010,2);
       check("Acknowledgement selects the next pending source",b.getMmio(0x4a000010)==1);
+    }
+    { Bus b;b.reset();size_t samples=0;b.setAudioCallback([&](const int16_t*,size_t n){samples+=n;});
+      setup(b);b.tick((period+1)/2);const u32 source=b.read32(0x4b000098);
+      b.write32(0x4c000004,0x52012);
+      check("Changing PCLK preserves active DMA source progress",b.read32(0x4b000098)==source && samples==256);
+      b.tick(period+2);
+      check("Active DMA finishes at the updated source rate",samples==512 && b.read32(0x4b000094)==0);
+    }
+    { Bus b;b.reset();size_t samples=0;b.setAudioCallback([&](const int16_t*,size_t n){samples+=n;});
+      setup(b);b.tick((period+1)/2);const u32 source=b.read32(0x4b000098);
+      b.write32(0x55000000,0x2b);b.tick(period);
+      check("IIS TX idle freezes DMA source and PCM output",b.read32(0x4b000098)==source && samples==256 && !(b.read32(0x4a000000)&(1u<<19)));
+      b.write32(0x55000000,3);b.tick(period);
+      check("Disabled IIS TX DMA requests freeze the transfer",b.read32(0x4b000098)==source && samples==256);
+      b.write32(0x55000000,0x22);b.tick(period);
+      check("Disabled IIS interface freezes the transfer",b.read32(0x4b000098)==source && samples==256);
+      b.write32(0x55000000,0x23);b.write32(0x55000004,0x59);b.tick(period);
+      check("Receive-only IIS mode does not consume TX DMA",b.read32(0x4b000098)==source && samples==256);
+      b.write32(0x55000004,0x99);
+      b.write32(0x55000000,0x23);b.tick(period-(period+1)/2);
+      check("IIS resume completes the preserved transfer",samples==512 && b.read32(0x4b000094)==0);
     }
     return failures?1:0;
 }

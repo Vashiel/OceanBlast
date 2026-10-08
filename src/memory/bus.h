@@ -2,6 +2,7 @@
 #include "../core/types.h"
 #include "i2c_eeprom.h"
 #include "timer4.h"
+#include "clock_tree.h"
 #include <vector>
 #include <string>
 #include <unordered_map>
@@ -243,9 +244,12 @@ public:
     void updateUart0TxInterrupt(bool emptyTransition = false);
 
     inline void tick(size_t cycles = 1) {
-        if (uart0TxLevelActive) updateUart0TxInterrupt();
+        // An already latched source needs no repeated MMIO-map lookup or write.
+        // Register writes handle subpending/mask changes; tick reasserts after
+        // the guest clears the main source while the empty level remains active.
+        if (uart0TxLevelActive && !(regSrcpnd & (1u << 28))) updateUart0TxInterrupt();
         if (timer4.isRunning() && timer4.advance(cycles)) requestIrq(14);
-        if (dma2Active) {
+        if (dma2Active && (!dma2Paused || dma2Dst != 0x55000010)) {
             if (cycles >= dma2Timer) {
                 tickDma2();
             } else {
@@ -269,6 +273,9 @@ public:
     using AudioCallback = std::function<void(const int16_t* samples, size_t sampleCount)>;
     void setAudioCallback(AudioCallback cb) { audioCallback = cb; }
     u32  getAudioSampleRate() const;
+    u32 getCpuClock() const { return clocks.fclk(); }
+    u32 getBusClock() const { return clocks.hclk(); }
+    u32 getPeripheralClock() const { return clocks.pclk(); }
     uint64_t getDma2RedundantEnables() const { return dma2RedundantEnables; }
 
     // S3C2410 LCD Subsystem
@@ -334,9 +341,13 @@ private:
 
     // S3C2410 PWM Timer 4 State
     Timer4 timer4;
+    ClockTree clocks;
+    void updateClockedDevices();
+    void flushAudioClockBoundary();
 
     // S3C2410 DMA Channel 2 (IIS Audio) State
     bool   dma2Active = false;
+    bool dma2Paused = false;
     size_t dma2Timer = 0;
     u32    dma2Src = 0;
     u32    dma2Count = 0;

@@ -110,6 +110,7 @@ int main() {
     }
     for (unsigned ratio : {1u,2u,4u}) {
       Bus b;ARM920T c(b);c.setReg(15,0x30000000);
+      b.write32(0x4c000004,0x52011);b.write32(0x4c000014,3);
       for(u32 i=0;i<8000*ratio;++i)b.write32(0x30000000+i*4,0xe1a00000);
       size_t samples=0;b.setAudioCallback([&](const int16_t*,size_t count){samples+=count;});
       b.write32(0x4b000080,0x30010000);b.write32(0x4b000088,0x55000010);
@@ -117,6 +118,12 @@ int main() {
       b.write32(0x5100003c,30000);b.write32(0x51000008,(1u<<20)|(1u<<21));
       for(unsigned step=0;step<8000*ratio;++step)c.step(step%ratio==0?1:0);
       check("CPU ratio preserves DMA completion and timer elapsed time",samples==16 && b.read32(0x4b000094)==0 && b.read32(0x51000040)==21000 && c.getPC()==0x30000000+8000*ratio*4);
+    }
+    { Bus b;ARM920T c(b);b.write32(0,0xe121f000);c.setReg(0,0x13);c.step();
+      b.write32(0x4c000004,0x52011);b.write32(0x4c000014,3);
+      b.write32(0x5100003c,1000);b.write32(0x51000008,(1u<<20)|(1u<<21));
+      b.write32(0x4a000008,~1u);b.setButtonMask(1u<<4);c.step(10);
+      check("IRQ entry advances the caller's peripheral budget",c.getPC()==0x18 && b.read32(0x51000040)==989);
     }
     std::cout << failures << " failure(s)\n";
     return failures ? 1 : 0;

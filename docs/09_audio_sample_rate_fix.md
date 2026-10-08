@@ -1,5 +1,7 @@
 # Audio Sample Rate Resolution & Dynamic Resampling
 
+The nominal-rate mapping described below is superseded by [register-derived clocks and IIS playback control](23_register_clocks_and_iis_pause.md). Current code preserves calculated integer source rates instead of snapping them to 22050/44100 Hz.
+
 Date: 2026-10-07. Baseline: `06142fd`.
 Follow-up: [2026-10-08 audio timing investigation](11_audio_timing_followup.md) corrects the remaining rate-conversion, buffering and DMA-pointer issues. This document describes the earlier implementation, not acceptance of all cartridges.
 Reported symptom: Audio sounds like it is playing at double speed (pitch shifted up one octave) and stutters heavily during gameplay.

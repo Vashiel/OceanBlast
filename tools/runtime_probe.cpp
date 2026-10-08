@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
     bus.setAudioCallback([&](const int16_t*, size_t count) { samples += count; });
     std::ofstream out(argv[4]);
     if (!out) return 1;
-    out << "scheduled_ticks,cpu_steps,pc,lcd_control,framebuffer,stride,hash,audio_samples\n";
+    out << "scheduled_ticks,cpu_steps,pc,lcd_control,framebuffer,stride,hash,audio_samples,fclk,hclk,pclk,iis_rate,mpllcon,clkslow,clkdivn\n";
     std::map<uint32_t, uint64_t> pages;
     uint32_t previousHash = 0, previousAddress = 0;
     size_t previousStride = 0;
@@ -49,12 +49,14 @@ int main(int argc, char** argv) {
         havePrevious = true; previousHash = hash; previousAddress = address; previousStride = stride;
         ++pages[cpu.getPC() & ~0xfffu];
         out << (step + 1) / ratio << ',' << step + 1 << ',' << cpu.getPC() << ','
-            << bus.getMmio(0x4d000000) << ',' << address << ',' << stride << ',' << hash << ',' << samples << '\n';
+            << bus.getMmio(0x4d000000) << ',' << address << ',' << stride << ',' << hash << ',' << samples << ','
+            << bus.getCpuClock() << ',' << bus.getBusClock() << ',' << bus.getPeripheralClock() << ',' << bus.getAudioSampleRate() << ','
+            << bus.getMmio(0x4c000004) << ',' << bus.getMmio(0x4c000010) << ',' << bus.getMmio(0x4c000014) << '\n';
     }
     std::ofstream profile(std::string(argv[4]) + ".pc.csv");
     profile << "pc_page,samples\n";
     for (const auto& page : pages) profile << page.first << ',' << page.second << '\n';
     std::cout << "Observed framebuffer changes: " << changes << "; PCM samples: " << samples << '\n';
-    std::cout << "Tick budget is scheduled by the caller; exception-entry steps can return before ticking.\n";
+    std::cout << "Tick budget is scheduled by the caller; it is not ARM instruction-cycle timing.\n";
     return !out || !profile ? 1 : 0;
 }

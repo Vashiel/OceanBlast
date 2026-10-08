@@ -218,6 +218,7 @@ int main(int argc, char* argv[]) {
     }
 
     size_t executedSteps = 0;
+    size_t peripheralPhase = 0;
     std::cout << "[Timing] CPU steps per peripheral tick: " << cpuStepsPerTick
               << "; GUI instruction-rate limit: " << clockMips << " MIPS\n";
     bool enteredSdram = false;
@@ -264,6 +265,9 @@ int main(int argc, char* argv[]) {
               << "\ncpu_steps_per_tick=" << cpuStepsPerTick
               << "\ndisplay_override=" << (displayFormat != 0 || displayStride != 0)
               << "\naudio_rate=" << std::dec << bus.getAudioSampleRate()
+              << "\nfclk=" << bus.getCpuClock() << "\nhclk=" << bus.getBusClock() << "\npclk=" << bus.getPeripheralClock()
+              << "\nmpllcon=" << std::hex << bus.getMmio(0x4c000004)
+              << "\nclkslow=" << bus.getMmio(0x4c000010) << "\nclkdivn=" << bus.getMmio(0x4c000014) << std::dec
               << "\ndropped_samples=" << audio.getDroppedSamples()
               << "\naudio_submitted_frames=" << audio.getSubmittedFrames()
               << "\naudio_queued_frames=" << audio.getQueuedFrames()
@@ -271,6 +275,7 @@ int main(int argc, char* argv[]) {
               << "\ndma_source=" << std::hex << bus.getMmio(0x4B000098)
               << "\ndma_remaining=" << bus.getMmio(0x4B000094)
               << "\niismod=" << bus.getMmio(0x55000004)
+              << "\niiscon=" << bus.getMmio(0x55000000)
               << "\ntcfg0=" << bus.getMmio(0x51000000)
               << "\ntcfg1=" << bus.getMmio(0x51000004)
               << "\ntcon=" << bus.getMmio(0x51000008)
@@ -301,7 +306,7 @@ int main(int argc, char* argv[]) {
     bool previousIs16bpp = false;
     bool haveHash = false;
     std::ofstream metrics;
-    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples,audio_submitted_frames,audio_queued_frames,audio_empty_queue_events\n"; }
+    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples,audio_submitted_frames,audio_queued_frames,audio_empty_queue_events,fclk,pclk,cpu_steps_per_tick\n"; }
     while (!cpu.isHalted() && executedSteps < stepLimit) {
         if (nextInput < inputEvents.size() && executedSteps == inputEvents[nextInput].step) {
             bus.setButtonMask(inputEvents[nextInput].mask);
@@ -351,7 +356,7 @@ int main(int argc, char* argv[]) {
                       << " | Audio " << std::dec << bus.getAudioSampleRate() << " Hz | Queue " << audio.getQueuedFrames() << "f | Empty " << audio.getEmptyQueueEvents() << " | Drop " << audio.getDroppedSamples()
                       << (display.paused ? " | PAUSE" : "");
                 display.setTitle(title.str());
-                if (metrics) { metrics << executedSteps << ',' << seconds << ',' << presented / seconds << ',' << changed / seconds << ',' << mips << ',' << cpu.getPC() << ',' << getActiveFbPhys() << ',' << bus.getAudioSampleRate() << ',' << audio.getDroppedSamples() << ',' << audio.getSubmittedFrames() << ',' << audio.getQueuedFrames() << ',' << audio.getEmptyQueueEvents() << '\n'; metrics.flush(); }
+                if (metrics) { metrics << executedSteps << ',' << seconds << ',' << presented / seconds << ',' << changed / seconds << ',' << mips << ',' << cpu.getPC() << ',' << getActiveFbPhys() << ',' << bus.getAudioSampleRate() << ',' << audio.getDroppedSamples() << ',' << audio.getSubmittedFrames() << ',' << audio.getQueuedFrames() << ',' << audio.getEmptyQueueEvents() << ',' << bus.getCpuClock() << ',' << bus.getPeripheralClock() << ',' << cpuStepsPerTick << '\n'; metrics.flush(); }
                 lastStats = now; statsSteps = executedSteps; presented = changed = 0;
             }
             if (display.snapshot) {
@@ -451,7 +456,8 @@ int main(int argc, char* argv[]) {
                       << std::dec << '\n';
             cpu.dumpState();
         }
-        cpu.step(executedSteps % cpuStepsPerTick == 0 ? 1 : 0);
+        cpu.step(peripheralPhase == 0 ? 1 : 0);
+        if (++peripheralPhase == cpuStepsPerTick) peripheralPhase = 0;
         executedSteps++;
     }
 

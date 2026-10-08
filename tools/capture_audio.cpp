@@ -26,12 +26,13 @@ int main(int argc,char** argv) {
     uint64_t step=0,bytes=0;
     bool overflow=false;
     PcmResampler resampler;
-    events<<"step,output_byte_offset,input_rate,iismod,iispsr,dcon,current_source,remaining_items,samples\n";
+    events<<"step,output_byte_offset,input_rate,iismod,iispsr,dcon,current_source,remaining_items,samples,iiscon,fclk,pclk\n";
     bus.setAudioCallback([&](const int16_t* input,size_t count){
         const auto rate=bus.getAudioSampleRate();
         events<<step<<','<<bytes<<','<<rate<<",0x"<<std::hex<<bus.getMmio(0x55000004)
               <<",0x"<<bus.getMmio(0x55000008)<<",0x"<<bus.getMmio(0x4b000090)
-              <<",0x"<<bus.getMmio(0x4b000098)<<','<<std::dec<<bus.getMmio(0x4b000094)<<','<<count<<'\n';
+              <<",0x"<<bus.getMmio(0x4b000098)<<','<<std::dec<<bus.getMmio(0x4b000094)<<','<<count
+              <<','<<bus.getMmio(0x55000000)<<','<<bus.getCpuClock()<<','<<bus.getPeripheralClock()<<'\n';
         auto pcm=resampler.process(input,count,rate,22050,2);
         if(bytes+pcm.size()*2>std::numeric_limits<uint32_t>::max()-36){overflow=true;return;}
         for(auto sample:pcm)le(wav,uint16_t(sample),2);
