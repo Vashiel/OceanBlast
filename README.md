@@ -35,6 +35,8 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 
 ### Current compatibility status (2026-10-08)
 
+[Consumed-sample DMA capture](docs/20_pcm_capture_and_dma_sample_lifetime.md) corrects source RAM being reread after a game has reused it. A controlled DigiQUAD comparison reduces large changes at audio callback boundaries from 127 to 13; listening confirms a significant improvement, with residual defects. The [manual cartridge reports](docs/18_manual_cartridge_validation.md) preserve the remaining speed, input and audio issues. Normal audio and synchronized gameplay are not yet established.
+
 The [EEPROM and player-startup investigation](docs/16_i2c_eeprom_and_player_startup.md) identifies missing I2C EEPROM transactions as a startup blocker. Crazy Jack now reaches its title, level selection and an interactive gameplay scene; correct colors currently require an explicit diagnostic RGB444/480-byte-stride override. Automatic LCD format selection remains unresolved for this title.
 
 Both Italian/Spanish SpongeBob and Winx combined cartridges now reach visible episode images after language and launcher selection. All nine tested video-only cartridges start their media player. Several still produce black or near-black output. The [Timer 4 correction](docs/17_timer_and_runtime_validation.md) restores a first episode image on video-only Italian/Spanish Winx; continued playback and Netherlands Winx output remain unresolved. Complete gameplay and smooth, synchronized movie playback remain open acceptance goals. The earlier [game matrix](docs/12_game_cartridge_compatibility.md) and [UART investigation](docs/15_uart_video_startup.md) preserve the preceding baselines.

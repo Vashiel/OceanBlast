@@ -26,6 +26,44 @@ int main() {
       setup(b,0x30020000);b.tick(period);
       check("Non-IIS DMA destination does not emit audio",samples==0);
     }
+    { Bus b;b.reset();std::vector<int16_t> heard;
+      b.setAudioCallback([&](const int16_t* p,size_t n){heard.insert(heard.end(),p,p+n);});
+      for(u32 i=0;i<512;++i)b.write16(0x30010000+i*2,100);
+      setup(b);b.tick((period+7)/8);
+      check("Short consumed region stays batched before host submission",heard.empty());
+      for(u32 i=0;i<512;++i)b.write16(0x30010000+i*2,200);
+      b.tick(period-(period+7)/8);
+      check("DMA preserves consumed frames within a callback batch",heard.size()==512 && heard[63]==100 && heard[64]==200);
+    }
+    { Bus b;b.reset();std::vector<int16_t> heard;
+      b.setAudioCallback([&](const int16_t* p,size_t n){heard.insert(heard.end(),p,p+n);});
+      for(u32 i=0;i<512;++i)b.write16(0x30010000+i*2,int16_t(i));
+      setup(b);const auto partial=(period*257+511)/512;b.tick(partial);
+      b.tick(period-partial);
+      bool ordered=heard.size()==512;
+      for(size_t i=0;i<heard.size();++i)ordered=ordered && heard[i]==int16_t(i);
+      check("Bulk DMA ticks retain a sample crossing callback batch boundaries",ordered);
+    }
+    { Bus b;b.reset();std::vector<int16_t> heard;
+      b.setAudioCallback([&](const int16_t* p,size_t n){heard.insert(heard.end(),p,p+n);});
+      b.write16(0x30010000,100);b.write16(0x30010002,101);
+      setup(b);b.tick((period+511)/512);
+      b.write16(0x30010000,300);b.write16(0x30010002,301);
+      b.tick(period-(period+511)/512);
+      check("DMA preserves left sample before the right sample is consumed",heard.size()==512 && heard[0]==100 && heard[1]==301);
+    }
+    { Bus b;b.reset();size_t samples=0;
+      b.setAudioCallback([&](const int16_t*,size_t n){samples+=n;});
+      setup(b);b.tick((period+7)/8);b.write32(0x4b0000a0,4);
+      check("DMA stop flushes consumed frames without reading future data",samples==64);
+      b.tick(period);check("Stopped DMA does not emit additional samples",samples==64);
+    }
+    { Bus b;b.reset();setup(b);b.tick((period+1)/2);
+      const auto current=b.read32(0x4b000098),remaining=b.read32(0x4b000094);
+      b.write32(0x4b000080,0x30020000);b.write32(0x4b0000a0,2);
+      check("Repeated ON preserves active source and progress",b.read32(0x4b000098)==current && b.read32(0x4b000094)==remaining);
+      check("Repeated enable diagnostic records the write",b.getDma2RedundantEnables()==1);
+    }
     { Bus b;b.reset();std::vector<int16_t> heard;b.setAudioCallback([&](const int16_t* p,size_t n){heard.insert(heard.end(),p,p+n);});
       b.write16(0x30010000,1234);setup(b,0x55000010,1);b.tick(period);
       check("Fixed-source DMA repeats the transfer item",heard.size()==512 && heard.front()==1234 && heard.back()==1234);

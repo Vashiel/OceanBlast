@@ -19,7 +19,9 @@ public:
     ~ARM920T();
 
     void reset(u32 startAddress = 0x00000000);
-    void step();
+    // Diagnostic clock-ratio experiments can execute with zero peripheral ticks.
+    // Normal execution retains one peripheral tick per step.
+    void step(size_t peripheralTicks = 1);
     void setDebugLogging(bool enabled) { debugLogging = enabled; }
     void setFaultLogging(bool enabled) { faultLogging = enabled; }
 

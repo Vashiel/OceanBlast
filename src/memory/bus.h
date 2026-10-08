@@ -269,6 +269,7 @@ public:
     using AudioCallback = std::function<void(const int16_t* samples, size_t sampleCount)>;
     void setAudioCallback(AudioCallback cb) { audioCallback = cb; }
     u32  getAudioSampleRate() const;
+    uint64_t getDma2RedundantEnables() const { return dma2RedundantEnables; }
 
     // S3C2410 LCD Subsystem
     bool isLcd16Bpp() const;
@@ -343,6 +344,8 @@ private:
     u32 dma2Dst = 0, dma2ItemSize = 1;
     bool dma2SrcFixed = false, dma2DstFixed = false;
     u32 dma2EmittedBytes = 0;
+    std::vector<int16_t> dma2PcmPending;
+    uint64_t dma2RedundantEnables = 0;
     size_t dma2NextAudioTimer = 0;
     void streamDma2Audio(bool complete);
     void scheduleDma2Audio();

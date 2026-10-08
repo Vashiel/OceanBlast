@@ -51,7 +51,9 @@ void Bus::reset() {
     regIntpnd = 0;
     regIntmsk = ~0u;
     dma2Active = false;
+    dma2RedundantEnables = 0;
     dma2Timer = 0;
+    dma2PcmPending.clear();
     adcPending = false;
     adcTimer = 0;
     i2cPending = false;
@@ -713,10 +715,15 @@ void Bus::writeMmio(u32 addr, u32 val) {
         case 0x4B0000A0: { // DMASKTRIG2
             mmioRegs[0x4B0000A0] = val;
             if (val & (1 << 2)) { // STOP
+                if (audioCallback && dma2PcmPending.size() >= 2) {
+                    audioCallback(dma2PcmPending.data(), dma2PcmPending.size() & ~size_t(1));
+                }
                 dma2Active = false;
                 dma2Timer = 0;
+                dma2PcmPending.clear();
                 mmioRegs[0x4B000094] = 0;
             } else if (val & (1 << 1)) { // ON
+                if (dma2Active) { ++dma2RedundantEnables; return; }
                 dma2Active = true;
                 dma2Src = mmioRegs[0x4B000080]; // DISRC2
                 u32 dcon = mmioRegs[0x4B000090]; // DCON2
@@ -739,6 +746,7 @@ void Bus::writeMmio(u32 addr, u32 val) {
                     ? std::max<uint64_t>(1, uint64_t(dma2Count) * 20000000 / bytesPerSec) : 150000;
                 dma2Period = dma2Timer;
                 dma2EmittedBytes = 0;
+                dma2PcmPending.clear();
                 scheduleDma2Audio();
             }
             return;
@@ -824,19 +832,22 @@ void Bus::selectPendingIrq() {
 }
 
 void Bus::scheduleDma2Audio() {
-    const u32 next = std::min(dma2Count, dma2EmittedBytes + 512u);
+    // Snapshot each consumed 16-bit sample before the producer can reuse RAM.
+    // Host callbacks remain batched to avoid submitting tiny audio fragments.
+    const u32 next = std::min(dma2Count, dma2EmittedBytes + std::max(2u, dma2ItemSize));
     dma2NextAudioTimer = dma2Period - std::min<uint64_t>(dma2Period,
         (uint64_t(next) * dma2Period + dma2Count - 1) / std::max(dma2Count, 1u));
 }
 
 void Bus::streamDma2Audio(bool complete) {
     const u32 consumed = complete ? dma2Count : u32(uint64_t(dma2Count) * (dma2Period - dma2Timer) / dma2Period);
-    const u32 end = consumed & ~3u; // Complete stereo frames only.
+    const u32 quantum = std::max(2u, dma2ItemSize);
+    const u32 end = consumed / quantum * quantum;
     if (end > dma2EmittedBytes && audioCallback && dma2Dst == 0x55000010 &&
         dma2Src >= ADDR_SDRAM_BASE && uint64_t(dma2Src - ADDR_SDRAM_BASE) + dma2Count <= ADDR_SDRAM_SIZE) {
         if (!dma2SrcFixed) {
             const auto* pcm = reinterpret_cast<const int16_t*>(sdram.data() + dma2Src - ADDR_SDRAM_BASE + dma2EmittedBytes);
-            audioCallback(pcm, (end - dma2EmittedBytes) / 2);
+            dma2PcmPending.insert(dma2PcmPending.end(), pcm, pcm + (end - dma2EmittedBytes) / 2);
         } else {
             std::vector<int16_t> pcm((end - dma2EmittedBytes) / 2);
             const auto* source = sdram.data() + dma2Src - ADDR_SDRAM_BASE;
@@ -844,10 +855,17 @@ void Bus::streamDma2Audio(bool complete) {
                 const size_t offset = ((dma2EmittedBytes + i * 2) % dma2ItemSize);
                 pcm[i] = int16_t(source[offset] | (uint16_t(source[(offset + 1) % dma2ItemSize]) << 8));
             }
-            audioCallback(pcm.data(), pcm.size());
+            dma2PcmPending.insert(dma2PcmPending.end(), pcm.begin(), pcm.end());
         }
     }
     dma2EmittedBytes = end;
+    const size_t ready = complete ? (dma2PcmPending.size() & ~size_t(1))
+                                  : (dma2PcmPending.size() / 256 * 256);
+    if (audioCallback && ready) {
+        audioCallback(dma2PcmPending.data(), ready);
+        dma2PcmPending.erase(dma2PcmPending.begin(), dma2PcmPending.begin() + ready);
+    }
+    if (complete) dma2PcmPending.clear();
     scheduleDma2Audio();
 }
 
