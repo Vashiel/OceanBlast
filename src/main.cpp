@@ -10,6 +10,7 @@
 #include <map>
 #include "core/types.h"
 #include "core/input_script.h"
+#include "core/emulation_clock.h"
 #include "memory/bus.h"
 #include "cpu/arm920t.h"
 #include "cartridge/cart_parser.h"
@@ -31,6 +32,8 @@ void printBanner() {
 void printUsage(const char* progName) {
     std::cout << "Usage: " << progName << " <cartridge.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--sound] [--trace]" << std::endl;
     std::cout << "  --clock-mips <N>  GUI step-rate limit (default 20 times CPU ratio; 0 disables pacing)\n"
+              << "  --timing <legacy|auto> Register-clock CPU timing with cached cycle estimates (experimental)\n"
+              << "  --emulated-seconds <N> Stop after a bounded amount of modeled time\n"
               << "  --cpu-steps-per-tick <N> Diagnostic CPU work per peripheral tick (1..16; default 1)\n"
               << "  --audio-rate <Hz> Host output rate (default 22050)\n"
               << "  --profile          Write GUI performance.csv, including audio rate and dropped samples\n";
@@ -81,6 +84,8 @@ int main(int argc, char* argv[]) {
     bool profile = false;
     double clockMips = 20.0; // Timer/DMA model currently assumes 20M instructions/s.
     bool explicitClock = false;
+    bool autoTiming = false;
+    uint64_t tickLimit = UINT64_MAX;
     size_t cpuStepsPerTick = 1;
     size_t snapshotInterval = 0;
     size_t pcProfileInterval = 0, nextPcProfile = 0;
@@ -125,6 +130,14 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--clock-mips" && i + 1 < argc) {
             clockMips = std::stod(argv[++i]);
             explicitClock = true;
+        } else if (arg == "--timing" && i + 1 < argc) {
+            const std::string mode = argv[++i];
+            if (mode != "auto" && mode != "legacy") { std::cerr << "[Error] Invalid timing mode.\n"; return 1; }
+            autoTiming = mode == "auto";
+        } else if (arg == "--emulated-seconds" && i + 1 < argc) {
+            const double duration = std::stod(argv[++i]);
+            if (!(duration > 0 && duration <= 86400)) { std::cerr << "[Error] Invalid modeled duration.\n"; return 1; }
+            tickLimit = uint64_t(duration * EmulationClock::ticksPerSecond);
         } else if (arg == "--cpu-steps-per-tick" && i + 1 < argc) {
             try { cpuStepsPerTick = std::stoull(argv[++i]); }
             catch (...) { std::cerr << "[Error] Invalid CPU/peripheral ratio.\n"; return 1; }
@@ -143,6 +156,9 @@ int main(int argc, char* argv[]) {
 
     if (!cpuStepsPerTick || cpuStepsPerTick > 16) {
         std::cerr << "[Error] CPU steps per tick must be between 1 and 16.\n"; return 1;
+    }
+    if (autoTiming && (cpuStepsPerTick != 1 || (explicitClock && clockMips != 0))) {
+        std::cerr << "[Error] Automatic timing cannot be combined with an instruction ratio or MIPS limit.\n"; return 1;
     }
     if (!explicitClock) clockMips *= cpuStepsPerTick;
     if (gui && !customSteps) {
@@ -193,6 +209,7 @@ int main(int argc, char* argv[]) {
     // Initialize ARM920T CPU
     oceanblast::ARM920T cpu(bus);
     cpu.reset(0x00000000); // Boot from Steppingstone SRAM
+    cpu.setCycleTiming(autoTiming);
     cpu.setDebugLogging(debug || trace);
     cpu.setFaultLogging(faultLog);
     bus.setI2cLogging(i2cLog);
@@ -219,8 +236,12 @@ int main(int argc, char* argv[]) {
 
     size_t executedSteps = 0;
     size_t peripheralPhase = 0;
-    std::cout << "[Timing] CPU steps per peripheral tick: " << cpuStepsPerTick
-              << "; GUI instruction-rate limit: " << clockMips << " MIPS\n";
+    EmulationClock emulationClock;
+    uint64_t guestTicks = 0, idleTicks = 0, guiTicks = 0;
+    std::cout << "[Timing] Mode: " << (autoTiming ? "automatic register clocks (experimental)" : "legacy instruction ratio") << '\n';
+    if (autoTiming) std::cout << "[Timing] Instruction-ratio and MIPS pacing disabled; using modeled CPU time.\n";
+    else std::cout << "[Timing] CPU steps per peripheral tick: " << cpuStepsPerTick
+                   << "; GUI instruction-rate limit: " << clockMips << " MIPS\n";
     bool enteredSdram = false;
 
     auto getActiveFbPhys = [&]() -> u32 {
@@ -262,10 +283,14 @@ int main(int argc, char* argv[]) {
               << "\nframebuffer=" << fb << "\nformat=" << (is16bpp ? "16bpp" : "12bpp")
               << "\nlcd_format=" << (bus.isLcd16Bpp() ? "16bpp" : "12bpp")
               << "\nstride=" << std::dec << displayRowStride()
+              << "\ntiming=" << (autoTiming ? "auto" : "legacy")
+              << "\nguest_ticks=" << guestTicks << "\nidle_ticks=" << idleTicks
               << "\ncpu_steps_per_tick=" << cpuStepsPerTick
               << "\ndisplay_override=" << (displayFormat != 0 || displayStride != 0)
               << "\naudio_rate=" << std::dec << bus.getAudioSampleRate()
               << "\nfclk=" << bus.getCpuClock() << "\nhclk=" << bus.getBusClock() << "\npclk=" << bus.getPeripheralClock()
+              << "\nexecution_clock=" << cpu.getExecutionClock()
+              << "\ncp15_control=" << std::hex << cpu.getControlRegister()
               << "\nmpllcon=" << std::hex << bus.getMmio(0x4c000004)
               << "\nclkslow=" << bus.getMmio(0x4c000010) << "\nclkdivn=" << bus.getMmio(0x4c000014) << std::dec
               << "\ndropped_samples=" << audio.getDroppedSamples()
@@ -299,6 +324,7 @@ int main(int argc, char* argv[]) {
     auto lastFrame = Clock::now(), lastStats = lastFrame;
     auto paceStart = lastFrame;
     size_t paceSteps = 0;
+    uint64_t paceTicks = 0, statsTicks = 0;
     size_t statsSteps = 0, presented = 0, changed = 0;
     uint32_t previousHash = 0;
     u32 previousFb = 0;
@@ -306,8 +332,8 @@ int main(int argc, char* argv[]) {
     bool previousIs16bpp = false;
     bool haveHash = false;
     std::ofstream metrics;
-    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples,audio_submitted_frames,audio_queued_frames,audio_empty_queue_events,fclk,pclk,cpu_steps_per_tick\n"; }
-    while (!cpu.isHalted() && executedSteps < stepLimit) {
+    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples,audio_submitted_frames,audio_queued_frames,audio_empty_queue_events,fclk,pclk,cpu_steps_per_tick,guest_seconds,speed_percent,idle_ticks\n"; }
+    while (!cpu.isHalted() && executedSteps < stepLimit && guestTicks < tickLimit) {
         if (nextInput < inputEvents.size() && executedSteps == inputEvents[nextInput].step) {
             bus.setButtonMask(inputEvents[nextInput].mask);
             ++nextInput;
@@ -317,7 +343,8 @@ int main(int argc, char* argv[]) {
             if (nextSnapshot > std::numeric_limits<size_t>::max() - snapshotInterval) snapshotInterval = 0;
             else nextSnapshot += snapshotInterval;
         }
-        if (gui && (display.paused || executedSteps % 50000 == 0)) {
+        if (gui && (display.paused || (autoTiming ? guestTicks - guiTicks >= 20000 : executedSteps % 50000 == 0))) {
+            guiTicks = guestTicks;
             display.processEvents();
             if (!display.isOpen()) {
                 std::cout << "\n[OceanBlast] Display window closed by user." << std::endl;
@@ -349,32 +376,41 @@ int main(int argc, char* argv[]) {
             const double seconds = std::chrono::duration<double>(now - lastStats).count();
             if (seconds >= 1.0) {
                 const double mips = (executedSteps - statsSteps) / seconds / 1000000.0;
+                const double speed = (guestTicks - statsTicks) * 100.0 / EmulationClock::ticksPerSecond / seconds;
                 std::ostringstream title;
                 title << "OceanBlast | Display " << std::fixed << std::setprecision(1) << presented / seconds
-                      << " FPS | Flips " << changed / seconds << "/s | " << mips << " MIPS"
+                      << " FPS | Changes " << changed / seconds << "/s | " << mips << " MIPS"
+                      << " | Speed " << speed << "%" << (autoTiming ? " Auto" : "")
                       << " | PC " << std::hex << cpu.getPC() << " | FB " << getActiveFbPhys()
                       << " | Audio " << std::dec << bus.getAudioSampleRate() << " Hz | Queue " << audio.getQueuedFrames() << "f | Empty " << audio.getEmptyQueueEvents() << " | Drop " << audio.getDroppedSamples()
                       << (display.paused ? " | PAUSE" : "");
                 display.setTitle(title.str());
-                if (metrics) { metrics << executedSteps << ',' << seconds << ',' << presented / seconds << ',' << changed / seconds << ',' << mips << ',' << cpu.getPC() << ',' << getActiveFbPhys() << ',' << bus.getAudioSampleRate() << ',' << audio.getDroppedSamples() << ',' << audio.getSubmittedFrames() << ',' << audio.getQueuedFrames() << ',' << audio.getEmptyQueueEvents() << ',' << bus.getCpuClock() << ',' << bus.getPeripheralClock() << ',' << cpuStepsPerTick << '\n'; metrics.flush(); }
-                lastStats = now; statsSteps = executedSteps; presented = changed = 0;
+                if (metrics) { metrics << executedSteps << ',' << seconds << ',' << presented / seconds << ',' << changed / seconds << ',' << mips << ',' << cpu.getPC() << ',' << getActiveFbPhys() << ',' << bus.getAudioSampleRate() << ',' << audio.getDroppedSamples() << ',' << audio.getSubmittedFrames() << ',' << audio.getQueuedFrames() << ',' << audio.getEmptyQueueEvents() << ',' << bus.getCpuClock() << ',' << bus.getPeripheralClock() << ',' << cpuStepsPerTick << ',' << double(guestTicks) / EmulationClock::ticksPerSecond << ',' << speed << ',' << idleTicks << '\n'; metrics.flush(); }
+                lastStats = now; statsSteps = executedSteps; statsTicks = guestTicks; presented = changed = 0;
             }
             if (display.snapshot) {
                 display.snapshot = false;
                 saveSnapshot();
             }
-            if (display.paused) { paceStart = Clock::now(); paceSteps = executedSteps; }
+            if (display.paused) { paceStart = Clock::now(); paceSteps = executedSteps; paceTicks = guestTicks; }
             if (display.paused && !display.singleStep) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); continue; }
             display.singleStep = false;
             if (!display.paused && clockMips > 0) {
                 const auto target = paceStart + std::chrono::duration_cast<Clock::duration>(
-                    std::chrono::duration<double>((executedSteps - paceSteps) / (clockMips * 1000000.0)));
+                    std::chrono::duration<double>(autoTiming ? double(guestTicks - paceTicks) / EmulationClock::ticksPerSecond : (executedSteps - paceSteps) / (clockMips * 1000000.0)));
                 const auto current = Clock::now();
                 if (target > current) std::this_thread::sleep_until(target);
-                else if (current - target > std::chrono::milliseconds(250)) { paceStart = current; paceSteps = executedSteps; }
+                else if (current - target > std::chrono::milliseconds(250)) { paceStart = current; paceSteps = executedSteps; paceTicks = guestTicks; }
             }
         }
 
+        if (autoTiming && cpu.isWaitingForInterrupt() && !bus.hasPendingIrq()) {
+            const uint64_t amount = std::min(bus.ticksUntilEvent(), tickLimit - guestTicks);
+            bus.tick(amount);
+            emulationClock.advanceIdle(amount);
+            guestTicks += amount; idleTicks += amount;
+            continue;
+        }
         u32 currentPC = cpu.getPC();
         if (pcProfileInterval && executedSteps == nextPcProfile) {
             ++pcProfile[{bus.getTtb(), currentPC & ~0xfffu}];
@@ -456,11 +492,23 @@ int main(int argc, char* argv[]) {
                       << std::dec << '\n';
             cpu.dumpState();
         }
-        cpu.step(peripheralPhase == 0 ? 1 : 0);
-        if (++peripheralPhase == cpuStepsPerTick) peripheralPhase = 0;
+        if (autoTiming) {
+            const u32 fclk = cpu.getExecutionClock();
+            cpu.step(0);
+            const uint64_t amount = emulationClock.advance(cpu.getLastCycles(), fclk);
+            bus.tick(amount);
+            guestTicks = emulationClock.elapsedTicks();
+        } else {
+            const bool advance = peripheralPhase == 0;
+            cpu.step(advance ? 1 : 0);
+            guestTicks += advance;
+            if (++peripheralPhase == cpuStepsPerTick) peripheralPhase = 0;
+        }
         executedSteps++;
     }
 
+    if (autoTiming) saveSnapshot();
+    std::cout << "[Timing] Modeled seconds: " << double(guestTicks) / EmulationClock::ticksPerSecond << "; idle seconds: " << double(idleTicks) / EmulationClock::ticksPerSecond << '\n';
     std::cout << "\n[OceanBlast] Execution finished after " << executedSteps << " instructions." << std::endl;
     cpu.dumpState();
 

@@ -22,6 +22,13 @@ public:
     // Diagnostic clock-ratio experiments can execute with zero peripheral ticks.
     // Normal execution retains one peripheral tick per step.
     void step(size_t peripheralTicks = 1);
+    void setCycleTiming(bool enabled) { cycleTiming = enabled; waitingForInterrupt = false; }
+    uint32_t getControlRegister() const { return cp15_control; }
+    uint32_t getExecutionClock() const {
+        return (cp15_control & (1u << 30)) ? bus.getCpuClock() : bus.getBusClock();
+    }
+    uint32_t getLastCycles() const { return lastCycles; }
+    bool isWaitingForInterrupt() const { return waitingForInterrupt; }
     void setDebugLogging(bool enabled) { debugLogging = enabled; }
     void setFaultLogging(bool enabled) { faultLogging = enabled; }
 
@@ -48,6 +55,8 @@ private:
     u32 cpsr;
     u32 spsr;
     bool halted;
+    bool cycleTiming = false, waitingForInterrupt = false;
+    uint32_t lastCycles = 1;
     bool debugLogging = false;
     bool faultLogging = false;
     void logFaultContext(const char* kind, u32 instructionPC, u32 faultAddress);

@@ -1,0 +1,4 @@
+phase,wall_seconds,mips,changed_fps,audio_rate,dropped_samples,audio_empty_queue_events
+startup,18.01791,39.97136,0.22200,21972,0,0
+animation,17.03616,40.02662,11.79843,21972,0,0
+later,47.07408,40.00076,3.29268,21972,0,0

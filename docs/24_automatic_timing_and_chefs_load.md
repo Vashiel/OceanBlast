@@ -1,0 +1,37 @@
+# Automatic Timing and Superstar Chefs Load
+
+Superstar Chefs can play continuous music with two CPU steps per peripheral tick while animation slows substantially. The [reported trace](validation/2026-10-08_chefs_reported_stall.csv) sustains approximately 40 MIPS. Its later 47-second interval averages 3.29 sampled framebuffer memory changes per second, with zero dropped output samples and zero observed empty audio queues. FCLK remains 180 MHz and PCLK 45 MHz. This distinguishes the reported animation slowdown from host instruction-rate collapse or queue starvation; it does not establish correct pitch or synchronization.
+
+A separate no-input, 3.6-billion-step execution profile uses the same initial device image and ratio 2. Sampling every 10000 steps assigns 148347 of 360000 samples (41.21%) to user page `0x5d000` under TTB `0x30f0c000`. Local instruction inspection identifies signed PCM interpolation and multiply/accumulate mixing loops on that page. The complete run includes startup and title activity. Sampling is not a cycle profiler, and other game scenes have different workloads.
+
+The instruction-ratio model limits CPU work before each nominal peripheral deadline. Software audio production consumes a substantial part of that allowance, leaving less execution for drawing and game logic. Raising the allowance can improve animation but increases the host work needed to keep audio deadlines. Changing output buffer size cannot supply missing guest CPU work.
+
+## Register-Clock Timing Experiment
+
+`--timing auto` introduces a shared modeled time for CPU execution, timer deadlines and DMA. It uses cached-instruction cycle estimates and the programmed clock tree instead of a selected integer instruction ratio. CP15 control selects HCLK in FastBus mode and FCLK for the cached execution baseline in synchronous/asynchronous modes. Clock values are recomputed on register writes and cached for execution. Fractional elapsed time is retained across clock changes with a 32-bit fractional accumulator. Conversion rounds upward with less than one peripheral tick of additional error per 2^32 CPU cycles.
+
+The cached baseline charges pipeline refills for taken branches and PC loads, transferred words for multiple-register transfers, extra work for register-controlled shifts, and value-dependent multiply costs. Failed ARM conditions consume one baseline cycle. Ordinary multiply estimates span 2..5 cycles; long multiplies span 3..6. These estimates use the 0..3 range in the manual's cycle table. They remain provisional: the separate early-termination description numbers multiplier byte groups 1..4. Exact multiplier timing must be checked against original hardware before timing acceptance.
+
+CP15 `MCR p15,0,Rd,c7,c0,4` enters a waiting state in automatic mode. Timer, DMA sample-capture, ADC and I2C deadlines bound idle advancement; an enabled pending interrupt wakes execution, including when the CPU masks IRQ exceptions. Normal IRQ entry preserves the return address following the wait. Idle advancement does not retire guest instructions. Legacy stepping retains its preceding behavior for comparison.
+
+The launcher exposes the experiment as **Automatic register clocks (experimental)**. Standard remains the default, and 2x/4x diagnostic ratios remain available. Automatic mode rejects an instruction ratio or positive MIPS override; `--clock-mips 0` disables host pacing for measurements. `--emulated-seconds` bounds modeled duration when used with a sufficient instruction budget.
+
+The title and performance CSV add modeled speed, elapsed guest seconds and accumulated idle ticks. Speed is the advance of modeled time divided by wall time. It is not original-hardware speed acceptance. Framebuffer changes remain memory observations, not LCD vertical-sync events or complete game frames.
+
+[The optimized automatic-mode Chefs run](validation/2026-10-08_chefs_auto_timing.csv) executed a 25-second guest budget with audio, the same initial EEPROM image and scripted input. Its performance log spans 71.15 wall seconds, ending at 24.833 modeled seconds (34.90% speed), with 42.13 MIPS and 5.99 sampled framebuffer changes per wall second. The last performance record counted 500 empty-queue observations and zero dropped samples; the final snapshot counted 503 empty-queue observations and had 1,024 queued audio frames. After six guest seconds, modeled speed averaged 33.73% and sampled changes averaged 7.52/s.
+
+The latest profile-guided build was also run with audio and scripted input to a 16-second modeled-time limit. The 45.07-second performance interval ended at 15.866 modeled seconds (35.20% speed), averaging 41.33 MIPS and 3.66 sampled framebuffer changes per wall second. After six guest seconds, the averages were 33.01% speed and 5.39 sampled changes/s. The final snapshot reached the game level at 16.0 modeled seconds, with 310 empty-queue observations, zero queued audio frames and zero dropped samples. This confirms that the current build reaches gameplay, while its modeled execution remains far below real time and its audio queue repeatedly empties. It does not establish correct gameplay speed or audio quality.
+
+## Validation and Limits
+
+The ROM-free timing suite checks fractional conversion, clock changes, branch and transfer costs, multiplier ranges, CP15 clock selection, wait/wake behavior and return links, exact timer deadlines and complete DMA sample capture during bounded idle advancement. The preceding CPU, input, resampler, UART, EEPROM, framebuffer, timer, IIS clock and DMA suites also pass.
+
+The automatic mode is exposed as an experiment only. It runs materially slower than real time on this host and its Windows audio queue becomes empty repeatedly. No matched legacy-versus-automatic gameplay comparison has been completed. It is not a demonstrated performance or audio fix and remains disabled by default.
+
+Full cache behavior, cache misses, memory-controller waits, load-use pipeline interlocks, external-access clock transitions, complete exception entry costs, FIQ and CLKCON gating are not modeled by this baseline. PLL-derived CPU frequency is not the same as instructions per second. CPU waiting does not help a workload that continuously computes. The sustained rendering path needs accurate timing and faster execution together; host presentation frame skipping alone cannot make a guest produce frames faster.
+
+Further diagnosis should sample separate title and gameplay intervals, record CP15 cache/clock state, and compare audio production and framebuffer changes per unit of guest time. A faster execution engine must preserve memory permissions, self-modifying code, exception boundaries and hardware deadlines. Original-hardware animation and listening remain required acceptance checks.
+
+## Source
+
+The [ARM920T Technical Reference Manual](https://documentation-service.arm.com/static/5e8e2a5b88295d1e18d381bb) defines CP15 clock selection in sections 2.3.5 and 5, wait-for-interrupt in section 4.9, and cached instruction costs and load-use interlocks in chapter 12. Its cycle tables explicitly exclude additional system-dependent external-memory costs. Samsung clock-register sources and IIS behavior are listed in [Register Clocks and IIS Playback Control](23_register_clocks_and_iis_pause.md).
