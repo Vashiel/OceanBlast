@@ -29,3 +29,7 @@ python tools/audit_games.py --exe bin/oceanblast.exe --roms roms/video_games `
   --output C:/temp/oceanblast-video-new --jobs 2 --timeout 180 `
   --steps 1200000000 --snapshots 100000000 --input-script tests/start_buttons.txt --debug
 ```
+
+## EEPROM Follow-up
+
+The results above describe the preceding implementation. [EEPROM and player-startup validation](16_i2c_eeprom_and_player_startup.md) records restored Crazy Jack startup and combined-cartridge episode images, alongside the unresolved video-only Winx output and LCD-format discrepancy.

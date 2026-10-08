@@ -14,8 +14,8 @@ During boot and audio playback, the guest Linux ALSA driver (`s3c2410-iis` + `cs
   - Bits [7:6] = `0b10` -> Transmit mode (`S3C2410_IISMOD_TXMODE`)
   - Bit 4 = `1` -> MSB-justified serial format (`S3C2410_IISMOD_MSB`)
   - Bit 3 = `1` -> 16-bit word length (`S3C2410_IISMOD_16BIT`)
-  - Bit 2 = `0` -> 256fs master clock ratio (`S3C2410_IISMOD_256FS`)
-  - Bits [1:0] = `0b01` -> 32fs bit clock (`S3C2410_IISMOD_32FS`, 16-bit Left + 16-bit Right)
+  - Bit 1 = `0` -> 256fs master clock ratio (`S3C2410_IISMOD_256FS`)
+  - Bit 0 = `1` -> 32fs bit clock (`S3C2410_IISMOD_32FS`, 16-bit Left + 16-bit Right)
 - `IISPSR` (`0x55000008`) is set to `0xE7`:
   - Prescaler A = `(0xE7 >> 5) & 0x1F` = `7`
   - Prescaler B = `0xE7 & 0x1F` = `7`

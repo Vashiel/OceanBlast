@@ -35,3 +35,6 @@ run_*.txt
 *.user
 Thumbs.db
 .DS_Store
+
+# Local EEPROM state
+*.nvram

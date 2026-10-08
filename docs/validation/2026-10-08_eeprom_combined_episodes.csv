@@ -1,0 +1,3 @@
+rom,sha256,seconds,exit_code,timed_out,steps,pc,framebuffer,nonzero_bytes,linux_boot,eeprom_error,invalid_pcm_pointer,kernel_panic,guest_segfaults,squashfs_error_messages,assessment,display_format,display_stride
+Sponge Bob + 5 Atari Games [V+G] (IT ES).bin,9cfda78e1d27281aeebd724c50dc629e99e89bb6bbd0cde66216ba02ba8408d8,87.95,0,False,3300000000,0x40b35a00,0x302a0000,74792/76800,True,False,False,False,0,0,headless observation; gameplay/input/audio unverified,lcd,0
+Winx Club + 5 Atari Games [V+G] (IT ES).bin,d48139a3b9d07d3005af3533e178d1f0955454e3099a365467da0d90f71e5ad3,87.98,0,False,3300000000,0x40b4c8a8,0x302a0000,76228/76800,True,False,False,False,0,0,headless observation; gameplay/input/audio unverified,lcd,0

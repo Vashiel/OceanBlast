@@ -21,6 +21,9 @@ public:
     int getSampleRate() const { return m_sampleRate; }
     int getChannels() const { return m_channels; }
     uint64_t getDroppedSamples() const { return m_droppedSamples; }
+    uint64_t getQueuedFrames() const;
+    uint64_t getSubmittedFrames() const { return m_submittedFrames; }
+    uint64_t getEmptyQueueEvents() const { return m_emptyQueueEvents; }
 
 private:
     bool m_initialized;
@@ -42,6 +45,10 @@ private:
     std::vector<int16_t> m_pendingSamples;
     PcmResampler m_resampler;
     uint64_t m_droppedSamples = 0;
+    uint64_t m_submittedFrames = 0, m_emptyQueueEvents = 0;
+    bool m_queueEmptyReported = false;
+    bool m_preroll = false;
+    void observeQueue();
 };
 
 } // namespace oceanblast

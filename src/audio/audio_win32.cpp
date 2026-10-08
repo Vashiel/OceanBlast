@@ -55,6 +55,7 @@ bool Audio::init(int sampleRate, int channels) {
     }
 
     m_hWaveOut = static_cast<void*>(hWave);
+    m_preroll = waveOutPause(hWave) == MMSYSERR_NOERROR;
 
     m_buffers.resize(NUM_BUFFERS);
     for (size_t i = 0; i < NUM_BUFFERS; ++i) {
@@ -69,6 +70,8 @@ bool Audio::init(int sampleRate, int channels) {
 
     m_currentBuffer = 0;
     m_droppedSamples = 0;
+    m_submittedFrames = m_emptyQueueEvents = 0;
+    m_queueEmptyReported = false;
     m_resampler.reset();
     m_pendingSamples.clear();
     m_initialized = true;
@@ -78,8 +81,27 @@ bool Audio::init(int sampleRate, int channels) {
     return true;
 }
 
+uint64_t Audio::getQueuedFrames() const {
+    uint64_t frames = 0;
+    for (const auto& buffer : m_buffers) {
+        const auto* header = static_cast<const WAVEHDR*>(buffer.header);
+        if (header && (header->dwFlags & WHDR_INQUEUE) && !(header->dwFlags & WHDR_DONE))
+            frames += header->dwBufferLength / (sizeof(int16_t) * m_channels);
+    }
+    return frames;
+}
+
+void Audio::observeQueue() {
+    if (!m_submittedFrames) return;
+    if (getQueuedFrames() == 0) {
+        if (!m_queueEmptyReported) ++m_emptyQueueEvents;
+        m_queueEmptyReported = true;
+    } else m_queueEmptyReported = false;
+}
+
 void Audio::writeSamples(const int16_t* samples, size_t sampleCount, int inputSampleRate) {
     if (!m_initialized || !m_hWaveOut || !samples || sampleCount == 0) return;
+    observeQueue();
     sampleCount -= sampleCount % m_channels;
 
     if (inputSampleRate <= 0) {
@@ -144,6 +166,19 @@ void Audio::writeSamples(const int16_t* samples, size_t sampleCount, int inputSa
         if (waveOutPrepareHeader(hWave, targetHdr, sizeof(WAVEHDR)) == MMSYSERR_NOERROR) {
             if (waveOutWrite(hWave, targetHdr, sizeof(WAVEHDR)) != MMSYSERR_NOERROR)
                 m_droppedSamples += chunkSize / sizeof(int16_t);
+            else {
+                m_submittedFrames += chunkSize / (sizeof(int16_t) * m_channels);
+                m_queueEmptyReported = false;
+                // Start with two complete buffers so normal scheduling jitter
+                // does not immediately exhaust a single DMA-sized submission.
+                if (m_preroll && m_submittedFrames >= 2 * BUFFER_BYTES / (sizeof(int16_t) * m_channels)) {
+                    if (waveOutRestart(hWave) != MMSYSERR_NOERROR) {
+                        std::cerr << "[Audio] Failed to start buffered output." << std::endl;
+                        close(); return;
+                    }
+                    m_preroll = false;
+                }
+            }
         } else {
             m_droppedSamples += chunkSize / sizeof(int16_t);
         }
@@ -189,6 +224,8 @@ namespace oceanblast {
 Audio::Audio() : m_initialized(false), m_hWaveOut(nullptr), m_sampleRate(22050), m_channels(2), m_currentBuffer(0) {}
 Audio::~Audio() {}
 bool Audio::init(int, int) { return false; }
+uint64_t Audio::getQueuedFrames() const { return 0; }
+void Audio::observeQueue() {}
 void Audio::writeSamples(const int16_t*, size_t, int) {}
 void Audio::close() {}
 }

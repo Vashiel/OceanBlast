@@ -7,7 +7,7 @@
 
 namespace oceanblast {
 namespace launcher {
-static HWND pathBox, scaleBox, soundBox, profileBox, debugBox, startButton, stopButton, statusBox;
+static HWND pathBox, scaleBox, soundBox, profileBox, debugBox, formatBox, nvramBox, startButton, stopButton, statusBox;
 static HANDLE process = nullptr;
 static std::wstring executable, folder;
 static void stop() {
@@ -45,6 +45,12 @@ static LRESULT CALLBACK procedure(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
             if (SendMessageW(soundBox, BM_GETCHECK, 0, 0) == BST_CHECKED) command += L" --sound";
             if (SendMessageW(profileBox, BM_GETCHECK, 0, 0) == BST_CHECKED) command += L" --profile";
             if (SendMessageW(debugBox, BM_GETCHECK, 0, 0) == BST_CHECKED) command += L" --debug";
+            const int format = static_cast<int>(SendMessageW(formatBox, CB_GETCURSEL, 0, 0));
+            if (format == 1) command += L" --display-format rgb444 --display-stride 480";
+            else if (format == 2) command += L" --display-format rgb444";
+            else if (format == 3) command += L" --display-format rgb565";
+            if (SendMessageW(nvramBox, BM_GETCHECK, 0, 0) == BST_CHECKED)
+                command += L" --nvram \"" + folder + L"\\board.nvram\"";
             SECURITY_ATTRIBUTES security = {sizeof(security), nullptr, TRUE};
             HANDLE log = CreateFileW((folder + L"\\session.log").c_str(), GENERIC_WRITE, FILE_SHARE_READ, &security, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
             HANDLE input = CreateFileW(L"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &security, OPEN_EXISTING, 0, nullptr);
@@ -91,7 +97,7 @@ static int run() {
     WNDCLASSW cls = {}; cls.lpfnWndProc = procedure; cls.hInstance = instance;
     cls.lpszClassName = L"OceanBlastLauncher"; cls.hCursor = LoadCursor(nullptr, IDC_ARROW); cls.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
     RegisterClassW(&cls);
-    HWND window = CreateWindowW(cls.lpszClassName, L"OceanBlast – digiBLAST Launcher", WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 640, 300, nullptr, nullptr, instance, nullptr);
+    HWND window = CreateWindowW(cls.lpszClassName, L"OceanBlast – digiBLAST Launcher", WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 640, 350, nullptr, nullptr, instance, nullptr);
     if (!window) return 1;
     auto control = [&](const wchar_t* type, const wchar_t* title, DWORD style, int x, int y, int width, int height, int id)->HWND {
         HWND c = CreateWindowW(type, title, WS_CHILD | WS_VISIBLE | style, x, y, width, height, window, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), instance, nullptr);
@@ -108,10 +114,16 @@ static int run() {
     profileBox = control(L"BUTTON", L"FPS Log", BS_AUTOCHECKBOX | WS_TABSTOP, 405, 90, 95, 28, 0);
     SendMessageW(profileBox, BM_SETCHECK, BST_CHECKED, 0);
     debugBox = control(L"BUTTON", L"Debug Log", BS_AUTOCHECKBOX | WS_TABSTOP, 505, 90, 100, 28, 0);
-    startButton = control(L"BUTTON", L"Start Game", BS_DEFPUSHBUTTON | WS_TABSTOP, 20, 135, 140, 32, 11);
-    stopButton = control(L"BUTTON", L"Stop Game", WS_TABSTOP, 175, 135, 140, 32, 12); EnableWindow(stopButton, FALSE);
-    control(L"BUTTON", L"Controls", WS_TABSTOP, 330, 135, 125, 32, 13);
-    statusBox = control(L"STATIC", L"Select a ROM file and click Start Game to begin emulation.", 0, 20, 190, 580, 45, 0);
+    control(L"STATIC", L"Display Decoder", 0, 20, 132, 105, 24, 0);
+    formatBox = control(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_TABSTOP, 125, 128, 260, 150, 0);
+    for (auto text : {L"LCD registers (default)", L"RGB444, 480-byte rows (diagnostic)", L"RGB444 (diagnostic)", L"RGB565 (diagnostic)"}) SendMessageW(formatBox, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text));
+    SendMessageW(formatBox, CB_SETCURSEL, 0, 0);
+    nvramBox = control(L"BUTTON", L"Keep Device Settings", BS_AUTOCHECKBOX | WS_TABSTOP, 400, 128, 205, 28, 0);
+    SendMessageW(nvramBox, BM_SETCHECK, BST_CHECKED, 0);
+    startButton = control(L"BUTTON", L"Start Game", BS_DEFPUSHBUTTON | WS_TABSTOP, 20, 175, 140, 32, 11);
+    stopButton = control(L"BUTTON", L"Stop Game", WS_TABSTOP, 175, 175, 140, 32, 12); EnableWindow(stopButton, FALSE);
+    control(L"BUTTON", L"Controls", WS_TABSTOP, 330, 175, 125, 32, 13);
+    statusBox = control(L"STATIC", L"Select a ROM file and click Start Game to begin emulation.", 0, 20, 225, 580, 45, 0);
     HMENU menu = CreateMenu(), file = CreatePopupMenu(), help = CreatePopupMenu();
     AppendMenuW(file, MF_STRING, 10, L"Load ROM…"); AppendMenuW(file, MF_STRING, 14, L"Exit");
     AppendMenuW(help, MF_STRING, 13, L"Controls"); AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(file), L"File"); AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(help), L"Help"); SetMenu(window, menu);

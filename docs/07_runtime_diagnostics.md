@@ -23,3 +23,13 @@ Log review (2026-10-07): `bin/sessions/session.log` contains 19,592 repeated `sn
 The test also logged unhandled ARM instruction `0xeca0420c` at `0x4000f300` and `0x400d1430`. Decoding the fields identifies an ARM coprocessor load (`LDC`) targeting coprocessor 2. The emulator currently takes the ARM undefined-instruction exception for it. Whether the game expects a coprocessor, intentionally probes for one, or has a fallback is unknown; blindly skipping it could change guest behavior, so no substitute was added.
 
 Diagnostic overhead: abort and other CPU diagnostic messages (including coprocessor undefined-instruction messages) are emitted only with Debug-Log enabled. Exception handling is unchanged. Four 100-million-instruction headless runs averaged 3.38 versus 3.50 seconds; the short boot-heavy comparison shows no measurable difference. A useful gameplay comparison requires FPS-Log with Debug-Log off. Investigation of the `LDC` path and audio output quality remain open.
+
+## Current Runtime Diagnostics
+
+The [timer and runtime follow-up](17_timer_and_runtime_validation.md) adds audio submitted/queued frames and empty-queue observations to the title, snapshot state and profile CSV. Queued frames are a buffer-level upper bound; empty observations are not a complete audible-underrun count. Zero dropped samples does not establish synchronized playback.
+
+The current event pump runs every 50,000 instructions and preserves brief press/release transitions. Host framebuffer polling only submits a redraw when image content, address, stride or format changes. Thus `present_fps` counts redraw submissions rather than all polling opportunities; static screens can report zero. Window repaint uses the cached decoded image.
+
+`--pc-profile N` records guest execution-page samples in `pc_profile.csv` at snapshots and exit. Columns identify the translation-table base, virtual PC page and sample count. This optional diagnostic measures sampled guest execution, not native host profiling. Sampling is disabled by default.
+
+`--display-format lcd|rgb444|rgb565` and `--display-stride N` provide explicit host decoder diagnostics. F7 raw snapshots follow the effective format/stride recorded in their state file, rather than always being packed RGB444. `--nvram PATH` loads and saves a strictly 2,048-byte device-settings image; the launcher defaults to `bin/sessions/board.nvram`.

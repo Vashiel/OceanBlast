@@ -1,4 +1,5 @@
 #include "display.h"
+#include "framebuffer.h"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -19,6 +20,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             return 0;
         } else if (msg == WM_ERASEBKGND) {
             return 1;
+        } else if (msg == WM_KILLFOCUS) {
+            g_currentDisplay->releaseButtons();
+            return 0;
         } else if (msg == WM_KEYDOWN || msg == WM_KEYUP) {
             bool isDown = (msg == WM_KEYDOWN);
             uint32_t mask = 0;
@@ -143,13 +147,16 @@ void Display::setTitle(const std::string& title) {
     if (m_hwnd) SetWindowTextA(static_cast<HWND>(m_hwnd), title.c_str());
 }
 
-void Display::updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is16bpp) {
+void Display::updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is16bpp, size_t stride) {
     if (!m_open || !m_hwnd || !m_hdc || !sdram) return;
 
     constexpr uint32_t SDRAM_BASE = 0x30000000;
     constexpr uint32_t SDRAM_SIZE = 32 * 1024 * 1024;
 
-    const uint32_t fbSize = is16bpp ? 76800 : 57600;
+    const size_t rowBytes = is16bpp ? 480 : 360;
+    if (!stride) stride = rowBytes;
+    if (stride < rowBytes || stride > SDRAM_SIZE / LCD_HEIGHT) return;
+    const size_t fbSize = stride * LCD_HEIGHT;
     if (fbPhysAddr < SDRAM_BASE || (fbPhysAddr - SDRAM_BASE) + fbSize > SDRAM_SIZE) {
         return;
     }
@@ -157,41 +164,7 @@ void Display::updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is16bp
     uint32_t offset = fbPhysAddr - SDRAM_BASE;
     const uint8_t* src = sdram + offset;
 
-    if (is16bpp) {
-        // Decode 240x160 16-bit RGB 5:6:5 (2 bytes per pixel, 76800 bytes total)
-        for (int i = 0; i < LCD_WIDTH * LCD_HEIGHT; ++i) {
-            uint16_t w = static_cast<uint16_t>(src[i * 2]) | (static_cast<uint16_t>(src[i * 2 + 1]) << 8);
-            uint32_t r = (w >> 11) & 0x1F;
-            uint32_t g = (w >> 5) & 0x3F;
-            uint32_t b = w & 0x1F;
-            r = (r << 3) | (r >> 2);
-            g = (g << 2) | (g >> 4);
-            b = (b << 3) | (b >> 2);
-            m_pixels[i] = (r << 16) | (g << 8) | b;
-        }
-    } else {
-        // Decode 240x160 12-bit packed LCD444 (3 bytes -> 2 pixels, 57600 bytes total)
-        int pixelIdx = 0;
-        for (int i = 0; i < 57600; i += 3) {
-            uint8_t b0 = src[i];
-            uint8_t b1 = src[i + 1];
-            uint8_t b2 = src[i + 2];
-
-            uint32_t p0 = (b0 << 4) | (b1 >> 4);
-            uint32_t p1 = ((b1 & 0x0F) << 8) | b2;
-
-            uint32_t r0 = ((p0 >> 8) & 0x0F) * 17;
-            uint32_t g0 = ((p0 >> 4) & 0x0F) * 17;
-            uint32_t b0_val = (p0 & 0x0F) * 17;
-
-            uint32_t r1 = ((p1 >> 8) & 0x0F) * 17;
-            uint32_t g1 = ((p1 >> 4) & 0x0F) * 17;
-            uint32_t b1_val = (p1 & 0x0F) * 17;
-
-            m_pixels[pixelIdx++] = (r0 << 16) | (g0 << 8) | b0_val;
-            m_pixels[pixelIdx++] = (r1 << 16) | (g1 << 8) | b1_val;
-        }
-    }
+    decodeFramebuffer(src, m_pixels.data(), is16bpp, stride);
 
     renderToDc(m_hdc);
 }
@@ -243,7 +216,7 @@ Display::~Display() {}
 bool Display::init(const char*) { return false; }
 void Display::setTitle(const std::string&) {}
 void Display::processEvents() {}
-void Display::updateFrame(const uint8_t*, uint32_t) {}
+void Display::updateFrame(const uint8_t*, uint32_t, bool, size_t) {}
 void Display::close() {}
 }
 

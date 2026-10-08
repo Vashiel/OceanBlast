@@ -20,7 +20,7 @@ The Samsung S3C2410 application processor's LCD controller supports multiple col
    - `LCDCON5 = 0x801` (`FRM565 = 1` for 5:6:5 color format, `HWSWP = 1` for half-word endianness alignment).
    - Framebuffer size: $240 \times 160 \times 2 = \mathbf{76\,800 \text{ bytes}}$.
    - `LCDSADDR1 = 0x18150000` (PA `0x302A0000`), `LCDSADDR2 = 0x18159600` (Span `0x9600` = 76,800 bytes).
-   - Linux userspace applications (such as *Crazy Jack*, launcher utilities, and media players) write native 16-bit RGB565 pixel words directly to `/dev/fb0`.
+   - The register configuration requests RGB565 output. The actual userspace buffer layout must be checked separately; Crazy Jack is an observed exception, described below.
 
 ### B. Framebuffer Format Mismatch
 Prior to this fix, the emulator's Win32 display pipeline unconditionally assumed that all display buffers were 12-bit packed LCD444 (57,600 bytes).
@@ -68,4 +68,8 @@ Updated `Display::updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is
 
 1. **Test Suite:** `make test` passes **22 / 22 PASS (0 failures)**.
 2. **Pitfall The Lost Expedition:** Correctly recognized as `12bpp packed` (57,600 bytes).
-3. **Crazy Jack:** Recognized as `16bpp RGB565` (76,800 bytes). This establishes the framebuffer format, not gameplay compatibility. Later controlled audits find its active gameplay buffer almost empty; see [game cartridge compatibility](12_game_cartridge_compatibility.md).
+3. **Crazy Jack:** LCD registers request `16bpp RGB565` (76,800 bytes), but this does not establish the application pixel layout. EEPROM support restores startup; correct host decoding currently requires packed RGB444 with a 480-byte row stride. See [EEPROM and framebuffer validation](16_i2c_eeprom_and_player_startup.md).
+
+## Crazy Jack Follow-up
+
+The LCD register mode alone does not establish the format of the pixels written by Crazy Jack. [EEPROM and framebuffer validation](16_i2c_eeprom_and_player_startup.md) records correct RGB444 decoding with 480-byte scanlines despite RGB565 register configuration. Automatic selection remains unresolved.

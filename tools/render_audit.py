@@ -5,7 +5,14 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 
-def decode(data):
+def decode(data, pixel_format=None, stride=0):
+    if pixel_format or stride:
+        pixel_format = pixel_format or ('rgb565' if len(data) == 76800 else 'rgb444')
+        row_bytes = 480 if pixel_format == 'rgb565' else 360
+        stride = stride or row_bytes
+        if stride < row_bytes or len(data) < stride * 159 + row_bytes:
+            raise ValueError('framebuffer does not fit the selected format and stride')
+        data = b''.join(data[y * stride:y * stride + row_bytes] for y in range(160))
     pixels = []
     if len(data) == 76800:
         for offset in range(0, len(data), 2):
@@ -28,6 +35,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('audit', type=Path)
     parser.add_argument('--timeline', action='store_true', help='render snapshot files from one cartridge directory')
+    parser.add_argument('--format', choices=['rgb444', 'rgb565'], help='explicit pixel decoder')
+    parser.add_argument('--stride', type=int, default=0, help='scanline stride in bytes')
     args = parser.parse_args()
     if args.timeline:
         files = sorted(args.audit.glob('snapshot_*.raw'), key=lambda path: int(path.stem.split('_')[1]))
@@ -38,7 +47,7 @@ def main():
         for index, path in enumerate(files):
             x, y = index % 4 * 240, index // 4 * 185
             draw.text((x+3,y+3), path.stem, fill='black')
-            panel.paste(decode(path.read_bytes()),(x,y+25))
+            panel.paste(decode(path.read_bytes(), args.format, args.stride),(x,y+25))
         panel.save(args.audit / 'timeline.png')
         return
     with (args.audit / 'results.csv').open(encoding='utf-8') as source:
@@ -51,7 +60,7 @@ def main():
         x, y = index % 3 * 240, index // 3 * 210
         draw.text((x+4,y+3), row['rom'].split(' [')[0][:32], fill='black')
         if raw.exists():
-            frame = decode(raw.read_bytes())
+            frame = decode(raw.read_bytes(), args.format, args.stride)
             frame.save(directory / 'frame.png')
             panel.paste(frame,(x,y+25))
         draw.text((x+4,y+187), row['nonzero_bytes'], fill='black')

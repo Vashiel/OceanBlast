@@ -1,5 +1,7 @@
 #pragma once
 #include "../core/types.h"
+#include "i2c_eeprom.h"
+#include "timer4.h"
 #include <vector>
 #include <string>
 #include <unordered_map>
@@ -42,6 +44,9 @@ public:
     ~Bus();
 
     void reset();
+    void setI2cLogging(bool enabled) { i2cLogging = enabled; }
+    bool loadEeprom(const std::string& path);
+    bool saveEeprom(const std::string& path) const;
 
     // MMU / Virtual Memory Translation
     enum class MmuFault {
@@ -233,19 +238,13 @@ public:
 
     // S3C2410 Interrupts & Timers
     bool hasPendingIrq() const { return regIntpnd != 0; }
-    void tickTimer4();
     void tickDma2();
     void tickAdcI2c(size_t cycles);
     void updateUart0TxInterrupt(bool emptyTransition = false);
 
     inline void tick(size_t cycles = 1) {
         if (uart0TxLevelActive) updateUart0TxInterrupt();
-        if (regTcon & (1 << 20)) {
-            timer4CycleCounter += cycles;
-            if (timer4CycleCounter >= 100000) {
-                tickTimer4();
-            }
-        }
+        if (timer4.isRunning() && timer4.advance(cycles)) requestIrq(14);
         if (dma2Active) {
             if (cycles >= dma2Timer) {
                 tickDma2();
@@ -272,9 +271,11 @@ public:
 
     // S3C2410 LCD Subsystem
     bool isLcd16Bpp() const;
+    size_t getFramebufferStride() const;
     u32  getFramebufferSize() const;
 
 private:
+    bool i2cLogging = false;
     // S3C2410 Keypad / GPIO Button State
     u32  buttonMask = 0;
     void requestIrq(u32 bit);
@@ -325,10 +326,12 @@ private:
     // S3C2410 I2C Controller State
     bool i2cPending = false;
     size_t i2cTimer = 0;
+    bool i2cAddressPhase = false;
+    I2cEeprom eeprom;
+    void completeI2cByte();
 
     // S3C2410 PWM Timer 4 State
-    u16 timer4Cnt = 0xFFFF;
-    size_t timer4CycleCounter = 0;
+    Timer4 timer4;
 
     // S3C2410 DMA Channel 2 (IIS Audio) State
     bool   dma2Active = false;

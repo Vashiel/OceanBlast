@@ -96,6 +96,19 @@ int main() {
     }
     std::cout << "PASS: Button release restores pull-up high state" << std::endl;
 
-    std::cout << "\nAll 7 Keypad & GPIO tests PASSED!" << std::endl;
+    Display input;
+    input.setButtonState(BTN_A,true); input.setButtonState(BTN_A,false);
+    if (input.consumeButtonMask()!=BTN_A || input.consumeButtonMask()!=0) return 1;
+    std::cout << "PASS: Quick press and release retain separate guest transitions" << std::endl;
+    input.setButtonState(BTN_A,true); input.setButtonState(BTN_A,true); input.setButtonState(BTN_A,false);
+    if (input.consumeButtonMask()!=BTN_A || input.consumeButtonMask()!=0) return 1;
+    std::cout << "PASS: Host key repeat does not duplicate transitions" << std::endl;
+    input.setButtonState(BTN_A,true); input.setButtonState(BTN_B,true); input.releaseButtons();
+    if (input.consumeButtonMask()!=BTN_A || input.consumeButtonMask()!=(BTN_A|BTN_B) || input.consumeButtonMask()!=0) return 1;
+    std::cout << "PASS: Simultaneous buttons and focus loss retain ordered states" << std::endl;
+    input.setButtonState(BTN_A,true); input.setButtonState(BTN_A,false); input.synchronizeButtons();
+    if (input.consumeButtonMask()!=0) return 1;
+    std::cout << "PASS: Paused input synchronization discards stale pulses" << std::endl;
+    std::cout << "\nKeypad, GPIO and input-transition tests PASSED!" << std::endl;
     return 0;
 }
