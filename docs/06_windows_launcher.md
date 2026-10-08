@@ -10,4 +10,4 @@ Implementation: `src/display/launcher.h`, no-argument dispatch in `src/main.cpp`
 
 Validation: optimized Windows build with `-Wall -Wextra` passed. The launcher opened and exposed ROM selection, scale selector, sound checkbox, Start/Stop and help/menu controls through Windows accessibility. A local ROM path was entered; Start opened the child display and disabled duplicate starts. Stop requested its closure. Sustained gameplay and audio acceptance remain separate from launcher validation.
 
-The final visual check confirmed normal session exit, the stopped status message and re-enabled Start button. The tested launcher remains open locally.
+Validation confirms normal process exit, the stopped status message and re-enabled Start button.

@@ -35,7 +35,7 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 
 ### Current compatibility status (2026-10-08)
 
-The [game cartridge compatibility and CPU validation](docs/12_games_compatibility_block.md) covers all eleven local game cartridges, CPU execution fixes, automated input/snapshot diagnostics and the compatibility matrix. Nine baseline cartridges display identifiable menus or scenes; Crazy Jack and Superstar Chefs remain almost black. Gormiti Agguato also reaches a black state after the generic input experiment. Perfect gameplay and audio for all titles remain open acceptance goals.
+The [game cartridge compatibility and CPU validation](docs/12_game_cartridge_compatibility.md) covers all eleven local game cartridges, CPU execution fixes, automated input/snapshot diagnostics and the compatibility matrix. Nine baseline cartridges display identifiable menus or scenes; Crazy Jack and Superstar Chefs remain almost black. Gormiti Agguato also reaches a black state after the generic input experiment. Perfect gameplay and audio for all titles remain open acceptance goals.
 
 The separate [video-and-game cartridge probe](docs/13_video_games_probe.md) covers SpongeBob and both Winx compilations: two remain black, while the international Winx retains its loading splash and repeatedly crashes the guest launcher. Movie playback has not been validated.
 
