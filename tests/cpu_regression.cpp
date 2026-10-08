@@ -100,6 +100,14 @@ int main() {
     { Bus b; ARM920T c(b); b.write32(0,0xe121f001); c.setReg(1,0x10); c.step(); // MSR CPSR_c,r1
       b.write32(4,0xe121f001); c.setReg(1,0x13); c.step();
       check("User MSR cannot switch to privileged SVC mode",(c.getCPSR()&31)==0x10); }
+    { Bus b; ARM920T c(b);
+      for(u32 address=0;address<6000;address+=4)b.write32(address,0xe1a00000);
+      b.write32(0x4b000080,0x30010000);b.write32(0x4b000090,16|(1u<<20)|(1u<<22));b.write32(0x4b0000a0,2);
+      for(unsigned i=0;i<1000;++i)c.step(0);
+      check("Diagnostic CPU steps execute without advancing DMA time",c.getPC()==4000 && b.read32(0x4b000094)==16);
+      for(unsigned i=0;i<500;++i)c.step();
+      check("Default CPU steps still advance the peripheral clock",c.getPC()==6000 && b.read32(0x4b000094)==15);
+    }
     std::cout << failures << " failure(s)\n";
     return failures ? 1 : 0;
 }

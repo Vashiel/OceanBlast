@@ -1,5 +1,13 @@
 # Manual Cartridge Validation
 
+## DigiQUAD
+
+Manual observation: the game runs very quickly, but the sound is severely distorted. Correct animation speed has not been established.
+
+[Captured GUI measurements](validation/2026-10-08_digiquad_manual_sound.csv) show approximately 20 MIPS, 15–21 sampled image changes per second in the final intervals, zero dropped output samples and a stable cumulative count of five empty-queue observations. These counters do not explain the reported distortion.
+
+A generated-PCM excerpt also sounds defective. [Consumed-sample DMA capture](20_pcm_capture_and_dma_sample_lifetime.md) reduces discontinuities in a controlled comparison; subsequent listening feedback confirms significant improvement with remaining errors. This is partial audio progress, not acceptance of the cartridge's speed, gameplay or synchronization.
+
 ## Wade Hixton's Counter Punch
 
 Manual observation: the engine splash and Inferno logo animate very slowly; the title animation stutters and music has slight interruptions. This report covers startup and title presentation, not sustained gameplay.

@@ -1,5 +1,7 @@
 # DMA Streaming and Interrupt Delivery
 
+Follow-up: [consumed-sample capture](20_pcm_capture_and_dma_sample_lifetime.md) supersedes the 512-byte source-read granularity described below. The smaller delayed-read window was still sufficient to corrupt DigiQUAD audio.
+
 ## 1. Audio Data Lifetime
 
 The preceding DMA implementation read the entire source buffer from SDRAM only at completion. A producer could overwrite an already consumed region before that read, causing the emulator to output replacement data instead of the samples present when the DMA passed the region.

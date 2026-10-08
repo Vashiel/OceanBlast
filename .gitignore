@@ -23,6 +23,8 @@ dumps/
 *.iso
 *.dump
 *.raw
+*.wav
+*.wav.csv
 *.img
 *.sqsh
 *.bmp

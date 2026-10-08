@@ -207,7 +207,7 @@ void ARM920T::dumpState() const {
     }
 }
 
-void ARM920T::step() {
+void ARM920T::step(size_t peripheralTicks) {
     if (halted) return;
 
     if (!(cpsr & FLAG_I) && bus.hasPendingIrq()) {
@@ -220,7 +220,7 @@ void ARM920T::step() {
     u32 pa = bus.translate(currentPC, &fetchFault);
     if (fetchFault != Bus::MmuFault::NONE) {
         handlePrefetchAbort(currentPC);
-        bus.tick(1);
+        bus.tick(peripheralTicks);
         return;
     }
 
@@ -230,7 +230,7 @@ void ARM920T::step() {
         stepARM(pa);
     }
 
-    bus.tick(1);
+    bus.tick(peripheralTicks);
 }
 
 bool ARM920T::evaluateCondition(u32 cond) const {

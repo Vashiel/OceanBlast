@@ -1,0 +1,3 @@
+model,steps,output_frames,output_rate,duration_seconds,tail_seconds,boundary_count,boundary_mean_abs_delta,boundary_delta_above_10000,other_mean_abs_delta,other_delta_above_10000,tail_peak_abs,tail_clip_count,identical_stereo_channels
+512_byte_reads,1300000000,1224668,22050,55.540499,10,1722,2901.138792,127,408.331488,562,24575,0,1
+consumed_sample_capture,1300000000,1224799,22050,55.546440,10,1722,1112.988386,13,393.515904,452,24575,0,1
