@@ -1,6 +1,8 @@
-# Video-and-game cartridge probe
+# Video-and-Game Cartridge Startup Compatibility
 
-Date: 2026-10-08. Executable source baseline: `41cf707`. The previous Games-folder matrix did not cover `roms/video_games`. This follow-up tests all three extracted `.bin` cartridges in that directory.
+Date: 2026-10-08. Baseline: `41cf707`.
+
+Scope: Linux boot, launcher startup and active framebuffer output for the three extracted `.bin` cartridges in `roms/video_games`. Movie playback requires successful launcher and player startup; a loading splash is not playback validation.
 
 Each run uses 1.2 billion instructions, `--debug`, snapshots every 100 million instructions and the generic `tests/start_buttons.txt` replay. The emulator runs headlessly without host audio; this does not validate movie playback, controls or sound.
 
@@ -16,7 +18,7 @@ The logs contain `/usr/packages/Launcher/bin/digiblastlauncher` and `/usr/packag
 
 The nine video-only ZIP archives under `roms/videos` were inventoried but not extracted or tested in this probe. Their playback status remains unknown.
 
-Local logs, snapshots and memory dumps: `C:/temp/oceanblast-artifacts/`. The summary is published in [the validation CSV](validation/2026-10-08_video_games.csv); cartridge hashes identify the exact local inputs. Proprietary images, ROMs and full dumps remain local.
+The [validation CSV](validation/2026-10-08_video_games.csv) records cartridge hashes, execution budgets and frame observations. Proprietary images, ROMs and full dumps are excluded from source publication.
 
 Reproduction from the repository root, using a new output directory:
 

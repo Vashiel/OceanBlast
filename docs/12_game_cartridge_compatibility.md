@@ -1,6 +1,8 @@
 # Game Cartridge Compatibility & CPU Execution Validation
 
-Date: 2026-10-08. Starting commit: `e2f9611`. Scope: compatibility validation of all eleven local `roms/games/*.bin` cartridges, CPU correctness and runtime diagnostics. **The goal of perfect gameplay and synchronized audio for every cartridge has not been achieved.**
+Date: 2026-10-08. Baseline: `e2f9611`.
+
+Scope: ARM/Thumb execution correctness, reproducible runtime diagnostics, and compatibility of the eleven local `roms/games/*.bin` cartridges. Verified menu or scene output is distinguished from sustained gameplay and synchronized audio; full compatibility remains unverified.
 
 ## Execution fixes
 
@@ -59,9 +61,9 @@ The Spider-Man GUI/audio/input experiment covers 2 billion instructions, approxi
 
 The optimized Windows build passes with `-Wall -Wextra`. CPU/DMA/input-replay, GPIO and streaming resampler suites pass. CPU regressions cover the eight Thumb memory operations, PUSH/POP, TST/TEQ carry and word alignment in addition to the previous cases. Source tests are ROM-free.
 
-Local evidence lives under `C:/temp/oceanblast-artifacts/`: `baseline`, `thumb-fix`, `cpu-fix`, `input-smoke`, `alignment-fix` and `spiderman-audio`. The root debug log/dumps belong to Crazy Jack with CPU fixes. Summary CSVs are published under `docs/validation/`; ROMs, full memory dumps, proprietary frame images and executables remain local.
+Summary CSVs are published under `docs/validation/` with cartridge hashes and execution budgets. ROMs, full memory dumps, proprietary frame images and executables are excluded from source publication.
 
-## Next acceptance work
+## Unresolved Causes & Required Validation
 
 1. Trace Crazy Jack and Superstar Chefs from asset loading to the first guest exit; inspect return values and game-specific video initialization before implementing a device workaround.
 2. Reproduce Gormiti Agguato's black transition with a minimal title-specific button sequence and distinguish normal exit/loading from a fault.

@@ -24,17 +24,13 @@ This is a practical pacing model, not accurate ARM920T instruction-cycle timing.
 
 The optimized Windows build completed with `-Wall -Wextra`. Five ROM-free resampler cases passed: 8,000→22,050, 11,025→22,050, 22,050→44,100, 44,100→22,050 and 32,000→22,050 Hz. Each verifies output duration and consistency between one large input and multiple DMA-sized chunks. The suite is included in `make test`.
 
-The rebuilt executable is installed locally as `bin/oceanblast.exe`, so the existing launcher uses these changes. The previous binary is preserved at `C:/temp/oceanblast-artifacts/`. The source, tests and documentation are included together in the follow-up commit. Executables, ROMs and full memory dumps are local artifacts, not part of that source publication; other users need to build the executable from source.
+The Windows launcher uses `bin/oceanblast.exe`. Source builds are required to apply these changes; executables, ROMs and full memory dumps are excluded from source publication.
 
-Runtime artifacts are kept locally in `C:/temp/oceanblast-artifacts/`. The short Spider-Man run checks the limiter and new CSV columns; boot-only measurements do not establish audible gameplay acceptance.
+Comparison results:
 
-Artifact mapping (folder names alone do not identify the tested cartridge):
-
-- Root `performance.csv`: initial Spider-Man GUI/audio run, 200 million instructions, before fragment aggregation and DMA position support. At 120–180 million instructions, cumulative dropped output samples increased from 3,082 to 5,138.
-- `crazy-jack/performance.csv` and `audio-check.log`: despite the folder name, these are the later **Spider-Man** GUI/audio run at the same 200-million-instruction limit. It maintained approximately 20 MIPS and reported zero dropped output samples. The inferred 87,890 Hz rate in this boot interval still requires investigation; this is not a gameplay audio assessment.
-- Root `run.log` and framebuffer dumps: Crazy Jack, 1.2 billion instructions, before DMA current-position support. This later run replaced the root boot log; it does not correspond to the root performance CSV.
-- `crazy-jack-fixed/run.log` and dumps: Crazy Jack, 1.2 billion instructions, with DMA position support. The invalid ALSA pointer errors are absent, but the framebuffer remains almost empty.
-- `crazy-jack-debug/run.log`: the same Crazy Jack instruction limit with syscall/scheduler diagnostics.
+- Spider-Man, 200 million instructions: the initial GUI/audio configuration accumulated 3,082–5,138 dropped output samples between 120 and 180 million instructions. Fragment aggregation and DMA position support reduced the counted drops to zero in the comparison run at approximately 20 MIPS.
+- The inferred 87,890 Hz source rate during the boot interval requires further investigation. Boot measurements do not establish audible gameplay quality.
+- Crazy Jack, 1.2 billion instructions: implementing DMA current-position registers removes invalid ALSA pointer errors, but the active framebuffer remains almost empty.
 
 The CPU/DMA and input suites also pass. Four new DMA checks cover the initial source, latched-source progress/remaining count, fixed destination and completion address. Snapshot text now includes audio rate, dropped samples, current DMA source/count and I2C controller state.
 
