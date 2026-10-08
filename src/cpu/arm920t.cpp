@@ -26,6 +26,7 @@ void ARM920T::reset(u32 startAddress) {
     cpsr  = 0x000000D3;   // Supervisor (SVC32) mode, ARM state, IRQ/FIQ disabled
     spsr  = 0;
     halted = false;
+    waitingForInterrupt = false; lastCycles = 1;
 
     r13_usr = r14_usr = 0;
     r13_svc = r[13]; r14_svc = 0; spsr_svc = 0;
@@ -208,10 +209,16 @@ void ARM920T::dumpState() const {
 }
 
 void ARM920T::step(size_t peripheralTicks) {
+    lastCycles = 1;
     if (halted) return;
+    if (waitingForInterrupt) {
+        if (!bus.hasPendingIrq()) { lastCycles = 0; bus.tick(peripheralTicks); return; }
+        waitingForInterrupt = false;
+    }
 
     if (!(cpsr & FLAG_I) && bus.hasPendingIrq()) {
         handleIrq();
+        lastCycles = 3;
         bus.tick(peripheralTicks);
         return;
     }
@@ -221,6 +228,7 @@ void ARM920T::step(size_t peripheralTicks) {
     u32 pa = bus.translate(currentPC, &fetchFault);
     if (fetchFault != Bus::MmuFault::NONE) {
         handlePrefetchAbort(currentPC);
+        lastCycles = 3;
         bus.tick(peripheralTicks);
         return;
     }
@@ -422,7 +430,7 @@ void ARM920T::stepARM(u32 physAddr) {
     r[15] += 4; // Advance PC to instruction address + 4
 
     u32 cond = instr >> 28;
-    if (!evaluateCondition(cond)) return;
+    if (cond < 0xE && !evaluateCondition(cond)) return;
 
     // 1. BX / BLX
     if ((instr & 0x0FFFFFF0) == 0x012FFF10 || (instr & 0x0FFFFFF0) == 0x012FFF30) {
@@ -487,6 +495,7 @@ void ARM920T::stepARM(u32 physAddr) {
 }
 
 void ARM920T::executeBranch(u32 instr) {
+    lastCycles = 3;
     bool link = (instr & (1 << 24)) != 0;
     i32 offset = instr & 0x00FFFFFF;
     if (offset & 0x00800000) offset |= 0xFF000000;
@@ -497,6 +506,7 @@ void ARM920T::executeBranch(u32 instr) {
 }
 
 void ARM920T::executeBX(u32 instr) {
+    lastCycles = 3;
     bool link = (instr & (1 << 5)) != 0;
     u32 rm = instr & 0xF;
     u32 target = (rm == 15) ? (r[15] + 4) : r[rm];
@@ -587,7 +597,10 @@ void ARM920T::executeCP15(u32 instr) {
         } else if (crn == 8) {
             bus.flushTlb();
         }
-        // CRn=7 (Cache flush) is accepted as NOP
+        if (cycleTiming && crn == 7 && (instr & 15) == 0 &&
+            ((instr >> 5) & 7) == 4 && ((instr >> 21) & 7) == 0)
+            waitingForInterrupt = true;
+        // Cache maintenance remains a functional NOP.
     }
 }
 
@@ -598,6 +611,8 @@ void ARM920T::executeDataProcessing(u32 instr) {
     u32 rn = (instr >> 16) & 0xF;
     u32 rd = (instr >> 12) & 0xF;
 
+    lastCycles = (!isImm && (instr & (1u << 4))) ? 2 : 1;
+    if (rd == 15 && !(opcode >= 8 && opcode <= 11)) lastCycles += 2;
     u32 op1 = (rn == 15) ? (r[15] + 4) : r[rn];
     u32 op2 = 0;
     bool carry = (cpsr & FLAG_C) != 0;
@@ -624,7 +639,8 @@ void ARM920T::executeDataProcessing(u32 instr) {
         } else {
             shiftAmt = (instr >> 7) & 0x1F;
         }
-        op2 = shiftOperand(op2, shiftType, shiftAmt, carry, !isRegShift);
+        if (isRegShift || shiftType != 0 || shiftAmt != 0)
+            op2 = shiftOperand(op2, shiftType, shiftAmt, carry, !isRegShift);
     }
 
     u32 result = 0;
@@ -720,6 +736,7 @@ void ARM920T::executeSingleDataTransfer(u32 instr) {
     u32 rn = (instr >> 16) & 0xF;
     u32 rd = (instr >> 12) & 0xF;
 
+    lastCycles = (isLoad && rd == 15) ? 5 : 1;
     u32 baseVal = (rn == 15) ? (r[15] + 4) : r[rn];
     u32 offset = 0;
 
@@ -827,6 +844,7 @@ void ARM920T::executeBlockDataTransfer(u32 instr) {
     u32 baseVal = (rn == 15) ? (r[15] + 4) : r[rn];
     int count = 0;
     for (int i = 0; i < 16; ++i) if (regList & (1 << i)) count++;
+    lastCycles = std::max(count, 2) + ((isLoad && (regList & 0x8000)) ? 4 : 0);
 
     u32 startAddr = baseVal;
     if (!up) startAddr = baseVal - (count * 4);
@@ -891,6 +909,17 @@ void ARM920T::executeMultiply(u32 instr) {
     u32 rs = (instr >> 8) & 0xF;
     u32 rm = instr & 0xF;
 
+    if (cycleTiming) {
+    const u32 multiplier = r[rs];
+    const bool signedTermination = !isLong || (instr & (1u << 22));
+    unsigned extra = 3;
+    for (unsigned bytes = 1; bytes <= 3; ++bytes) {
+        const u32 upper = multiplier >> (bytes * 8);
+        const u32 ones = 0xffffffffu >> (bytes * 8);
+        if (upper == 0 || (signedTermination && upper == ones)) { extra = bytes - 1; break; }
+    }
+    lastCycles = (isLong ? 3 : 2) + extra;
+    }
     if (!isLong) {
         u32 res = r[rm] * r[rs];
         if (accumulate) res += r[rn];
@@ -920,6 +949,7 @@ void ARM920T::executeMultiply(u32 instr) {
 }
 
 void ARM920T::executeSwap(u32 instr) {
+    lastCycles = 2;
     u32 rn = (instr >> 16) & 0xF;
     u32 rd = (instr >> 12) & 0xF;
     u32 rm = instr & 0xF;
@@ -958,6 +988,7 @@ void ARM920T::executeSwap(u32 instr) {
 }
 
 void ARM920T::executeSWI(u32 instr) {
+    lastCycles = 3;
     u32 swiNum = instr & 0x00FFFFFF;
     u32 retAddr = r[15];
     u32 oldCpsr = cpsr;
@@ -1223,6 +1254,10 @@ void ARM920T::stepThumb(u32 physAddr) {
                 break;
             }
             case 0xD: { // MUL
+                const u32 v = op2;
+                lastCycles = (v >> 8 == 0 || v >> 8 == 0xffffff) ? 2 :
+                             (v >> 16 == 0 || v >> 16 == 0xffff) ? 3 :
+                             (v >> 24 == 0 || v >> 24 == 0xff) ? 4 : 5;
                 r[rd] = op1 * op2;
                 setNZFlags(r[rd]);
                 break;
@@ -1246,6 +1281,7 @@ void ARM920T::stepThumb(u32 physAddr) {
         u32 op5 = (instr >> 8) & 3;
         u32 d = (instr & 7) | ((instr & 0x80) >> 4);
         u32 s = ((instr >> 3) & 7) | ((instr & 0x40) >> 3);
+        if (op5 == 3 || (d == 15 && op5 != 1)) lastCycles = 3;
         u32 valS = (s == 15) ? (instrPC + 4) : r[s];
         u32 valD = (d == 15) ? (instrPC + 4) : r[d];
         if (op5 == 0) { // ADD
@@ -1424,6 +1460,8 @@ void ARM920T::stepThumb(u32 physAddr) {
 
     // Format 14: Push/Pop registers
     if ((instr & 0xFE00) == 0xB400) { // PUSH
+        unsigned cycleCount = 0; for (unsigned i = 0; i < 9; ++i) cycleCount += (instr >> i) & 1;
+        lastCycles = std::max(cycleCount, 2u);
         bool rBit = (instr & (1 << 8)) != 0; // LR
         u32 count = 0;
         for (int i = 0; i < 8; ++i) if (instr & (1 << i)) count++;
@@ -1444,6 +1482,8 @@ void ARM920T::stepThumb(u32 physAddr) {
         return;
     }
     if ((instr & 0xFE00) == 0xBC00) { // POP
+        unsigned count = 0; for (unsigned i = 0; i < 9; ++i) count += (instr >> i) & 1;
+        lastCycles = std::max(count, 2u) + ((instr & 0x100) ? 4 : 0);
         bool rBit = (instr & (1 << 8)) != 0; // PC
         u32 addr = r[13];
         for (int i = 0; i < 8; ++i) {
@@ -1471,6 +1511,8 @@ void ARM920T::stepThumb(u32 physAddr) {
 
     // Format 15: Multiple load/store
     if ((instr & 0xF000) == 0xC000) {
+        unsigned count = 0; for (unsigned i = 0; i < 8; ++i) count += (instr >> i) & 1;
+        lastCycles = std::max(count, 2u);
         bool load = (instr & (1 << 11)) != 0;
         u32 rb = (instr >> 8) & 7;
         u32 addr = r[rb];
@@ -1503,6 +1545,7 @@ void ARM920T::stepThumb(u32 physAddr) {
         u32 cond = (instr >> 8) & 0xF;
         if (cond <= 0xD) {
             if (evaluateCondition(cond)) {
+                lastCycles = 3;
                 i32 offset = static_cast<i32>(static_cast<i8>(instr & 0xFF)) * 2;
                 r[15] = (instrPC + 4) + offset;
             }
@@ -1512,6 +1555,7 @@ void ARM920T::stepThumb(u32 physAddr) {
 
     // Format 18: Unconditional branch
     if ((instr & 0xF800) == 0xE000) {
+        lastCycles = 3;
         i32 off = instr & 0x7FF;
         if (off & 0x400) off |= ~0x7FF;
         r[15] = (instrPC + 4) + (off * 2);
@@ -1527,11 +1571,13 @@ void ARM920T::stepThumb(u32 physAddr) {
             r[14] = (instrPC + 4) + (off << 12);
             return;
         } else if (op19 == 0x1F) { // BL suffix
+            lastCycles = 3;
             u32 target = r[14] + ((instr & 0x7FF) << 1);
             r[14] = r[15] | 1;
             r[15] = target;
             return;
         } else if (op19 == 0x1D) { // BLX suffix
+            lastCycles = 3;
             u32 target = (r[14] + ((instr & 0x7FF) << 1)) & ~3;
             r[14] = r[15] | 1;
             cpsr &= ~FLAG_T;

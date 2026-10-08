@@ -46,7 +46,8 @@ static LRESULT CALLBACK procedure(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
             if (SendMessageW(profileBox, BM_GETCHECK, 0, 0) == BST_CHECKED) command += L" --profile";
             if (SendMessageW(debugBox, BM_GETCHECK, 0, 0) == BST_CHECKED) command += L" --debug";
             const int timing = static_cast<int>(SendMessageW(timingBox, CB_GETCURSEL, 0, 0));
-            if (timing > 0) command += L" --cpu-steps-per-tick " + std::to_wstring(timing == 1 ? 2 : 4);
+            if (timing == 1) command += L" --timing auto";
+            else if (timing > 1) command += L" --cpu-steps-per-tick " + std::to_wstring(timing == 2 ? 2 : 4);
             const int format = static_cast<int>(SendMessageW(formatBox, CB_GETCURSEL, 0, 0));
             if (format == 1) command += L" --display-format rgb444 --display-stride 480";
             else if (format == 2) command += L" --display-format rgb444";
@@ -73,7 +74,7 @@ static LRESULT CALLBACK procedure(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
             break;
         }
         case 12: stop(); break;
-        case 13: MessageBoxW(w, L"Arrow Keys: D-Pad\nZ / K: Button A    X / J: Button B\nA / Q: Shoulder L    S / W: Shoulder R\nEnter: Start    Space: Select\nEsc: Close Game\n\nF5: Pause / Resume\nF6: Single CPU Step\nF7: Save Framebuffer & CPU State\n\nTitle Bar: Display FPS, Frame Flips/s, MIPS, PC, FB.\nClick the game window to focus controls.", L"Controls & Diagnostics", MB_OK); break;
+        case 13: MessageBoxW(w, L"Arrow Keys: D-Pad\nZ / K: Button A    X / J: Button B\nA / Q: Shoulder L    S / W: Shoulder R\nEnter: Start    Space: Select\nEsc: Close Game\n\nF5: Pause / Resume\nF6: Single CPU Step\nF7: Save Framebuffer & CPU State\n\nTitle Bar: Display FPS, Frame Changes/s, MIPS, Speed, PC, FB.\nAutomatic timing follows register clocks and estimated CPU cycles.\nSpeed below 100% means modeled time runs slower than wall time.\nClick the game window to focus controls.", L"Controls & Diagnostics", MB_OK); break;
         case 14: PostMessageW(w, WM_CLOSE, 0, 0); break;
         }
         return 0;
@@ -122,9 +123,9 @@ static int run() {
     SendMessageW(formatBox, CB_SETCURSEL, 0, 0);
     nvramBox = control(L"BUTTON", L"Keep Device Settings", BS_AUTOCHECKBOX | WS_TABSTOP, 400, 128, 205, 28, 0);
     SendMessageW(nvramBox, BM_SETCHECK, BST_CHECKED, 0);
-    control(L"STATIC", L"CPU Timing Test", 0, 20, 172, 105, 24, 0);
+    control(L"STATIC", L"Timing Mode", 0, 20, 172, 105, 24, 0);
     timingBox = control(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_TABSTOP, 125, 168, 260, 120, 0);
-    for (auto text : {L"Standard (default)", L"More CPU work: 2× (experimental)", L"More CPU work: 4× (experimental)"}) SendMessageW(timingBox, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text));
+    for (auto text : {L"Standard (default)", L"Automatic register clocks (experimental)", L"More CPU work: 2× (experimental)", L"More CPU work: 4× (experimental)"}) SendMessageW(timingBox, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text));
     SendMessageW(timingBox, CB_SETCURSEL, 0, 0);
     startButton = control(L"BUTTON", L"Start Game", BS_DEFPUSHBUTTON | WS_TABSTOP, 20, 215, 140, 32, 11);
     stopButton = control(L"BUTTON", L"Stop Game", WS_TABSTOP, 175, 215, 140, 32, 12); EnableWindow(stopButton, FALSE);

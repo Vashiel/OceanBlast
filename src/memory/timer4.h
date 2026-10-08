@@ -22,6 +22,9 @@ public:
     }
     uint32_t observe() const { return remaining ? uint32_t((remaining - 1) / denominator) : 0; }
     bool isRunning() const { return running && !external && remaining != 0; }
+    uint64_t ticksUntilExpiry() const {
+        return isRunning() ? (remaining + pclk - 1) / pclk : UINT64_MAX;
+    }
     bool advance(uint64_t instructions) {
         if (!isRunning()) return false;
         const uint64_t elapsed = instructions * pclk;

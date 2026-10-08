@@ -9,6 +9,7 @@
 #include <functional>
 #include <array>
 #include <cstring>
+#include <algorithm>
 
 namespace oceanblast {
 
@@ -260,6 +261,19 @@ public:
         if (adcPending || i2cPending) {
             tickAdcI2c(cycles);
         }
+    }
+
+    // Bound idle advancement by the first modeled event, including PCM capture.
+    uint64_t ticksUntilEvent() const {
+        uint64_t next = std::min<uint64_t>(20000, timer4.ticksUntilExpiry());
+        if (dma2Active && (!dma2Paused || dma2Dst != 0x55000010)) {
+            next = std::min(next, dma2Timer);
+            if (audioCallback && dma2Timer > dma2NextAudioTimer)
+                next = std::min(next, dma2Timer - dma2NextAudioTimer);
+        }
+        if (adcPending) next = std::min<uint64_t>(next, adcTimer);
+        if (i2cPending) next = std::min<uint64_t>(next, i2cTimer);
+        return std::max<uint64_t>(next, 1);
     }
 
     // MMIO State Inspection

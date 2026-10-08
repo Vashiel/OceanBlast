@@ -37,6 +37,8 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 
 ### Current compatibility status (2026-10-08)
 
+The [automatic timing experiment and Superstar Chefs load analysis](docs/24_automatic_timing_and_chefs_load.md) distinguish slow animation at a sustained 40 MIPS from audio queue starvation. Register-clock CPU execution is available as an experimental mode, with modeled speed diagnostics. It remains incomplete and is not enabled by default.
+
 [Consumed-sample DMA capture](docs/20_pcm_capture_and_dma_sample_lifetime.md) corrects source RAM being reread after a game has reused it. A controlled DigiQUAD comparison reduces large changes at audio callback boundaries from 127 to 13; listening confirms a significant improvement, with residual defects. The [manual cartridge reports](docs/18_manual_cartridge_validation.md) preserve the remaining speed, input and audio issues. Normal audio and synchronized gameplay are not yet established.
 
 The [EEPROM and player-startup investigation](docs/16_i2c_eeprom_and_player_startup.md) identifies missing I2C EEPROM transactions as a startup blocker. Crazy Jack now reaches its title, level selection and an interactive gameplay scene; correct colors currently require an explicit diagnostic RGB444/480-byte-stride override. Automatic LCD format selection remains unresolved for this title.

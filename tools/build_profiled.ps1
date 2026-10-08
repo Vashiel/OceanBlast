@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory=$true)][string[]]$Roms,
     [string]$Compiler = 'g++',
     [UInt64]$Steps = 600000000,
-    [string]$DeviceSettings = ''
+    [string]$DeviceSettings = '',
+    [ValidateSet('legacy','auto')][string]$Timing = 'legacy'
 )
 $ErrorActionPreference = 'Stop'
 if (!$Steps) { throw 'Steps must be positive.' }
@@ -26,7 +27,9 @@ $index = 0
 foreach ($rom in $romPaths) {
     $sessionRoot = Join-Path $outputRoot ('session-' + $index++)
     New-Item -ItemType Directory -Force -Path $sessionRoot | Out-Null
-    $arguments = @($rom,'--steps',$Steps.ToString(),'--cpu-steps-per-tick','2')
+    $arguments = @($rom,'--steps',$Steps.ToString())
+    if ($Timing -eq 'auto') { $arguments += @('--timing','auto') }
+    else { $arguments += @('--cpu-steps-per-tick','2') }
     if ($DeviceSettings) {
         $image = Join-Path $sessionRoot 'board.nvram'
         Copy-Item -LiteralPath $DeviceSettings -Destination $image

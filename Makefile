@@ -28,7 +28,8 @@ $(TARGET): $(OBJS)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-test: build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
+test: build/emulation_timing.exe build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
+	./build/emulation_timing.exe
 	./build/cpu_regression.exe
 	./build/input_test.exe
 	./build/audio_resampler.exe
@@ -72,6 +73,7 @@ build/input_test.exe: tests/input_test.cpp src/cpu/arm920t.cpp src/memory/bus.cp
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp %.o,$^) $(LDFLAGS)
 
 clean:
+	rm -f build/emulation_timing.exe
 	rm -f build/runtime_probe.exe
 	rm -f build/capture_audio.exe
 	rm -f $(OBJS) $(TARGET) build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe
@@ -91,5 +93,11 @@ build/capture_audio.exe: tools/capture_audio.cpp src/cpu/arm920t.cpp src/memory/
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
 
 build/dma_audio_stream.exe: tests/dma_audio_stream.cpp src/memory/bus.cpp src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
+
+# Register-clock execution and bounded CPU idle advancement.
+src/main.o build/emulation_timing.exe: src/core/emulation_clock.h
+build/emulation_timing.exe: tests/emulation_timing.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cpu/arm920t.h src/memory/bus.h src/memory/clock_tree.h src/memory/timer4.h src/memory/i2c_eeprom.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)

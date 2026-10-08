@@ -1,0 +1,6 @@
+phase,wall_seconds,guest_seconds_at_last_stats,guest_speed_percent,mips,sampled_framebuffer_changes_per_wall_second,dropped_samples,cumulative_audio_empty_events_at_last_stats
+full-25-second-run,71.15,24.833,34.90,42.13,5.99,0,500
+startup-through-6-guest-seconds,15.02,5.903,39.30,45.86,0.27,0,92
+after-6-guest-seconds,56.13,24.833,33.73,41.13,7.52,0,500
+latest-pgo-16-second-run,45.07,15.866,35.20,41.33,3.66,0,307
+latest-pgo-after-6-guest-seconds,30.05,15.866,33.01,38.91,5.39,0,307
