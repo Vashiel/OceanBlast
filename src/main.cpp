@@ -18,6 +18,7 @@
 #include "display/display.h"
 #include "audio/audio.h"
 #include "display/launcher.h"
+#include "display/display_profile.h"
 
 using namespace oceanblast;
 
@@ -42,7 +43,7 @@ void printUsage(const char* progName) {
               << "  --nvram <path>          Load/save a separate 2048-byte EEPROM image\n"
               << "  --pc-profile <N>        Sample execution pages every N instructions\n"
               << "  --i2c-log               Trace I2C register writes and byte completions\n"
-              << "  --display-format <lcd|rgb444|rgb565> Diagnostic host decoder (default lcd)\n"
+              << "  --display-format <auto|lcd|rgb444|rgb565> Display decoder (default auto)\n"
               << "  --display-stride <bytes> Diagnostic host scanline stride\n"
               << "  --fault-log             Log all exception contexts, including expected page faults\n"
               << "  --trace-pc <start> <end> Trace an inclusive PC range (decimal or 0x addresses)\n"
@@ -77,6 +78,7 @@ int main(int argc, char* argv[]) {
     bool i2cLog = false;
     std::string nvramPath;
     int displayFormat = 0; // 0: LCD registers, 1: RGB444, 2: RGB565.
+    bool automaticDisplay = true;
     size_t displayStride = 0;
     bool exitOnLimit = false;
     bool traceRange = false;
@@ -103,7 +105,8 @@ int main(int argc, char* argv[]) {
             faultLog = true;
         } else if (arg == "--display-format" && i + 1 < argc) {
             const std::string format = argv[++i];
-            if (format == "lcd") displayFormat = 0;
+            automaticDisplay = format == "auto";
+            if (format == "auto" || format == "lcd") displayFormat = 0;
             else if (format == "rgb444") displayFormat = 1;
             else if (format == "rgb565") displayFormat = 2;
             else { std::cerr << "[Error] Invalid display format." << std::endl; return 1; }
@@ -205,6 +208,12 @@ int main(int argc, char* argv[]) {
     // Inspect Cartridge Header & Boot Structure
     auto cartInfo = oceanblast::CartParser::parse(bus.getCartNand());
     oceanblast::CartParser::printInfo(cartInfo);
+    const auto& cartridge = bus.getCartNand();
+    const uint32_t cartridgeCrc = cartridgeCrc32(cartridge.data(), cartridge.size());
+    const DisplayProfile displayProfile = identifyDisplayProfile(cartridge.size(), cartridgeCrc);
+    std::cout << "[Display] Cartridge CRC32: " << std::hex << cartridgeCrc << std::dec
+              << "; selection: " << (automaticDisplay ? "automatic" : "explicit")
+              << "; profile: " << (displayProfile == DisplayProfile::CrazyJack ? "Crazy Jack" : "LCD registers") << '\n';
 
     // Initialize ARM920T CPU
     oceanblast::ARM920T cpu(bus);
@@ -221,7 +230,8 @@ int main(int argc, char* argv[]) {
             std::cerr << "[Warning] Failed to initialize display window; falling back to headless mode." << std::endl;
             gui = false;
         } else {
-            display.updateFrame(bus.getSdramPtr(), 0x30300000);
+            // The preloaded NAND splash is packed RGB444, before LCD setup.
+            display.updateFrame(bus.getSdramPtr(), 0x30300000, false, 360);
         }
     }
 
@@ -255,8 +265,13 @@ int main(int argc, char* argv[]) {
         return 0x30300000;
     };
 
-    auto displayIs16Bpp = [&]() { return displayFormat ? displayFormat == 2 : bus.isLcd16Bpp(); };
-    auto displayRowStride = [&]() { return displayStride ? displayStride : std::max(bus.getFramebufferStride(), displayIs16Bpp() ? size_t(480) : size_t(360)); };
+    CrazyJackDisplayTransition displayTransition;
+    auto displayLayout = [&]() {
+        return resolveFramebufferLayout(displayProfile, automaticDisplay, getActiveFbPhys(),
+            bus.getMmio(0x4D000000), bus.isLcd16Bpp(), bus.getFramebufferStride(), displayFormat, displayStride, displayTransition.active());
+    };
+    auto displayIs16Bpp = [&]() { return displayLayout().rgb565; };
+    auto displayRowStride = [&]() { return displayLayout().stride; };
 
     auto writePcProfile = [&]() {
         if (pcProfile.empty()) return;
@@ -283,6 +298,10 @@ int main(int argc, char* argv[]) {
               << "\nframebuffer=" << fb << "\nformat=" << (is16bpp ? "16bpp" : "12bpp")
               << "\nlcd_format=" << (bus.isLcd16Bpp() ? "16bpp" : "12bpp")
               << "\nstride=" << std::dec << displayRowStride()
+              << "\ndisplay_selection=" << (automaticDisplay ? "auto" : "explicit")
+              << "\ndisplay_compatibility=" << displayLayout().compatibility
+              << "\ncartridge_crc32=" << std::hex << cartridgeCrc << std::dec
+              << "\nlcdcon1=" << std::hex << bus.getMmio(0x4D000000) << std::dec
               << "\ntiming=" << (autoTiming ? "auto" : "legacy")
               << "\nguest_ticks=" << guestTicks << "\nidle_ticks=" << idleTicks
               << "\ncpu_steps_per_tick=" << cpuStepsPerTick
@@ -331,9 +350,22 @@ int main(int argc, char* argv[]) {
     size_t previousStride = 0;
     bool previousIs16bpp = false;
     bool haveHash = false;
+    size_t nextDisplayProbe = 0;
     std::ofstream metrics;
     if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples,audio_submitted_frames,audio_queued_frames,audio_empty_queue_events,fclk,pclk,cpu_steps_per_tick,guest_seconds,speed_percent,idle_ticks\n"; }
     while (!cpu.isHalted() && executedSteps < stepLimit && guestTicks < tickLimit) {
+        if (automaticDisplay && displayProfile == DisplayProfile::CrazyJack && executedSteps >= nextDisplayProbe) {
+            const u32 fb = getActiveFbPhys();
+            const size_t stride = bus.getFramebufferStride();
+            const bool fits = fb >= ADDR_SDRAM_BASE && uint64_t(fb - ADDR_SDRAM_BASE) + stride * 160 <= ADDR_SDRAM_SIZE;
+            const bool wasActive = displayTransition.active();
+            displayTransition.observe(fb, bus.getMmio(0x4D000000), stride,
+                fits ? bus.getSdramPtr() + (fb - ADDR_SDRAM_BASE) : nullptr);
+            if (wasActive != displayTransition.active())
+                std::cout << "[Display] Crazy Jack game layout " << (displayTransition.active() ? "enabled" : "disabled")
+                          << " at step " << executedSteps << '\n';
+            nextDisplayProbe = executedSteps + 1000000;
+        }
         if (nextInput < inputEvents.size() && executedSteps == inputEvents[nextInput].step) {
             bus.setButtonMask(inputEvents[nextInput].mask);
             ++nextInput;

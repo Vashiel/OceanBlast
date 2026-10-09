@@ -72,4 +72,4 @@ Updated `Display::updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is
 
 ## Crazy Jack Follow-up
 
-The LCD register mode alone does not establish the format of the pixels written by Crazy Jack. [EEPROM and framebuffer validation](16_i2c_eeprom_and_player_startup.md) records correct RGB444 decoding with 480-byte scanlines despite RGB565 register configuration. Automatic selection remains unresolved.
+The LCD register mode alone does not establish the format of the pixels written by Crazy Jack. [EEPROM and framebuffer validation](16_i2c_eeprom_and_player_startup.md) records correct RGB444 decoding with 480-byte scanlines despite RGB565 register configuration. [Automatic display selection](25_automatic_display_selection.md) now follows the checked cartridge's loading-to-game transition; the underlying register disagreement remains unresolved.

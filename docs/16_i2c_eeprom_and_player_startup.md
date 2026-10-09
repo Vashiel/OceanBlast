@@ -27,6 +27,8 @@ Protocol references: [Linux S3C2410 I2C driver](https://github.com/torvalds/linu
 
 ## 3. Crazy Jack: Startup Restored, Display Selection Open
 
+The manual decoder observations below describe the preceding implementation. [Automatic display selection](25_automatic_display_selection.md) now handles the checked Crazy Jack image's boot/loading/game transitions. The underlying LCD-register disagreement remains unresolved.
+
 A paired no-input test of the same Crazy Jack image runs for two billion instructions. The previous build ends with only 283 nonzero bytes in its 76,800-byte active buffer. With EEPROM support, the buffer contains 54,048 nonzero bytes and the application reaches its title sequence without the previous EEPROM errors. See [before](validation/2026-10-08_crazy_eeprom_before.csv) and [after](validation/2026-10-08_crazy_eeprom_after.csv).
 
 The LCD reports RGB565 (`LCDCON1 = 0x579`), but the title and subsequent scene decode correctly as packed RGB444 with a 480-byte row stride. Only 360 bytes per row contain the RGB444 image. Treating the whole frame as RGB565 produces stripes. The source of this disagreement remains unresolved; framebuffer activity alone does not prove the configured LCD mode is correct.

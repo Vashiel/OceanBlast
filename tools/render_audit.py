@@ -1,6 +1,7 @@
 """Render active framebuffer dumps from audit_games.py (requires Pillow)."""
 import argparse
 import csv
+import re
 from pathlib import Path
 from PIL import Image, ImageDraw
 
@@ -47,7 +48,15 @@ def main():
         for index, path in enumerate(files):
             x, y = index % 4 * 240, index // 4 * 185
             draw.text((x+3,y+3), path.stem, fill='black')
-            panel.paste(decode(path.read_bytes(), args.format, args.stride),(x,y+25))
+            pixel_format, stride = args.format, args.stride
+            state_path = path.with_suffix('.txt')
+            if state_path.exists():
+                state = dict(line.split('=', 1) for line in state_path.read_text().splitlines() if '=' in line)
+                if not pixel_format:
+                    pixel_format = 'rgb565' if state.get('format') == '16bpp' else 'rgb444'
+                if not stride:
+                    stride = int(state.get('stride', 0))
+            panel.paste(decode(path.read_bytes(), pixel_format, stride),(x,y+25))
         panel.save(args.audit / 'timeline.png')
         return
     with (args.audit / 'results.csv').open(encoding='utf-8') as source:
@@ -60,7 +69,16 @@ def main():
         x, y = index % 3 * 240, index // 3 * 210
         draw.text((x+4,y+3), row['rom'].split(' [')[0][:32], fill='black')
         if raw.exists():
-            frame = decode(raw.read_bytes(), args.format, args.stride)
+            data = raw.read_bytes()
+            pixel_format, stride = args.format, args.stride
+            log_path = directory / 'run.log'
+            if not pixel_format and log_path.exists():
+                modes = re.findall(r'Active framebuffer nonzero bytes:.*\((12bpp packed|16bpp RGB565)\)', log_path.read_text(errors='replace'))
+                if modes:
+                    pixel_format = 'rgb444' if modes[-1] == '12bpp packed' else 'rgb565'
+                    if not stride:
+                        stride = len(data) // 160
+            frame = decode(data, pixel_format, stride)
             frame.save(directory / 'frame.png')
             panel.paste(frame,(x,y+25))
         draw.text((x+4,y+187), row['nonzero_bytes'], fill='black')
