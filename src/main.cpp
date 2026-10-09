@@ -39,6 +39,7 @@ void printUsage(const char* progName) {
               << "  --emulated-seconds <N> Stop after a bounded amount of modeled time\n"
               << "  --cpu-steps-per-tick <N> Diagnostic CPU work per peripheral tick (1..16; default 1)\n"
               << "  --execution-batch <N> Host bookkeeping batch (1..4096; 1 selects scalar execution)\n"
+              << "  --simple-alu <on|off> Common ARM ALU execution path (default on)\n"
               << "  --host-wait <timer|sleep> GUI pacing wait (default high-resolution timer when supported)\n"
               << "  --audio-rate <Hz> Host output rate (default 22050)\n"
               << "  --profile          Write GUI performance.csv, including audio rate and dropped samples\n";
@@ -83,6 +84,7 @@ int main(int argc, char* argv[]) {
     bool i2cLog = false;
     bool mmioProfile = false;
     std::string nvramPath;
+    bool simpleAluExecution = true;
     int displayFormat = 0; // 0: LCD registers, 1: RGB444, 2: RGB565.
     bool automaticDisplay = true;
     size_t displayStride = 0;
@@ -157,6 +159,10 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--execution-batch" && i + 1 < argc) {
             try { executionBatch = std::stoull(argv[++i]); }
             catch (...) { std::cerr << "[Error] Invalid execution batch.\n"; return 1; }
+        } else if (arg == "--simple-alu" && i + 1 < argc) {
+            const std::string value = argv[++i];
+            if (value != "on" && value != "off") { std::cerr << "[Error] Invalid ALU mode.\n"; return 1; }
+            simpleAluExecution = value == "on";
         } else if (arg == "--host-wait" && i + 1 < argc) {
             const std::string wait = argv[++i];
             if (wait != "timer" && wait != "sleep") { std::cerr << "[Error] Invalid host wait.\n"; return 1; }
@@ -238,6 +244,7 @@ int main(int argc, char* argv[]) {
     // Initialize ARM920T CPU
     oceanblast::ARM920T cpu(bus);
     cpu.reset(0x00000000); // Boot from Steppingstone SRAM
+    cpu.setSimpleAluExecution(simpleAluExecution);
     cpu.setCycleTiming(autoTiming);
     cpu.setDebugLogging(debug || trace);
     cpu.setFaultLogging(faultLog);

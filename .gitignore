@@ -23,6 +23,7 @@ dumps/
 *.iso
 *.dump
 *.raw
+*.yuv
 *.wav
 *.wav.csv
 *.img

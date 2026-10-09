@@ -35,6 +35,10 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 
 ### Current compatibility status (2026-10-09)
 
+[RealVideo frame-delivery tests](docs/30_realvideo_frame_delivery.md) show Sonic X and Italian/Spanish Winx video imagery at a higher diagnostic CPU allowance. Both decode colored frames while remaining dark at the standard allowance. Hardware timing, continuous audio and synchronized playback remain unresolved.
+
+[Gameplay profiling and optimized CPU execution](docs/29_gameplay_work_and_execution_cost.md) identify substantial mixer and software drawing costs. A validated profile-guided build improves controlled instruction throughput by 21–27% across Chefs, Wade and DigiQUAD and reduces observed Chefs audio starvation at 4x. Game speed and sound acceptance remain incomplete.
+
 [Register-derived clocks and IIS playback control](docs/23_register_clocks_and_iis_pause.md) make Timer 4 and audio follow programmed clocks, preserve exact integer audio rates, pause IIS DMA when the transmit path is disabled, and advance peripheral time on IRQ entry. These corrections do not establish hardware-equivalent CPU speed or complete cartridge compatibility.
 
 The [automatic timing experiment and Superstar Chefs load analysis](docs/24_automatic_timing_and_chefs_load.md) distinguish slow animation at a sustained 40 MIPS from audio queue starvation. Register-clock CPU execution is available as an experimental mode, with modeled speed diagnostics. It remains incomplete and is not enabled by default.

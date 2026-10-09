@@ -1,0 +1,5 @@
+rom,ratio,steps,scheduled_guest_seconds,ttb,transform_entry,completed_returns,successful_returns,readable_yuv_buffers,chromatic_yuv_buffers,last_decoder_timestamp,framebuffer,stride,rgb565,content_distinct_colors,content_mean_channel,framebuffer_sha256
+Sonic X 1 [V] (IT ES).bin,1,5000000000,250.0,0x30e80000,0x40ba9558,500,500,499,472,61120,0x302a0000,360,0,1,17.0,3193a7bd3e41f70de9ff3546732530857f3f6635ed522d185c567eed5d8928ff
+Sonic X 1 [V] (IT ES).bin,4,5000000000,62.5,0x30e80000,0x40a94558,409,409,408,382,30000,0x302a0000,360,0,526,65.6424,61e6592c4cb603f06426171cd21685df5a215e680257318a2a28ea953c7127e8
+Winx Club 1 [V] (IT ES).bin,1,5000000000,250.0,0x30dd8000,0x40bb2558,331,331,330,286,33066,0x302a0000,480,1,1,0.0,e2cc2a1fa6131cf4d86faa3baf78851f35a36853e2467c257b3df9d89e85cce5
+Winx Club 1 [V] (IT ES).bin,4,5000000000,62.5,0x30db8000,0x40a94558,441,441,440,396,27060,0x302a0000,480,1,1214,197.02,26cd3a096cd160d3ffd88b5b934c4ff3ed63bcf3db5a5568f80a7eee7f048051
