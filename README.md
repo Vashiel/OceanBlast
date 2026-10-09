@@ -10,7 +10,7 @@ The goal of this project is digital preservation, architectural documentation, a
 
 ## 🚀 Quick Start & Windows Launcher
 
-Double-click `bin/oceanblast.exe` without arguments to launch the graphical interface. Click **Browse ROM…**, choose display scaling (2×, 3×, 4×), optionally enable sound, and click **Start Game**. The launcher includes session controls, optional FPS/debug logging, and built-in keyboard help. Choose Console Skin, Fullscreen, or Plain Window; F11 switches between windowed and fullscreen play. See [console skin and fullscreen controls](docs/33_console_skin_and_fullscreen.md). Command-line invocation remains fully supported. See [Windows launcher documentation](docs/06_windows_launcher.md).
+Double-click `bin/oceanblast.exe` without arguments to launch the graphical interface. Click **Browse ROM…**, choose display scaling (2×, 3×, 4×), leave sound enabled or disable it, and click **Start Game**. The launcher includes session controls, optional FPS/debug logging, and built-in keyboard help. Plain Window and automatic ROM settings are selected by default. Known Pitfall and Superstar Chefs dumps use a 2x CPU ratio; other dumps retain 1x. See [automatic cartridge settings](docs/34_automatic_cartridge_settings.md). Choose Console Skin, Fullscreen, or Plain Window; F11 switches between windowed and fullscreen play. See [console skin and fullscreen controls](docs/33_console_skin_and_fullscreen.md). Command-line invocation remains fully supported. See [Windows launcher documentation](docs/06_windows_launcher.md).
 
 ---
 

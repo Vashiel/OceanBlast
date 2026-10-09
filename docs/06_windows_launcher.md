@@ -1,8 +1,8 @@
 # Windows Launcher
 
-**CPU Timing Test** defaults to Standard. Experimental 2x/4x options increase CPU work per peripheral tick and automatically raise the GUI instruction limit. Host throughput may be insufficient, causing audio starvation. See [CPU budget and runtime timing](22_cpu_budget_and_runtime_timing.md) before using these diagnostic settings.
+**Timing Mode** defaults to Automatic ROM settings. Recognized Pitfall and Superstar Chefs dumps select 2x; other content selects 1x. Standard explicitly selects 1x. See [automatic cartridge settings](34_automatic_cartridge_settings.md). Experimental 2x/4x options increase CPU work per peripheral tick and automatically raise the GUI instruction limit. Host throughput may be insufficient, causing audio starvation. See [CPU budget and runtime timing](22_cpu_budget_and_runtime_timing.md) before using these diagnostic settings.
 
-2026-10-07. Double-click `bin/oceanblast.exe` without arguments to open the graphical launcher. Select a cartridge with **Browse ROM…**, choose 2x/3x/4x scaling, optionally enable sound, then click **Start Game**. The **File** menu includes ROM selection and exit; **Help / Controls** lists the keyboard controls. The game uses its own display window; click that window for input.
+2026-10-07. Double-click `bin/oceanblast.exe` without arguments to open the graphical launcher. Select a cartridge with **Browse ROM…**, choose 2x/3x/4x scaling, leave audio enabled or disable it, then click **Start Game**. The **File** menu includes ROM selection and exit; **Help / Controls** lists the keyboard controls. The game uses its own display window; click that window for input.
 
 The launcher starts the same executable as a child process with `--gui --scale N` and optional `--sound`. Only one session is allowed at a time. **Stop Game** requests normal window closure; after process exit, Start becomes available again. Closing the launcher during a session first requests game closure; close it again after the session ends. ROM selection does not modify the cartridge. No downloads or external dependencies are needed.
 
@@ -24,4 +24,4 @@ The updated launcher exposes both controls through Windows accessibility, starts
 
 ## Window Appearance
 
-**Window Mode** selects Console Skin, Fullscreen, or Plain Window. The console skin has clickable controls and keyboard press feedback. F11 or Alt+Enter toggles fullscreen; Escape returns to the previous window mode before closing the game. See [console skin and fullscreen display](33_console_skin_and_fullscreen.md) for input mapping, asset deployment, and validation limits.
+**Window Mode** defaults to Plain Window and also offers Console Skin and Fullscreen. **Enable Audio** is checked by default. The console skin has clickable controls and keyboard press feedback. F11 or Alt+Enter toggles fullscreen; Escape returns to the previous window mode before closing the game. See [console skin and fullscreen display](33_console_skin_and_fullscreen.md) for input mapping, asset deployment, and validation limits.

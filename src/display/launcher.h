@@ -44,14 +44,16 @@ static LRESULT CALLBACK procedure(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
             const int scale = static_cast<int>(SendMessageW(scaleBox, CB_GETCURSEL, 0, 0)) + 2;
             std::wstring command = L"\"" + executable + L"\" \"" + filename + L"\" --gui --scale " + std::to_wstring(scale);
             const int windowMode = static_cast<int>(SendMessageW(windowModeBox, CB_GETCURSEL, 0, 0));
-            if (windowMode == 1) command += L" --fullscreen";
+            if (windowMode == 0) command += L" --window-mode skin";
+            else if (windowMode == 1) command += L" --fullscreen";
             else if (windowMode == 2) command += L" --window-mode plain";
             if (SendMessageW(soundBox, BM_GETCHECK, 0, 0) == BST_CHECKED) command += L" --sound";
             if (SendMessageW(profileBox, BM_GETCHECK, 0, 0) == BST_CHECKED) command += L" --profile";
             if (SendMessageW(debugBox, BM_GETCHECK, 0, 0) == BST_CHECKED) command += L" --debug";
             const int timing = static_cast<int>(SendMessageW(timingBox, CB_GETCURSEL, 0, 0));
-            if (timing == 1) command += L" --timing auto";
-            else if (timing > 1) command += L" --cpu-steps-per-tick " + std::to_wstring(timing == 2 ? 2 : 4);
+            if (timing == 1) command += L" --preset off";
+            else if (timing == 2) command += L" --timing auto";
+            else if (timing > 2) command += L" --cpu-steps-per-tick " + std::to_wstring(timing == 3 ? 2 : 4);
             const int format = static_cast<int>(SendMessageW(formatBox, CB_GETCURSEL, 0, 0));
             if (format == 1) command += L" --display-format rgb444 --display-stride 480";
             else if (format == 2) command += L" --display-format rgb444";
@@ -75,11 +77,11 @@ static LRESULT CALLBACK procedure(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
             if (!ok) { MessageBoxW(w, L"Failed to start emulator process.", L"OceanBlast", MB_ICONERROR); break; }
             process = child.hProcess; CloseHandle(child.hThread);
             EnableWindow(startButton, FALSE); EnableWindow(stopButton, TRUE);
-            SetWindowTextW(statusBox, L"Emulator is running. Game display opened in its own window.");
+            SetWindowTextW(statusBox, L"Emulator is running. Selected cartridge preset is recorded in session.log.");
             break;
         }
         case 12: stop(); break;
-        case 13: MessageBoxW(w, L"Arrow Keys: D-Pad\nZ / K: Button A    X / J: Button B\nA / Q: Shoulder L    S / W: Shoulder R\nC: Third Action Button\nEnter: Start    Space: Select\nF8: Rewind    F9: Stop    F10: Play/Pause    F12: Forward\nF11 / Alt+Enter: Fullscreen\nEsc: Leave Fullscreen / Close Game\n\nF5: Pause / Resume\nF6: Single CPU Step\nF7: Save Framebuffer & CPU State\n\nTitle Bar: Display FPS, Frame Changes/s, MIPS, Speed, PC, FB.\nAutomatic timing follows register clocks and estimated CPU cycles.\nSpeed below 100% means modeled time runs slower than wall time.\nClick the game window to focus controls.", L"Controls & Diagnostics", MB_OK); break;
+        case 13: MessageBoxW(w, L"Arrow Keys: D-Pad\nZ / K: Button A    X / J: Button B\nA / Q: Shoulder L    S / W: Shoulder R\nC: Third Action Button\nEnter: Start    Space: Select\nF8: Rewind    F9: Stop    F10: Play/Pause    F12: Forward\nF11 / Alt+Enter: Fullscreen\nEsc: Leave Fullscreen / Close Game\n\nF5: Pause / Resume\nF6: Single CPU Step\nF7: Save Framebuffer & CPU State\n\nTitle Bar: Display FPS, Frame Changes/s, MIPS, Speed, PC, FB.\nAutomatic ROM settings select known CPU ratios by cartridge checksum.\nUnknown cartridges use 1x; manual choices override presets.\nRegister clocks are a separate experimental timing mode.\nSpeed below 100% means modeled time runs slower than wall time.\nClick the game window to focus controls.", L"Controls & Diagnostics", MB_OK); break;
         case 14: PostMessageW(w, WM_CLOSE, 0, 0); break;
         }
         return 0;
@@ -119,6 +121,7 @@ static int run() {
     for (auto text : {L"2× (480 × 320)", L"3× (720 × 480)", L"4× (960 × 640)"}) SendMessageW(scaleBox, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text));
     SendMessageW(scaleBox, CB_SETCURSEL, 1, 0);
     soundBox = control(L"BUTTON", L"Enable Audio", BS_AUTOCHECKBOX | WS_TABSTOP, 270, 90, 130, 28, 0);
+    SendMessageW(soundBox, BM_SETCHECK, BST_CHECKED, 0);
     profileBox = control(L"BUTTON", L"FPS Log", BS_AUTOCHECKBOX | WS_TABSTOP, 405, 90, 95, 28, 0);
     SendMessageW(profileBox, BM_SETCHECK, BST_CHECKED, 0);
     debugBox = control(L"BUTTON", L"Debug Log", BS_AUTOCHECKBOX | WS_TABSTOP, 505, 90, 100, 28, 0);
@@ -130,12 +133,12 @@ static int run() {
     SendMessageW(nvramBox, BM_SETCHECK, BST_CHECKED, 0);
     control(L"STATIC", L"Timing Mode", 0, 20, 172, 105, 24, 0);
     timingBox = control(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_TABSTOP, 125, 168, 260, 120, 0);
-    for (auto text : {L"Standard (default)", L"Automatic register clocks (experimental)", L"More CPU work: 2× (experimental)", L"More CPU work: 4× (experimental)"}) SendMessageW(timingBox, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text));
+    for (auto text : {L"Automatic ROM settings (default)", L"Standard: 1x", L"Automatic register clocks (experimental)", L"More CPU work: 2× (experimental)", L"More CPU work: 4× (experimental)"}) SendMessageW(timingBox, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text));
     SendMessageW(timingBox, CB_SETCURSEL, 0, 0);
     control(L"STATIC", L"Window Mode", 0, 20, 210, 105, 24, 0);
     windowModeBox = control(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_TABSTOP, 125, 206, 260, 120, 0);
-    for (auto text : {L"Console Skin (default)", L"Fullscreen", L"Plain Window"}) SendMessageW(windowModeBox, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text));
-    SendMessageW(windowModeBox, CB_SETCURSEL, 0, 0);
+    for (auto text : {L"Console Skin", L"Fullscreen", L"Plain Window (default)"}) SendMessageW(windowModeBox, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text));
+    SendMessageW(windowModeBox, CB_SETCURSEL, 2, 0);
     startButton = control(L"BUTTON", L"Start Game", BS_DEFPUSHBUTTON | WS_TABSTOP, 20, 255, 140, 32, 11);
     stopButton = control(L"BUTTON", L"Stop Game", WS_TABSTOP, 175, 255, 140, 32, 12); EnableWindow(stopButton, FALSE);
     control(L"BUTTON", L"Controls", WS_TABSTOP, 330, 255, 125, 32, 13);

@@ -30,6 +30,7 @@ $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 test: build/frame_latch.exe build/emulation_timing.exe build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
+	./build/cartridge_settings.exe
 	./build/frame_latch.exe
 	./build/emulation_timing.exe
 	./build/cpu_regression.exe
@@ -137,9 +138,20 @@ build/console_skin_win32.exe: tests/console_skin_win32.cpp src/display/display_w
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^) $(LDFLAGS)
 
-test-windows: build/display_height_win32.exe build/console_skin_win32.exe
+test-windows: build/display_height_win32.exe build/console_skin_win32.exe build/launcher_defaults_win32.exe
+	./build/launcher_defaults_win32.exe
 	./build/display_height_win32.exe
 	./build/console_skin_win32.exe
 	./build/console_skin_win32.exe --gdi
 
 .PHONY: test-windows
+
+src/main.o: src/core/cartridge_settings.h
+build/cartridge_settings.exe: tests/cartridge_settings.cpp src/core/cartridge_settings.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $<
+test: build/cartridge_settings.exe
+
+build/launcher_defaults_win32.exe: tests/launcher_defaults_win32.cpp src/display/launcher.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $< -lcomdlg32 -luser32 -lgdi32
