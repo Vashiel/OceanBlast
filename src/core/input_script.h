@@ -24,7 +24,7 @@ inline bool readInputScript(std::istream& input, std::vector<InputEvent>& events
             size_t stepEnd = 0, maskEnd = 0;
             const uint64_t step = std::stoull(stepText, &stepEnd, 10);
             const uint64_t mask = std::stoull(maskText, &maskEnd, 16);
-            if (stepEnd != stepText.size() || maskEnd != maskText.size() || mask > 0x3ff ||
+            if (stepEnd != stepText.size() || maskEnd != maskText.size() || mask > 0x1fff ||
                 (!events.empty() && step <= events.back().step)) throw 0;
             events.push_back({step, static_cast<uint32_t>(mask)});
         } catch (...) {

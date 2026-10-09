@@ -1,5 +1,7 @@
 # OceanBlast
 
+<p align="center"><img src="assets/oceanblast-logo.png" alt="OceanBlast" width="720" /></p>
+
 **OceanBlast** is an open-source, independent research and emulation project targeting the **Nikko digiBLAST** (2005), a European multimedia handheld console powered by the Samsung OCEAN-L-20 System-on-a-Chip (Samsung S3C2410 architecture, ARM920T CPU core).
 
 The goal of this project is digital preservation, architectural documentation, and software interoperability for an obscure and historically undocumented platform.
@@ -8,7 +10,7 @@ The goal of this project is digital preservation, architectural documentation, a
 
 ## 🚀 Quick Start & Windows Launcher
 
-Double-click `bin/oceanblast.exe` without arguments to launch the graphical interface. Click **Browse ROM…**, choose display scaling (2×, 3×, 4×), optionally enable sound, and click **Start Game**. The launcher includes session controls, optional FPS/debug logging, and built-in keyboard help. Command-line invocation remains fully supported. See [Windows launcher documentation](docs/06_windows_launcher.md).
+Double-click `bin/oceanblast.exe` without arguments to launch the graphical interface. Click **Browse ROM…**, choose display scaling (2×, 3×, 4×), optionally enable sound, and click **Start Game**. The launcher includes session controls, optional FPS/debug logging, and built-in keyboard help. Choose Console Skin, Fullscreen, or Plain Window; F11 switches between windowed and fullscreen play. See [console skin and fullscreen controls](docs/33_console_skin_and_fullscreen.md). Command-line invocation remains fully supported. See [Windows launcher documentation](docs/06_windows_launcher.md).
 
 ---
 
@@ -104,7 +106,7 @@ g++ -std=c++17 -Wall -Wextra -O2 -Isrc \
     src/cartridge/cart_parser.cpp \
     src/display/display_win32.cpp \
     src/audio/audio_win32.cpp \
-    -lgdi32 -luser32 -lwinmm -lcomdlg32 \
+    -lgdi32 -luser32 -lwinmm -lcomdlg32 -ld3d11 -ldxgi -ld3dcompiler -lgdiplus \
     -o bin/oceanblast.exe
 ```
 

@@ -52,6 +52,8 @@ void printUsage(const char* progName) {
               << "  --mmio-profile          Count guest MMIO accesses (excludes host inspection)\n"
               << "  --display-format <auto|lcd|rgb444|rgb565> Display decoder (default auto)\n"
               << "  --frame-sync <auto|raw> Complete video write sweeps (default auto)\n"
+              << "  --window-mode <skin|plain> Window appearance (default skin); F11 toggles fullscreen\n"
+              << "  --fullscreen Start with a borderless fullscreen LCD\n"
               << "  --renderer <auto|gdi> Vsynced DXGI output with GDI fallback (default auto)\n"
               << "  --display-stride <bytes> Diagnostic host scanline stride\n"
               << "  --fault-log             Log all exception contexts, including expected page faults\n"
@@ -78,6 +80,7 @@ int main(int argc, char* argv[]) {
     bool customSteps = false;
     bool trace = false;
     bool gui = false;
+    bool windowSkin = true, startFullscreen = false;
     int scale = 3;
 
     bool sound = false;
@@ -181,6 +184,12 @@ int main(int argc, char* argv[]) {
             preciseHostWait = wait == "timer";
         } else if (arg == "--trace") {
             trace = true;
+        } else if (arg == "--fullscreen") {
+            gui = true; startFullscreen = true;
+        } else if (arg == "--window-mode" && i + 1 < argc) {
+            const std::string mode = argv[++i];
+            if (mode != "skin" && mode != "plain") { std::cerr << "[Error] Invalid window mode.\n"; return 1; }
+            windowSkin = mode == "skin";
         } else if (arg == "--gui" || arg == "--window") {
             gui = true;
         } else if (arg == "--sound" || arg == "--audio") {
@@ -264,6 +273,7 @@ int main(int argc, char* argv[]) {
     bus.setMmioProfiling(mmioProfile);
 
     oceanblast::Display display(scale);
+    display.configureWindow(windowSkin, startFullscreen);
     display.useGdiPresentation(gdiPresentation);
     oceanblast::Audio audio;
     if (gui) {

@@ -27,7 +27,7 @@ if ($Unity) {
     ($sources | ForEach-Object { '#include "../../' + $_ + '"' }) | Set-Content -LiteralPath $unitySource -Encoding utf8
     $sources = @($outputRelative + '/unity.cpp')
 }
-$common = @('-std=c++17','-Wall','-Wextra',('-' + $Optimization),'-Isrc') + $sources + @('-lgdi32','-luser32','-lwinmm','-lcomdlg32','-ld3d11','-ldxgi','-ld3dcompiler','-o',($outputRelative + '/oceanblast_profiled.exe'))
+$common = @('-std=c++17','-Wall','-Wextra',('-' + $Optimization),'-Isrc') + $sources + @('-lgdi32','-luser32','-lwinmm','-lcomdlg32','-ld3d11','-ldxgi','-ld3dcompiler','-lgdiplus','-o',($outputRelative + '/oceanblast_profiled.exe'))
 $profileOption = $profileRoot.Replace('\','/')
 Push-Location $projectRoot
 try {

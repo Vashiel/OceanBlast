@@ -21,3 +21,7 @@ Validation confirms normal process exit, the stopped status message and re-enabl
 **Display Decoder** defaults to **Automatic**. Recognized cartridge content can select a compatibility decoder when a verified LCD/framebuffer configuration is active. Crazy Jack automatically uses packed RGB444 with 480-byte rows for its game buffer, while boot splash buffers retain native 360-byte rows. **LCD registers (diagnostic)** disables compatibility selection; the explicit RGB444/RGB565 options remain available. Selection changes host interpretation and does not repair the unresolved guest LCD-mode discrepancy. See [automatic display selection](25_automatic_display_selection.md).
 
 The updated launcher exposes both controls through Windows accessibility, starts the selected cartridge with the chosen decoder, and saves a 2048-byte device image on normal exit. English control labels and keyboard shortcuts are retained.
+
+## Window Appearance
+
+**Window Mode** selects Console Skin, Fullscreen, or Plain Window. The console skin has clickable controls and keyboard press feedback. F11 or Alt+Enter toggles fullscreen; Escape returns to the previous window mode before closing the game. See [console skin and fullscreen display](33_console_skin_and_fullscreen.md) for input mapping, asset deployment, and validation limits.
