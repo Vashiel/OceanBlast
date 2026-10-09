@@ -91,6 +91,14 @@ build/probe_host_wait.exe: tools/probe_host_wait.cpp src/core/host_pacer.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
+build/scene_work_probe.exe: tools/scene_work_probe.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cpu/arm920t.h src/memory/bus.h src/core/input_script.h src/memory/clock_tree.h src/memory/timer4.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
+
+build/codec_probe.exe: tools/codec_probe.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cpu/arm920t.h src/memory/bus.h src/core/input_script.h src/memory/clock_tree.h src/memory/timer4.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
+
 src/main.o src/cpu/arm920t.o src/memory/bus.o build/cpu_regression.exe build/input_test.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe build/runtime_probe.exe build/capture_audio.exe: src/memory/clock_tree.h
 
 build/runtime_probe.exe: tools/runtime_probe.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cpu/arm920t.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
@@ -109,6 +117,7 @@ build/dma_audio_stream.exe: tests/dma_audio_stream.cpp src/memory/bus.cpp src/me
 src/main.o build/emulation_timing.exe: src/core/emulation_clock.h
 src/main.o build/emulation_timing.exe: src/core/execution_batch.h
 src/main.o: src/core/host_pacer.h
+build/cpu_regression.exe build/input_test.exe: src/cpu/arm920t.h
 build/emulation_timing.exe: tests/emulation_timing.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cpu/arm920t.h src/memory/bus.h src/memory/clock_tree.h src/memory/timer4.h src/memory/i2c_eeprom.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)

@@ -1,0 +1,2 @@
+rom,steps,ratio,exit_code,concurrent_decoder_probe,content_distinct_colors,audio_empty_queue_events_last_record,dropped_samples_last_record,framebuffer_sha256,executable_sha256,matches_headless_framebuffer
+Winx Club 1 [V] (IT ES).bin,5000000000,4,0,True,1214,104,0,26cd3a096cd160d3ffd88b5b934c4ff3ed63bcf3db5a5568f80a7eee7f048051,b8c450c03fc76c9cdec933ca5a242ec4e2fab310e8011eb4690fa32f6ca7ea3d,True

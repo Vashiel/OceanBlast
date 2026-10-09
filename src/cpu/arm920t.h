@@ -22,6 +22,7 @@ public:
     // Diagnostic clock-ratio experiments can execute with zero peripheral ticks.
     // Normal execution retains one peripheral tick per step.
     void step(size_t peripheralTicks = 1);
+    void setSimpleAluExecution(bool enabled) { simpleAluExecution = enabled; }
     void setCycleTiming(bool enabled) { cycleTiming = enabled; waitingForInterrupt = false; }
     uint32_t getControlRegister() const { return cp15_control; }
     uint32_t getExecutionClock() const {
@@ -55,6 +56,8 @@ private:
     u32 cpsr;
     u32 spsr;
     bool halted;
+    bool simpleAluExecution = true;
+    bool executeSimpleDataProcessing(u32 instruction);
     bool cycleTiming = false, waitingForInterrupt = false;
     uint32_t lastCycles = 1;
     bool debugLogging = false;

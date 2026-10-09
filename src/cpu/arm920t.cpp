@@ -344,6 +344,41 @@ u32 ARM920T::shiftOperand(u32 val, u32 type, u32 amount, bool& carryOut, bool im
     }
 }
 
+// Common non-flag-setting ALU operations need no shifter carry or CPSR work.
+// Fetch, condition checks and peripheral/exception boundaries remain in step().
+bool ARM920T::executeSimpleDataProcessing(u32 instr) {
+    if ((instr & 0x0c100000) != 0 || ((instr >> 12) & 15) == 15) return false;
+    const bool immediate = (instr & (1u << 25)) != 0;
+    if (!immediate && (instr & 0xff0) != 0) return false;
+    const u32 opcode = (instr >> 21) & 15;
+    if (opcode >= 5 && opcode <= 11) return false;
+    const u32 rn = (instr >> 16) & 15;
+    const u32 rd = (instr >> 12) & 15;
+    const u32 op1 = rn == 15 ? r[15] + 4 : r[rn];
+    u32 op2;
+    if (immediate) {
+        const u32 rotation = ((instr >> 8) & 15) * 2;
+        const u32 value = instr & 255;
+        op2 = rotation ? (value >> rotation) | (value << (32 - rotation)) : value;
+    } else {
+        const u32 rm = instr & 15;
+        op2 = rm == 15 ? r[15] + 4 : r[rm];
+    }
+    switch (opcode) {
+        case 0: r[rd] = op1 & op2; break;
+        case 1: r[rd] = op1 ^ op2; break;
+        case 2: r[rd] = op1 - op2; break;
+        case 3: r[rd] = op2 - op1; break;
+        case 4: r[rd] = op1 + op2; break;
+        case 12: r[rd] = op1 | op2; break;
+        case 13: r[rd] = op2; break;
+        case 14: r[rd] = op1 & ~op2; break;
+        case 15: r[rd] = ~op2; break;
+    }
+    lastCycles = 1;
+    return true;
+}
+
 void ARM920T::stepARM(u32 physAddr) {
     u32 pc = r[15];
     if (debugLogging) {
@@ -431,6 +466,8 @@ void ARM920T::stepARM(u32 physAddr) {
 
     u32 cond = instr >> 28;
     if (cond < 0xE && !evaluateCondition(cond)) return;
+
+    if (simpleAluExecution && executeSimpleDataProcessing(instr)) return;
 
     // 1. BX / BLX
     if ((instr & 0x0FFFFFF0) == 0x012FFF10 || (instr & 0x0FFFFFF0) == 0x012FFF30) {

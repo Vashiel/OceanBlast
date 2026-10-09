@@ -1,4 +1,4 @@
-"""Compare scalar and batched host execution with identical cartridge inputs."""
+"""Compare host execution strategies with identical cartridge inputs."""
 import argparse
 import csv
 import hashlib
@@ -30,11 +30,13 @@ def process_seconds(process):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--exe', type=Path, required=True)
+    parser.add_argument('--baseline-exe', type=Path)
     parser.add_argument('--rom', type=Path, action='append', required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--steps', type=int, default=1200000000)
     parser.add_argument('--ratio', type=int, default=2, choices=range(1, 17))
     parser.add_argument('--timing', choices=('legacy', 'auto'), default='legacy')
+    parser.add_argument('--comparison', choices=('batch', 'executable', 'alu'), default='batch')
     parser.add_argument('--repeat', type=int, default=2)
     parser.add_argument('--input-script', type=Path)
     parser.add_argument('--nvram', type=Path)
@@ -42,6 +44,10 @@ def main():
     if args.steps < 2 or args.repeat < 1:
         parser.error('steps must exceed one and repeat must be positive')
     args.exe = args.exe.resolve(strict=True)
+    if args.comparison == 'executable':
+        if not args.baseline_exe:
+            parser.error('executable comparison requires --baseline-exe')
+        args.baseline_exe = args.baseline_exe.resolve(strict=True)
     args.rom = [path.resolve(strict=True) for path in args.rom]
     for name in ('input_script', 'nvram'):
         path = getattr(args, name)
@@ -54,12 +60,19 @@ def main():
         for repeat in range(args.repeat):
             pair = []
             # Reverse order on alternate repetitions to reduce order bias.
-            for batch in ((1, 4096) if repeat % 2 == 0 else (4096, 1)):
-                directory = args.output / rom.stem / f'{repeat}-{batch}'
+            variants = (1, 4096) if args.comparison == 'batch' else (('off', 'on') if args.comparison == 'alu' else ('baseline', 'candidate'))
+            if repeat % 2:
+                variants = tuple(reversed(variants))
+            for variant in variants:
+                batch = variant if args.comparison == 'batch' else 4096
+                executable = args.baseline_exe if args.comparison == 'executable' and variant == 'baseline' else args.exe
+                directory = args.output / rom.stem / f'{repeat}-{variant}'
                 directory.mkdir(parents=True)
-                command = [str(args.exe), str(rom), '--steps', str(args.steps),
+                command = [str(executable), str(rom), '--steps', str(args.steps),
                            '--timing', args.timing, '--execution-batch', str(batch),
                            '--snapshot-interval', str(args.steps - 1)]
+                if args.comparison == 'alu':
+                    command += ['--simple-alu', str(variant)]
                 if args.timing == 'legacy':
                     command += ['--cpu-steps-per-tick', str(args.ratio)]
                 if args.input_script:
@@ -83,18 +96,18 @@ def main():
                 text = (directory / 'run.log').read_text(encoding='utf-8', errors='replace')
                 final_cpu = text.split('[OceanBlast] Execution finished after ', 1)[1].split(
                     '--- [Linux Kernel dmesg / Log Buffer] ---', 1)[0]
-                row = dict(rom=rom.name, repeat=repeat, batch=batch, timing=args.timing,
+                row = dict(rom=rom.name, repeat=repeat, batch=batch, variant=variant, comparison=args.comparison, timing=args.timing,
                            ratio=args.ratio if args.timing == 'legacy' else 1,
                            steps=args.steps, seconds=round(elapsed, 4),
                            mips=round(args.steps / elapsed / 1e6, 3),
                            cpu_seconds=round(cpu_seconds, 4) if cpu_seconds is not None else '',
-                           executable_sha256=digest(args.exe), rom_sha256=digest(rom),
+                           executable_sha256=digest(executable), rom_sha256=digest(rom),
                            sdram_sha256=digest(directory / 'sdram.bin'),
                            state_sha256=digest(directory / f'snapshot_{args.steps-1}.txt'),
                            final_cpu_sha256=hashlib.sha256(final_cpu.encode()).hexdigest(),
                            framebuffer_sha256=digest(directory / 'fb_active.raw'))
                 pair.append(row)
-                print(f'{rom.name}: batch={batch} {elapsed:.2f}s {row["mips"]} MIPS', flush=True)
+                print(f'{rom.name}: variant={variant} {elapsed:.2f}s {row["mips"]} MIPS', flush=True)
             same = all(pair[0][key] == pair[1][key] for key in
                        ('sdram_sha256', 'state_sha256', 'final_cpu_sha256', 'framebuffer_sha256'))
             for row in pair:
@@ -105,7 +118,7 @@ def main():
                 writer.writeheader()
                 writer.writerows(rows)
             if not same:
-                raise RuntimeError(f'{rom.name}: scalar and batched guest state differ')
+                raise RuntimeError(f'{rom.name}: execution variants differ in guest state')
 
 
 if __name__ == '__main__':

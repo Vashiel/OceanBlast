@@ -17,6 +17,34 @@ static void thumb(Bus& b, ARM920T& c, u16 instruction) {
     c.step();
 }
 int main() {
+    { Bus fastBus,referenceBus; ARM920T fast(fastBus),reference(referenceBus);
+      reference.setSimpleAluExecution(false);
+      uint32_t random = 0x9182acdf;
+      auto next = [&]() { random ^= random << 13; random ^= random >> 17; random ^= random << 5; return random; };
+      bool equivalent = true;
+      for(unsigned trial=0;trial<8192;++trial) {
+          const uint32_t opcode=next()&15,rd=next()&15,rn=next()&15,rm=next()&15;
+          const bool immediate=next()&1,flags=next()&1;
+          const uint32_t operand=immediate ? next()&4095 : rm;
+          const uint32_t word=0xe0000000|(uint32_t(immediate)<<25)|(opcode<<21)|(uint32_t(flags)<<20)|(rn<<16)|(rd<<12)|operand;
+          for(int reg=0;reg<15;++reg){const uint32_t value=next();fast.setReg(reg,value);reference.setReg(reg,value);}
+          for(Bus* b:{&fastBus,&referenceBus})b->write32(0x30000000,word);
+          fast.setReg(15,0x30000000);reference.setReg(15,0x30000000);fast.step();reference.step();
+          for(int reg=0;reg<16;++reg)equivalent=equivalent&&fast.getReg(reg)==reference.getReg(reg);
+          equivalent=equivalent&&fast.getCPSR()==reference.getCPSR()&&fast.getLastCycles()==reference.getLastCycles();
+      }
+      check("Simple ALU path preserves reference registers flags cycles and PC operands",equivalent);
+    }
+    { Bus fastBus,referenceBus; ARM920T fast(fastBus),reference(referenceBus);
+      reference.setSimpleAluExecution(false);bool equivalent=true;
+      for(unsigned flags=0;flags<16;++flags)for(unsigned condition=0;condition<16;++condition){
+          for(Bus* b:{&fastBus,&referenceBus}){b->write32(0x30000000,0xe128f004);b->write32(0x30000004,(condition<<28)|0x02810003);}
+          for(ARM920T* c:{&fast,&reference}){c->setReg(15,0x30000000);c->setReg(4,flags<<28);c->setReg(0,2);c->setReg(1,7);c->step();c->step();}
+          equivalent=equivalent&&fast.getReg(0)==reference.getReg(0)&&fast.getCPSR()==reference.getCPSR()&&fast.getLastCycles()==reference.getLastCycles();
+      }
+      check("Simple ALU path reevaluates every condition against current NZCV flags",equivalent);
+    }
+
     { Bus b; ARM920T c(b); b.write32(0,0xe2933001); b.write32(4,0xe7910062);
       c.setReg(3,0xffffffff); c.setReg(1,0xb0000000); c.setReg(2,0); b.write32(0x30000000,0x12345678); c.step(); c.step();
       check("ARM memory RRX offset uses CPSR carry",c.getReg(0)==0x12345678); }
