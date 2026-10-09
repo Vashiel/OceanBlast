@@ -27,6 +27,8 @@ The content classification inspects the upper 240x136 pixels of the final active
 
 The increased instruction allowance permits decoded imagery to reach the visible buffer in these replays. This narrows the remaining cause to execution time, player clock/scheduling and frame delivery. It does not yet identify a specific late-frame discard branch or prove that the instruction ratio is correct for the console. Raising the instruction allowance increases the host throughput required by audio deadlines, as quantified in [Gameplay Work and CPU Execution Cost](29_gameplay_work_and_execution_cost.md).
 
+Additional five-billion-instruction probes at 4x also produce colored episode imagery for Winx Club (NL/FR/EN/TR) and Totally Spies (IT), using the same blank device image and input script. The [additional observations](validation/2026-10-09_additional_video_delivery.csv) record 407 and 472 successful transform returns respectively. These two probes have no matched 1x or GUI/audio comparison.
+
 ## GUI Confirmation and Limits
 
 The installed optimized executable repeats the Italian/Spanish Winx video replay with GUI and sound at 4x. It reaches five billion instructions, closes normally and produces the same final framebuffer as the headless transform probe. [GUI metadata](validation/2026-10-09_winx_video_gui.csv) records that match and the executable identity.
