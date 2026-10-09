@@ -33,6 +33,8 @@ def run_one(rom, args):
                 command += ['--debug']
             if args.fault_log:
                 command += ['--fault-log']
+            if args.mmio_profile:
+                command += ['--mmio-profile']
             command += ['--display-format', args.display_format]
             if args.display_stride:
                 command += ['--display-stride', str(args.display_stride)]
@@ -79,6 +81,7 @@ def main():
     parser.add_argument('--input-script', type=Path)
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--fault-log', action='store_true')
+    parser.add_argument('--mmio-profile', action='store_true', help='count guest MMIO accesses')
     parser.add_argument('--display-format', choices=['auto', 'lcd', 'rgb444', 'rgb565'], default='auto')
     parser.add_argument('--display-stride', type=int, default=0)
     args = parser.parse_args()
@@ -95,7 +98,7 @@ def main():
     args.output.mkdir(parents=True, exist_ok=False)
     metadata = dict(exe=str(args.exe), exe_sha256=digest(args.exe), steps=args.steps,
                     timeout=args.timeout, jobs=args.jobs, sound=False, gui=False, debug=args.debug,
-                    snapshots=args.snapshots, pc_profile=args.pc_profile, fault_log=args.fault_log, display_format=args.display_format,
+                    snapshots=args.snapshots, pc_profile=args.pc_profile, fault_log=args.fault_log, mmio_profile=args.mmio_profile, display_format=args.display_format,
                     display_stride=args.display_stride, input_script=str(args.input_script) if args.input_script else None,
                     input_sha256=digest(args.input_script) if args.input_script else None)
     (args.output / 'audit.json').write_text(json.dumps(metadata, indent=2)+'\n', encoding='utf-8')

@@ -17,6 +17,16 @@ Bus::Bus() {
 
 Bus::~Bus() {}
 
+bool Bus::saveMmioProfile(const std::string& path) const {
+    std::ofstream output(path);
+    output << "physical_address,guest_reads,guest_writes\n";
+    for (const auto& item : mmioAccesses)
+        output << "0x" << std::hex << item.first << std::dec << ','
+               << item.second.reads << ',' << item.second.writes << '\n';
+    output.flush();
+    return static_cast<bool>(output);
+}
+
 bool Bus::loadEeprom(const std::string& path) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     std::array<u8, 2048> image;
@@ -40,6 +50,7 @@ void Bus::reset() {
     std::fill(steppingstone.begin(), steppingstone.end(), 0);
     std::fill(sdram.begin(), sdram.end(), 0);
     mmioRegs.clear();
+    mmioAccesses.clear();
     clocks.reset();
     mmioRegs[0x4C000004] = 0x5c080;
     mmioRegs[0x4C000010] = 4;
@@ -525,7 +536,8 @@ void Bus::writeNandAddr(u8 addr) {
 }
 
 
-u32 Bus::readMmio(u32 addr) {
+u32 Bus::readMmio(u32 addr, bool guestAccess) {
+    if (mmioProfiling && guestAccess) ++mmioAccesses[addr].reads;
     switch (addr) {
         // NAND Flash Controller (0x4E000000)
         case 0x4E000000: return nfconf;
@@ -621,6 +633,7 @@ u32 Bus::readMmio(u32 addr) {
 }
 
 void Bus::writeMmio(u32 addr, u32 val) {
+    if (mmioProfiling) ++mmioAccesses[addr].writes;
     if (i2cLogging && addr >= ADDR_IIC_BASE && addr <= ADDR_IIC_BASE + 0x0c)
         std::cout << "[I2C WRITE] register=0x" << std::hex << addr << " value=0x" << val
                   << " control=0x" << mmioRegs[ADDR_IIC_BASE] << " status=0x" << mmioRegs[ADDR_IIC_BASE + 4]

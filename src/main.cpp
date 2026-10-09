@@ -11,6 +11,8 @@
 #include "core/types.h"
 #include "core/input_script.h"
 #include "core/emulation_clock.h"
+#include "core/execution_batch.h"
+#include "core/host_pacer.h"
 #include "memory/bus.h"
 #include "cpu/arm920t.h"
 #include "cartridge/cart_parser.h"
@@ -36,6 +38,8 @@ void printUsage(const char* progName) {
               << "  --timing <legacy|auto> Register-clock CPU timing with cached cycle estimates (experimental)\n"
               << "  --emulated-seconds <N> Stop after a bounded amount of modeled time\n"
               << "  --cpu-steps-per-tick <N> Diagnostic CPU work per peripheral tick (1..16; default 1)\n"
+              << "  --execution-batch <N> Host bookkeeping batch (1..4096; 1 selects scalar execution)\n"
+              << "  --host-wait <timer|sleep> GUI pacing wait (default high-resolution timer when supported)\n"
               << "  --audio-rate <Hz> Host output rate (default 22050)\n"
               << "  --profile          Write GUI performance.csv, including audio rate and dropped samples\n";
     std::cout << "  --snapshot-interval <N> Save framebuffer/state every N instructions\n"
@@ -43,6 +47,7 @@ void printUsage(const char* progName) {
               << "  --nvram <path>          Load/save a separate 2048-byte EEPROM image\n"
               << "  --pc-profile <N>        Sample execution pages every N instructions\n"
               << "  --i2c-log               Trace I2C register writes and byte completions\n"
+              << "  --mmio-profile          Count guest MMIO accesses (excludes host inspection)\n"
               << "  --display-format <auto|lcd|rgb444|rgb565> Display decoder (default auto)\n"
               << "  --display-stride <bytes> Diagnostic host scanline stride\n"
               << "  --fault-log             Log all exception contexts, including expected page faults\n"
@@ -76,6 +81,7 @@ int main(int argc, char* argv[]) {
     bool debug = false;
     bool faultLog = false;
     bool i2cLog = false;
+    bool mmioProfile = false;
     std::string nvramPath;
     int displayFormat = 0; // 0: LCD registers, 1: RGB444, 2: RGB565.
     bool automaticDisplay = true;
@@ -89,6 +95,8 @@ int main(int argc, char* argv[]) {
     bool autoTiming = false;
     uint64_t tickLimit = UINT64_MAX;
     size_t cpuStepsPerTick = 1;
+    size_t executionBatch = 4096;
+    bool preciseHostWait = true;
     size_t snapshotInterval = 0;
     size_t pcProfileInterval = 0, nextPcProfile = 0;
     std::map<std::pair<u32, u32>, uint64_t> pcProfile;
@@ -116,6 +124,8 @@ int main(int argc, char* argv[]) {
             pcProfileInterval = std::stoull(argv[++i]);
         } else if (arg == "--i2c-log") {
             i2cLog = true;
+        } else if (arg == "--mmio-profile") {
+            mmioProfile = true;
         } else if (arg == "--nvram" && i + 1 < argc) {
             nvramPath = argv[++i];
         } else if (arg == "--trace-pc" && i + 2 < argc) {
@@ -144,6 +154,13 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--cpu-steps-per-tick" && i + 1 < argc) {
             try { cpuStepsPerTick = std::stoull(argv[++i]); }
             catch (...) { std::cerr << "[Error] Invalid CPU/peripheral ratio.\n"; return 1; }
+        } else if (arg == "--execution-batch" && i + 1 < argc) {
+            try { executionBatch = std::stoull(argv[++i]); }
+            catch (...) { std::cerr << "[Error] Invalid execution batch.\n"; return 1; }
+        } else if (arg == "--host-wait" && i + 1 < argc) {
+            const std::string wait = argv[++i];
+            if (wait != "timer" && wait != "sleep") { std::cerr << "[Error] Invalid host wait.\n"; return 1; }
+            preciseHostWait = wait == "timer";
         } else if (arg == "--trace") {
             trace = true;
         } else if (arg == "--gui" || arg == "--window") {
@@ -157,6 +174,9 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    if (!executionBatch || executionBatch > 4096) {
+        std::cerr << "[Error] Execution batch must be between 1 and 4096.\n"; return 1;
+    }
     if (!cpuStepsPerTick || cpuStepsPerTick > 16) {
         std::cerr << "[Error] CPU steps per tick must be between 1 and 16.\n"; return 1;
     }
@@ -222,6 +242,7 @@ int main(int argc, char* argv[]) {
     cpu.setDebugLogging(debug || trace);
     cpu.setFaultLogging(faultLog);
     bus.setI2cLogging(i2cLog);
+    bus.setMmioProfiling(mmioProfile);
 
     oceanblast::Display display(scale);
     oceanblast::Audio audio;
@@ -285,6 +306,7 @@ int main(int argc, char* argv[]) {
     auto saveSnapshot = [&]() {
         writePcProfile();
         const std::string stem = "snapshot_" + std::to_string(executedSteps);
+        if (mmioProfile) bus.saveMmioProfile(stem + "_mmio.csv");
         const u32 fb = getActiveFbPhys();
         const bool is16bpp = displayIs16Bpp();
         const size_t fbSize = displayRowStride() * 160;
@@ -340,6 +362,8 @@ int main(int argc, char* argv[]) {
     std::cout << "\n[OceanBlast] Starting ARM920T Steppingstone execution from 0x00000000..." << std::endl;
 
     using Clock = std::chrono::steady_clock;
+    HostPacer hostPacer(gui && preciseHostWait);
+    if (gui) std::cout << "[Timing] Host wait: " << (hostPacer.highResolution() ? "high-resolution timer" : "standard sleep") << '\n';
     auto lastFrame = Clock::now(), lastStats = lastFrame;
     auto paceStart = lastFrame;
     size_t paceSteps = 0;
@@ -431,7 +455,7 @@ int main(int argc, char* argv[]) {
                 const auto target = paceStart + std::chrono::duration_cast<Clock::duration>(
                     std::chrono::duration<double>(autoTiming ? double(guestTicks - paceTicks) / EmulationClock::ticksPerSecond : (executedSteps - paceSteps) / (clockMips * 1000000.0)));
                 const auto current = Clock::now();
-                if (target > current) std::this_thread::sleep_until(target);
+                if (target > current) hostPacer.waitUntil(target);
                 else if (current - target > std::chrono::milliseconds(250)) { paceStart = current; paceSteps = executedSteps; paceTicks = guestTicks; }
             }
         }
@@ -442,6 +466,31 @@ int main(int argc, char* argv[]) {
             emulationClock.advanceIdle(amount);
             guestTicks += amount; idleTicks += amount;
             continue;
+        }
+        if (executionBatch > 1 && enteredSdram && !cpu.isWaitingForInterrupt() && !debug && !trace && !traceRange && !faultLog &&
+            !pcProfileInterval && !display.paused && stepLimit - executedSteps > 30) {
+            size_t budget = std::min<size_t>(executionBatch, stepLimit - executedSteps - 30);
+            if (nextInput < inputEvents.size()) budget = std::min(budget, inputEvents[nextInput].step - executedSteps);
+            if (snapshotInterval) budget = std::min(budget, nextSnapshot - executedSteps);
+            if (automaticDisplay && displayProfile == DisplayProfile::CrazyJack)
+                budget = std::min(budget, nextDisplayProbe - executedSteps);
+            if (gui && !autoTiming) budget = std::min(budget, size_t(50000 - executedSteps % 50000));
+            if (!autoTiming && tickLimit != UINT64_MAX) {
+                const uint64_t remaining = tickLimit - guestTicks;
+                // Do not batch across the last peripheral-time boundary.
+                const uint64_t stepsToLimit = legacyStepsUntilTickLimit(remaining, cpuStepsPerTick, peripheralPhase);
+                budget = std::min<uint64_t>(budget, stepsToLimit);
+            }
+            if (budget) {
+                if (autoTiming) {
+                    const uint64_t guiDeadline = gui && guiTicks <= UINT64_MAX - 20000 ? guiTicks + 20000 : UINT64_MAX;
+                    executedSteps += runClockedInstructions(cpu, bus, emulationClock, budget,
+                        std::min(tickLimit, guiDeadline), guestTicks);
+                } else {
+                    executedSteps += runLegacyInstructions(cpu, budget, cpuStepsPerTick, peripheralPhase, guestTicks);
+                }
+                continue;
+            }
         }
         u32 currentPC = cpu.getPC();
         if (pcProfileInterval && executedSteps == nextPcProfile) {
@@ -655,6 +704,9 @@ int main(int argc, char* argv[]) {
     }
 
     writePcProfile();
+    if (mmioProfile && !bus.saveMmioProfile("mmio_profile.csv")) {
+        std::cerr << "[Error] Cannot save MMIO profile.\n"; return 1;
+    }
     if (!nvramPath.empty() && !bus.saveEeprom(nvramPath)) {
         std::cerr << "[Error] Cannot save NVRAM file." << std::endl;
         return 1;

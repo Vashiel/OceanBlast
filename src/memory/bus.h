@@ -10,6 +10,7 @@
 #include <array>
 #include <cstring>
 #include <algorithm>
+#include <map>
 
 namespace oceanblast {
 
@@ -47,6 +48,8 @@ public:
 
     void reset();
     void setI2cLogging(bool enabled) { i2cLogging = enabled; }
+    void setMmioProfiling(bool enabled) { mmioProfiling = enabled; }
+    bool saveMmioProfile(const std::string& path) const;
     bool loadEeprom(const std::string& path);
     bool saveEeprom(const std::string& path) const;
 
@@ -277,7 +280,7 @@ public:
     }
 
     // MMIO State Inspection
-    u32 getMmio(u32 addr) { return readMmio(addr); }
+    u32 getMmio(u32 addr) { return readMmio(addr, false); }
 
     // Keypad / Button Input Subsystem
     void setButtonMask(u32 mask);
@@ -298,6 +301,9 @@ public:
     u32  getFramebufferSize() const;
 
 private:
+    bool mmioProfiling = false;
+    struct MmioAccesses { uint64_t reads = 0, writes = 0; };
+    std::map<u32, MmioAccesses> mmioAccesses;
     bool i2cLogging = false;
     // S3C2410 Keypad / GPIO Button State
     u32  buttonMask = 0;
@@ -380,7 +386,7 @@ private:
     // S3C2410 MMIO Register Storage
     std::unordered_map<u32, u32> mmioRegs;
 
-    u32  readMmio(u32 addr);
+    u32  readMmio(u32 addr, bool guestAccess = true);
     void writeMmio(u32 addr, u32 val);
 
     u8   readNandByte();

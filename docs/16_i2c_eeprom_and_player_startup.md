@@ -39,7 +39,7 @@ The host renderer now reads `LCDSADDR3` PAGEWIDTH/OFFSIZE as halfword counts and
 bin/oceanblast.exe "roms/games/Crazy Jack [G] (EN).bin" --gui --sound --display-format rgb444 --display-stride 480
 ```
 
-These flags affect host decoding and snapshot layout, not guest CPU execution or LCD register values. Default `--display-format lcd` follows the register-based mode. Snapshot state records the effective format, register format, stride and presence of an override.
+These flags affect host decoding and snapshot layout, not guest CPU execution or LCD register values. `--display-format lcd` explicitly follows the register-based mode. The current default is [automatic display selection](25_automatic_display_selection.md). Snapshot state records the effective format, register format, stride and presence of an override.
 
 A five-billion-instruction replay using `tests/crazy_level_confirm.txt` reaches a visible Level 1 scene with PLAY/MAIN MENU choices. [The result](validation/2026-10-08_crazy_eeprom_level.csv) explicitly records the override. This establishes scene rendering and progression beyond startup, not sustained controllable gameplay or synchronized sound.
 

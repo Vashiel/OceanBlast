@@ -1,0 +1,3 @@
+mode,high_resolution,samples,interval_us,mean_lateness_us,p95_lateness_us,max_lateness_us
+sleep,0,400,1250,8158.02,16633,24131
+timer,1,400,1250,282.84,507,1167
