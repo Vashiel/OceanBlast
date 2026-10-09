@@ -54,6 +54,7 @@ void printUsage(const char* progName) {
               << "  --mmio-profile          Count guest MMIO accesses (excludes host inspection)\n"
               << "  --display-format <auto|lcd|rgb444|rgb565> Display decoder (default auto)\n"
               << "  --frame-sync <auto|raw> Complete video write sweeps (default auto)\n"
+              << "  --record-frames <path> Record decoded LCD frames as 240x160 RGB24 at 30 fps\n"
               << "  --window-mode <skin|plain> Window appearance (default plain); F11 toggles fullscreen\n"
               << "  --fullscreen Start with a borderless fullscreen LCD\n"
               << "  --renderer <auto|gdi> Vsynced DXGI output with GDI fallback (default auto)\n"
@@ -113,6 +114,7 @@ int main(int argc, char* argv[]) {
     size_t pcProfileInterval = 0, nextPcProfile = 0;
     std::map<std::pair<u32, u32>, uint64_t> pcProfile;
     std::string inputScriptPath;
+    std::string recordFramesPath;
 
     for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
@@ -160,6 +162,9 @@ int main(int argc, char* argv[]) {
             snapshotInterval = std::stoull(argv[++i]);
         } else if (arg == "--input-script" && i + 1 < argc) {
             inputScriptPath = argv[++i];
+        } else if (arg == "--record-frames" && i + 1 < argc) {
+            recordFramesPath = argv[++i];
+            gui = true;
         } else if (arg == "--clock-mips" && i + 1 < argc) {
             clockMips = std::stod(argv[++i]);
             explicitClock = true;
@@ -310,6 +315,18 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    std::ofstream recordedFrames;
+    std::vector<uint8_t> recordedRgb(static_cast<size_t>(LCD_WIDTH) * LCD_HEIGHT * 3);
+    uint64_t recordedFrameCount = 0;
+    if (!recordFramesPath.empty()) {
+        recordedFrames.open(recordFramesPath, std::ios::binary);
+        if (!recordedFrames) {
+            std::cerr << "[Error] Cannot open LCD frame recording: " << recordFramesPath << '\n';
+            return 1;
+        }
+        std::cout << "[Video] Recording decoded LCD frames as 240x160 RGB24 at 30 fps.\n";
+    }
+
     size_t executedSteps = 0;
     size_t peripheralPhase = 0;
     EmulationClock emulationClock;
@@ -426,6 +443,7 @@ int main(int argc, char* argv[]) {
     if (gui) std::cout << "[Timing] Host wait: " << (hostPacer.highResolution() ? "high-resolution timer" : "standard sleep") << '\n';
     auto lastFrame = Clock::now(), lastStats = lastFrame;
     auto paceStart = lastFrame;
+    auto nextRecordedFrame = lastFrame;
     size_t paceSteps = 0;
     uint64_t paceTicks = 0, statsTicks = 0;
     size_t statsSteps = 0, presented = 0, changed = 0;
@@ -506,6 +524,37 @@ int main(int argc, char* argv[]) {
                     if (redraw && (!latched || capture.ready())) { presentFramebuffer(fb, is16bpp, stride); ++presented; }
                 }
                 lastFrame = now;
+            }
+            if (recordedFrames.is_open()) {
+                constexpr auto framePeriod = std::chrono::nanoseconds(33333333);
+                while (now >= nextRecordedFrame) {
+                    const auto& pixels = display.framePixels();
+                    const unsigned sourceHeight = display.frameSourceHeight();
+                    if (!sourceHeight || pixels.size() < static_cast<size_t>(LCD_WIDTH) * sourceHeight) {
+                        std::cerr << "[Video] Invalid decoded LCD frame; stopping recording.\n";
+                        recordedFrames.close();
+                        break;
+                    }
+                    for (int y = 0; y < LCD_HEIGHT; ++y) {
+                        const size_t sourceY = static_cast<size_t>(y) * sourceHeight / LCD_HEIGHT;
+                        for (int x = 0; x < LCD_WIDTH; ++x) {
+                            const uint32_t pixel = pixels[sourceY * LCD_WIDTH + x];
+                            const size_t output = (static_cast<size_t>(y) * LCD_WIDTH + x) * 3;
+                            recordedRgb[output] = static_cast<uint8_t>(pixel >> 16);
+                            recordedRgb[output + 1] = static_cast<uint8_t>(pixel >> 8);
+                            recordedRgb[output + 2] = static_cast<uint8_t>(pixel);
+                        }
+                    }
+                    recordedFrames.write(reinterpret_cast<const char*>(recordedRgb.data()),
+                                         static_cast<std::streamsize>(recordedRgb.size()));
+                    if (!recordedFrames) {
+                        std::cerr << "[Video] Failed while writing LCD frames.\n";
+                        recordedFrames.close();
+                        break;
+                    }
+                    ++recordedFrameCount;
+                    nextRecordedFrame += framePeriod;
+                }
             }
             const double seconds = std::chrono::duration<double>(now - lastStats).count();
             if (seconds >= 1.0) {
@@ -671,6 +720,8 @@ int main(int argc, char* argv[]) {
     if (autoTiming) saveSnapshot();
     std::cout << "[Timing] Modeled seconds: " << double(guestTicks) / EmulationClock::ticksPerSecond << "; idle seconds: " << double(idleTicks) / EmulationClock::ticksPerSecond << '\n';
     std::cout << "\n[OceanBlast] Execution finished after " << executedSteps << " instructions." << std::endl;
+    if (recordedFrames.is_open()) recordedFrames.close();
+    if (recordedFrameCount) std::cout << "[Video] Recorded " << recordedFrameCount << " LCD frames to " << recordFramesPath << '\n';
     cpu.dumpState();
 
     if (bus.isMmuEnabled()) {

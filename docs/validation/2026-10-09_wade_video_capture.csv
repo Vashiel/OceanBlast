@@ -1,0 +1,2 @@
+rom,steps,cpu_steps_per_tick,clock_mips,modeled_seconds,capture_frames,capture_fps,video_seconds,average_mips,average_modeled_speed_percent,average_changed_fps,minimum_changed_fps,maximum_changed_fps,zero_changed_intervals,average_present_fps,synchronized_presentations,audio_empty_queue_events,dropped_samples,scene_reached,executable_sha256
+Wade Hixton's Counter Punch [G] (EN),6000000000,2,40,150.0,4520,30,150.666667,39.833,99.581,5.536,0,39.9889,66,5.543,835,12,0,Story introduction; no boxing match,DB34CDDB27E548EA8F2B1A976B5B2A99ADDB295D9768523138534371EE9CAC8D
