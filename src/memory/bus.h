@@ -298,6 +298,7 @@ public:
     // S3C2410 LCD Subsystem
     bool isLcd16Bpp() const;
     size_t getFramebufferStride() const;
+    unsigned getFramebufferHeight() const;
     u32  getFramebufferSize() const;
 
 private:

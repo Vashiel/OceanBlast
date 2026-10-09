@@ -147,7 +147,7 @@ void Display::setTitle(const std::string& title) {
     if (m_hwnd) SetWindowTextA(static_cast<HWND>(m_hwnd), title.c_str());
 }
 
-void Display::updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is16bpp, size_t stride) {
+void Display::updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is16bpp, size_t stride, unsigned sourceHeight) {
     if (!m_open || !m_hwnd || !m_hdc || !sdram) return;
 
     constexpr uint32_t SDRAM_BASE = 0x30000000;
@@ -155,8 +155,8 @@ void Display::updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is16bp
 
     const size_t rowBytes = is16bpp ? 480 : 360;
     if (!stride) stride = rowBytes;
-    if (stride < rowBytes || stride > SDRAM_SIZE / LCD_HEIGHT) return;
-    const size_t fbSize = stride * LCD_HEIGHT;
+    if (!sourceHeight || sourceHeight > 1024 || stride < rowBytes || stride > SDRAM_SIZE / sourceHeight) return;
+    const size_t fbSize = stride * sourceHeight;
     if (fbPhysAddr < SDRAM_BASE || (fbPhysAddr - SDRAM_BASE) + fbSize > SDRAM_SIZE) {
         return;
     }
@@ -164,7 +164,10 @@ void Display::updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is16bp
     uint32_t offset = fbPhysAddr - SDRAM_BASE;
     const uint8_t* src = sdram + offset;
 
-    decodeFramebuffer(src, m_pixels.data(), is16bpp, stride);
+    m_sourceHeight = sourceHeight;
+    m_pixels.resize(LCD_WIDTH * sourceHeight);
+    static_cast<BITMAPINFO*>(m_bitmapInfo)->bmiHeader.biHeight = -static_cast<LONG>(sourceHeight);
+    decodeFramebuffer(src, m_pixels.data(), is16bpp, stride, LCD_WIDTH, sourceHeight);
 
     renderToDc(m_hdc);
 }
@@ -179,7 +182,7 @@ void Display::renderToDc(void* targetHdc) {
     StretchDIBits(
         hdc,
         0, 0, LCD_WIDTH * m_scale, LCD_HEIGHT * m_scale,
-        0, 0, LCD_WIDTH, LCD_HEIGHT,
+        0, 0, LCD_WIDTH, m_sourceHeight,
         m_pixels.data(),
         bmi,
         DIB_RGB_COLORS,
@@ -216,7 +219,7 @@ Display::~Display() {}
 bool Display::init(const char*) { return false; }
 void Display::setTitle(const std::string&) {}
 void Display::processEvents() {}
-void Display::updateFrame(const uint8_t*, uint32_t, bool, size_t) {}
+void Display::updateFrame(const uint8_t*, uint32_t, bool, size_t, unsigned) {}
 void Display::close() {}
 }
 

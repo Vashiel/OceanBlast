@@ -33,7 +33,7 @@ public:
 
     bool init(const char* title = "OceanBlast - Nikko digiBLAST Emulator");
     void processEvents();
-    void updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is16bpp = true, size_t stride = 0);
+    void updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is16bpp = true, size_t stride = 0, unsigned sourceHeight = LCD_HEIGHT);
     void renderToDc(void* targetHdc);
     bool isOpen() const { return m_open; }
     void close();
@@ -59,6 +59,7 @@ public:
     }
 
 private:
+    unsigned m_sourceHeight = LCD_HEIGHT;
     int m_scale;
     bool m_open;
     uint32_t m_buttonMask;

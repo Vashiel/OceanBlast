@@ -1,0 +1,2 @@
+cartridge,steps,ratio,exit_code,stride_bytes,scanout_rows,framebuffer_bytes,framebuffer_sha256,sdram_matches_previous_replay,previous_160_rows_match,executable_sha256
+Winx Club 1 [V] (IT ES).bin,5000000000,4,0,480,240,115200,f20e4c7f3c8a94cde09db713ac4ef33ec0e9cc7510392a144351c7a9850cfc8e,True,True,70d1f043c3b8193010e3225705ede1b86b3a45abbda026c3ca70e53a90f11026
