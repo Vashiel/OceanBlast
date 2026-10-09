@@ -10,6 +10,7 @@ inline CartridgeSettings resolveCartridgeSettings(size_t size, uint32_t crc,
     if (!automatic) return {"Standard", 1};
     if (size == 17301504 && crc == 0xd1d6118fu) return {"Pitfall", 2};
     if (size == 17301504 && crc == 0x93209877u) return {"Superstar Chefs", 2};
+    if (size == 17301504 && crc == 0xeba2a2c3u) return {"Wade Hixton's Counter Punch (provisional)", 2};
     return {"Default (unrecognized cartridge)", 1};
 }
 }
