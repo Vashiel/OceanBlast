@@ -1,0 +1,20 @@
+function,samples,percent_of_executable_samples
+oceanblast::ARM920T::step(unsigned long long) [symbol interval],604,24.35
+oceanblast::ARM920T::stepARM(unsigned int) [symbol interval],539,21.73
+main [symbol interval],484,19.52
+oceanblast::ARM920T::executeSingleDataTransfer(unsigned int) [symbol interval],230,9.27
+oceanblast::ARM920T::executeDataProcessing(unsigned int) [symbol interval],229,9.23
+oceanblast::ARM920T::executeBlockDataTransfer(unsigned int) [symbol interval],107,4.31
+oceanblast::Timer4::advance(unsigned long long) [symbol interval],97,3.91
+"oceanblast::ARM920T::shiftOperand(unsigned int, unsigned int, unsigned int, bool&, bool) [symbol interval]",61,2.46
+oceanblast::ARM920T::evaluateCondition(unsigned int) const [symbol interval],48,1.94
+oceanblast::ARM920T::executeHalfwordTransfer(unsigned int) [symbol interval],30,1.21
+"oceanblast::ARM920T::setAddFlags(unsigned int, unsigned int, unsigned int) [symbol interval]",14,0.56
+"oceanblast::ARM920T::setSubFlags(unsigned int, unsigned int, unsigned int) [symbol interval]",12,0.48
+"std::_Hashtable<unsigned int, std::pair<unsigned int const, unsigned int>, std::allocator<std::pair<unsigned int const, unsigned int> >, std::__detail::_Select1st, std::equal_to<unsigned int>, std::hash<unsigned int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true> >::find(unsigned int const&) [symbol interval]",11,0.44
+oceanblast::ARM920T::executeMultiply(unsigned int) [symbol interval],3,0.12
+oceanblast::Bus::readMmio(unsigned int) [symbol interval],3,0.12
+"oceanblast::Bus::writeMmio(unsigned int, unsigned int) [symbol interval]",3,0.12
+"oceanblast::Bus::translateSlow(unsigned int, oceanblast::Bus::MmuFault*, bool) const [symbol interval]",3,0.12
+oceanblast::Bus::flushTlb() const [symbol interval],1,0.04
+"std::__detail::_Map_base<unsigned int, std::pair<unsigned int const, unsigned int>, std::allocator<std::pair<unsigned int const, unsigned int> >, std::__detail::_Select1st, std::equal_to<unsigned int>, std::hash<unsigned int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true>, true>::operator[](unsigned int const&) [clone .isra.0] [symbol interval]",1,0.04

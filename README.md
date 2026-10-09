@@ -2,8 +2,6 @@
 
 **OceanBlast** is an open-source, independent research and emulation project targeting the **Nikko digiBLAST** (2005), a European multimedia handheld console powered by the Samsung OCEAN-L-20 System-on-a-Chip (Samsung S3C2410 architecture, ARM920T CPU core).
 
-[Register-derived clocks and IIS playback control](docs/23_register_clocks_and_iis_pause.md) make Timer 4 and audio follow programmed clocks, preserve exact integer audio rates, pause IIS DMA when the transmit path is disabled, and advance peripheral time on IRQ entry. These corrections do not establish hardware-equivalent CPU speed or complete cartridge compatibility.
-
 The goal of this project is digital preservation, architectural documentation, and software interoperability for an obscure and historically undocumented platform.
 
 ---
@@ -35,15 +33,21 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 
 ## 📈 Emulation Progress
 
-### Current compatibility status (2026-10-08)
+### Current compatibility status (2026-10-09)
+
+[Register-derived clocks and IIS playback control](docs/23_register_clocks_and_iis_pause.md) make Timer 4 and audio follow programmed clocks, preserve exact integer audio rates, pause IIS DMA when the transmit path is disabled, and advance peripheral time on IRQ entry. These corrections do not establish hardware-equivalent CPU speed or complete cartridge compatibility.
 
 The [automatic timing experiment and Superstar Chefs load analysis](docs/24_automatic_timing_and_chefs_load.md) distinguish slow animation at a sustained 40 MIPS from audio queue starvation. Register-clock CPU execution is available as an experimental mode, with modeled speed diagnostics. It remains incomplete and is not enabled by default.
+
+[Bounded execution batches](docs/26_execution_batches_and_mmio_diagnostics.md) reduce host bookkeeping while preserving tested CPU, memory, interrupt and DMA states. [Windows host pacing](docs/27_windows_host_pacing.md) uses a high-resolution waitable timer to reduce short-deadline jitter. These changes do not establish complete game or synchronized media compatibility.
 
 [Consumed-sample DMA capture](docs/20_pcm_capture_and_dma_sample_lifetime.md) corrects source RAM being reread after a game has reused it. A controlled DigiQUAD comparison reduces large changes at audio callback boundaries from 127 to 13; listening confirms a significant improvement, with residual defects. The [manual cartridge reports](docs/18_manual_cartridge_validation.md) preserve the remaining speed, input and audio issues. Normal audio and synchronized gameplay are not yet established.
 
 The [EEPROM and player-startup investigation](docs/16_i2c_eeprom_and_player_startup.md) identifies missing I2C EEPROM transactions as a startup blocker. Crazy Jack reaches its title, level selection and an interactive gameplay scene. [Automatic display selection](docs/25_automatic_display_selection.md) recognizes its checked dump and selects packed RGB444/480-byte rows only for the matching game framebuffer configuration. Boot splashes retain native packed rows. The underlying register/pixel-format disagreement remains unresolved.
 
 Both Italian/Spanish SpongeBob and Winx combined cartridges now reach visible episode images after language and launcher selection. All nine tested video-only cartridges start their media player. Several still produce black or near-black output. The [Timer 4 correction](docs/17_timer_and_runtime_validation.md) restores a first episode image on video-only Italian/Spanish Winx; continued playback and Netherlands Winx output remain unresolved. Complete gameplay and smooth, synchronized movie playback remain open acceptance goals. The earlier [game matrix](docs/12_game_cartridge_compatibility.md) and [UART investigation](docs/15_uart_video_startup.md) preserve the preceding baselines.
+
+The [cartridge register audit](docs/28_cartridge_register_audit.md) completes bounded runs for all eleven games and nine video cartridges without guest segmentation faults or kernel panics. Black media output remains unresolved; guest-only counters show no continued LCD register polling during the final measured video interval.
 
 Cartridge identity and source-data limitations are documented in the [MAME checksum and ROM integrity report](docs/14_rom_integrity.md). Twenty-one of 25 checked files/archive members match the reference in size, CRC32 and SHA-1; four variants are unlisted. The matching international Winx combined dump contains independently reproducible invalid SquashFS/zlib blocks. The alternative MAME Italian/Spanish Winx set is not available locally for comparison.
 
