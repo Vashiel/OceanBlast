@@ -11,7 +11,7 @@ SRCS = src/main.cpp \
        src/audio/audio_win32.cpp
 
 OBJS = $(SRCS:.cpp=.o)
-LDFLAGS = -lgdi32 -luser32 -lwinmm -lcomdlg32 -ld3d11 -ldxgi -ld3dcompiler
+LDFLAGS = -lgdi32 -luser32 -lwinmm -lcomdlg32 -ld3d11 -ldxgi -ld3dcompiler -lgdiplus
 
 all: $(TARGET)
 
@@ -19,7 +19,7 @@ src/main.o: src/core/guest_symbols.h src/display/frame_latch.h src/cpu/arm920t.h
 src/audio/audio_win32.o: src/audio/audio.h src/audio/resampler.h
 src/cpu/arm920t.o: src/cpu/arm920t.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/core/types.h
 src/memory/bus.o: src/display/frame_latch.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
-src/display/display_win32.o: src/display/display.h src/display/framebuffer.h src/display/presenter_win32.h
+src/display/display_win32.o: src/display/display.h src/display/framebuffer.h src/display/presenter_win32.h src/display/console_skin_win32.h
 src/main.o build/framebuffer.exe: src/display/display_profile.h
 
 $(TARGET): $(OBJS)
@@ -124,10 +124,22 @@ build/emulation_timing.exe: tests/emulation_timing.cpp src/cpu/arm920t.cpp src/m
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
 
 # Windows/GDI presentation check; opens and closes its own bounded test window.
-build/display_height_win32.exe: tests/display_height_win32.cpp src/display/display_win32.cpp src/display/display.h src/display/framebuffer.h
+build/display_height_win32.exe: src/display/console_skin_win32.h src/display/presenter_win32.h tests/display_height_win32.cpp src/display/display_win32.cpp src/display/display.h src/display/framebuffer.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^) $(LDFLAGS)
 
 build/frame_latch.exe: tests/frame_latch.cpp src/memory/bus.cpp src/memory/bus.h src/display/frame_latch.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
+
+# Window modes and controls; opens and closes its own test window.
+build/console_skin_win32.exe: tests/console_skin_win32.cpp src/display/display_win32.cpp src/display/display.h src/display/console_skin_win32.h src/display/presenter_win32.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^) $(LDFLAGS)
+
+test-windows: build/display_height_win32.exe build/console_skin_win32.exe
+	./build/display_height_win32.exe
+	./build/console_skin_win32.exe
+	./build/console_skin_win32.exe --gdi
+
+.PHONY: test-windows

@@ -1,0 +1,2 @@
+cartridge,steps,ratio,exit_code,pause_confirmed,resume_confirmed,rewind_confirmed,forward_confirmed,stop_confirmed,complete_sweeps,abandoned_sweeps,capture_bytes,synchronized_presentations,executable_sha256
+Sonic X 1 [V] (IT ES).bin,5500000000,4,0,True,True,True,True,True,280,0,57600,310,50c2eb5e1d7275a22d1fe36a4fffac0ab3bc079bb2020feefd25bf297906d568

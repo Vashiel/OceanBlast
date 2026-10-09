@@ -96,6 +96,13 @@ int main() {
     }
     std::cout << "PASS: Button release restores pull-up high state" << std::endl;
 
+    bus.setButtonMask(BTN_C | BTN_REWIND | BTN_FORWARD);
+    if ((bus.getMmio(0x56000054)&(1<<4)) || (bus.getMmio(0x56000064)&((1<<0)|(1<<13)))) return 1;
+    if ((bus.getMmio(0x560000A8)&((1<<4)|(1<<8)|(1<<21))) != ((1<<4)|(1<<8)|(1<<21))) return 1;
+    std::cout << "PASS: Additional action and Player seek inputs drive active-low GPIO and EINT pending bits\n";
+    bus.setButtonMask(0);
+    if ((bus.getMmio(0x56000054)&0xff)!=0xff || (bus.getMmio(0x56000064)&0xffff)!=0xffff) return 1;
+    std::cout << "PASS: Additional input release restores pull-ups\n";
     Display input;
     input.setButtonState(BTN_A,true); input.setButtonState(BTN_A,false);
     if (input.consumeButtonMask()!=BTN_A || input.consumeButtonMask()!=0) return 1;
@@ -109,6 +116,12 @@ int main() {
     input.setButtonState(BTN_A,true); input.setButtonState(BTN_A,false); input.synchronizeButtons();
     if (input.consumeButtonMask()!=0) return 1;
     std::cout << "PASS: Paused input synchronization discards stale pulses" << std::endl;
+    input.keyboardButton('Z',BTN_A,true); input.keyboardButton('K',BTN_A,true);
+    input.keyboardButton('Z',BTN_A,false);
+    if(input.getButtonMask()!=BTN_A) return 1;
+    input.keyboardButton('K',BTN_A,false);
+    if(input.getButtonMask()!=0) return 1;
+    std::cout << "PASS: Releasing one keyboard alias does not release another held alias\n";
     std::cout << "\nKeypad, GPIO and input-transition tests PASSED!" << std::endl;
     return 0;
 }

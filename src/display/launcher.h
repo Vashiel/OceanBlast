@@ -8,6 +8,7 @@
 namespace oceanblast {
 namespace launcher {
 static HWND pathBox, scaleBox, soundBox, profileBox, debugBox, formatBox, nvramBox, timingBox, startButton, stopButton, statusBox;
+static HWND windowModeBox;
 static HANDLE process = nullptr;
 static std::wstring executable, folder;
 static void stop() {
@@ -42,6 +43,9 @@ static LRESULT CALLBACK procedure(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
             }
             const int scale = static_cast<int>(SendMessageW(scaleBox, CB_GETCURSEL, 0, 0)) + 2;
             std::wstring command = L"\"" + executable + L"\" \"" + filename + L"\" --gui --scale " + std::to_wstring(scale);
+            const int windowMode = static_cast<int>(SendMessageW(windowModeBox, CB_GETCURSEL, 0, 0));
+            if (windowMode == 1) command += L" --fullscreen";
+            else if (windowMode == 2) command += L" --window-mode plain";
             if (SendMessageW(soundBox, BM_GETCHECK, 0, 0) == BST_CHECKED) command += L" --sound";
             if (SendMessageW(profileBox, BM_GETCHECK, 0, 0) == BST_CHECKED) command += L" --profile";
             if (SendMessageW(debugBox, BM_GETCHECK, 0, 0) == BST_CHECKED) command += L" --debug";
@@ -75,7 +79,7 @@ static LRESULT CALLBACK procedure(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
             break;
         }
         case 12: stop(); break;
-        case 13: MessageBoxW(w, L"Arrow Keys: D-Pad\nZ / K: Button A    X / J: Button B\nA / Q: Shoulder L    S / W: Shoulder R\nEnter: Start    Space: Select\nEsc: Close Game\n\nF5: Pause / Resume\nF6: Single CPU Step\nF7: Save Framebuffer & CPU State\n\nTitle Bar: Display FPS, Frame Changes/s, MIPS, Speed, PC, FB.\nAutomatic timing follows register clocks and estimated CPU cycles.\nSpeed below 100% means modeled time runs slower than wall time.\nClick the game window to focus controls.", L"Controls & Diagnostics", MB_OK); break;
+        case 13: MessageBoxW(w, L"Arrow Keys: D-Pad\nZ / K: Button A    X / J: Button B\nA / Q: Shoulder L    S / W: Shoulder R\nC: Third Action Button\nEnter: Start    Space: Select\nF8: Rewind    F9: Stop    F10: Play/Pause    F12: Forward\nF11 / Alt+Enter: Fullscreen\nEsc: Leave Fullscreen / Close Game\n\nF5: Pause / Resume\nF6: Single CPU Step\nF7: Save Framebuffer & CPU State\n\nTitle Bar: Display FPS, Frame Changes/s, MIPS, Speed, PC, FB.\nAutomatic timing follows register clocks and estimated CPU cycles.\nSpeed below 100% means modeled time runs slower than wall time.\nClick the game window to focus controls.", L"Controls & Diagnostics", MB_OK); break;
         case 14: PostMessageW(w, WM_CLOSE, 0, 0); break;
         }
         return 0;
@@ -101,7 +105,7 @@ static int run() {
     WNDCLASSW cls = {}; cls.lpfnWndProc = procedure; cls.hInstance = instance;
     cls.lpszClassName = L"OceanBlastLauncher"; cls.hCursor = LoadCursor(nullptr, IDC_ARROW); cls.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
     RegisterClassW(&cls);
-    HWND window = CreateWindowW(cls.lpszClassName, L"OceanBlast – digiBLAST Launcher", WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 640, 390, nullptr, nullptr, instance, nullptr);
+    HWND window = CreateWindowW(cls.lpszClassName, L"OceanBlast – digiBLAST Launcher", WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 640, 435, nullptr, nullptr, instance, nullptr);
     if (!window) return 1;
     auto control = [&](const wchar_t* type, const wchar_t* title, DWORD style, int x, int y, int width, int height, int id)->HWND {
         HWND c = CreateWindowW(type, title, WS_CHILD | WS_VISIBLE | style, x, y, width, height, window, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), instance, nullptr);
@@ -128,10 +132,14 @@ static int run() {
     timingBox = control(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_TABSTOP, 125, 168, 260, 120, 0);
     for (auto text : {L"Standard (default)", L"Automatic register clocks (experimental)", L"More CPU work: 2× (experimental)", L"More CPU work: 4× (experimental)"}) SendMessageW(timingBox, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text));
     SendMessageW(timingBox, CB_SETCURSEL, 0, 0);
-    startButton = control(L"BUTTON", L"Start Game", BS_DEFPUSHBUTTON | WS_TABSTOP, 20, 215, 140, 32, 11);
-    stopButton = control(L"BUTTON", L"Stop Game", WS_TABSTOP, 175, 215, 140, 32, 12); EnableWindow(stopButton, FALSE);
-    control(L"BUTTON", L"Controls", WS_TABSTOP, 330, 215, 125, 32, 13);
-    statusBox = control(L"STATIC", L"Select a ROM file and click Start Game to begin emulation.", 0, 20, 265, 580, 45, 0);
+    control(L"STATIC", L"Window Mode", 0, 20, 210, 105, 24, 0);
+    windowModeBox = control(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_TABSTOP, 125, 206, 260, 120, 0);
+    for (auto text : {L"Console Skin (default)", L"Fullscreen", L"Plain Window"}) SendMessageW(windowModeBox, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text));
+    SendMessageW(windowModeBox, CB_SETCURSEL, 0, 0);
+    startButton = control(L"BUTTON", L"Start Game", BS_DEFPUSHBUTTON | WS_TABSTOP, 20, 255, 140, 32, 11);
+    stopButton = control(L"BUTTON", L"Stop Game", WS_TABSTOP, 175, 255, 140, 32, 12); EnableWindow(stopButton, FALSE);
+    control(L"BUTTON", L"Controls", WS_TABSTOP, 330, 255, 125, 32, 13);
+    statusBox = control(L"STATIC", L"Select a ROM file and click Start Game to begin emulation.", 0, 20, 305, 580, 45, 0);
     HMENU menu = CreateMenu(), file = CreatePopupMenu(), help = CreatePopupMenu();
     AppendMenuW(file, MF_STRING, 10, L"Load ROM…"); AppendMenuW(file, MF_STRING, 14, L"Exit");
     AppendMenuW(help, MF_STRING, 13, L"Controls"); AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(file), L"File"); AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(help), L"Help"); SetMenu(window, menu);

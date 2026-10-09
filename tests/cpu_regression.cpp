@@ -64,7 +64,9 @@ int main() {
       check("Input replay parses timed presses and release",readInputScript(valid,events,error) && events.size()==3 && events[1].step==100 && events[1].mask==0x100 && events[2].mask==0);
       std::istringstream unordered("100 1\n50 0\n");
       check("Input replay rejects unordered events",!readInputScript(unordered,events,error) && events.empty());
-      std::istringstream invalid("0 400\n");
+      std::istringstream media("0 1c00\n1 0\n");
+      check("Input replay accepts third action and media seek bits",readInputScript(media,events,error) && events[0].mask==0x1c00);
+      std::istringstream invalid("0 2000\n");
       check("Input replay rejects unsupported button bits",!readInputScript(invalid,events,error)); }
     { Bus b; ARM920T c(b); b.write32(0,0xe11000a1); c.setReg(0,1); c.setReg(1,3); c.step();
       check("ARM TST receives carry from shifted operand",(c.getCPSR()&FLAG_C) && !(c.getCPSR()&FLAG_Z) && c.getReg(0)==1); }
