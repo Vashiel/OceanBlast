@@ -33,8 +33,7 @@ def run_one(rom, args):
                 command += ['--debug']
             if args.fault_log:
                 command += ['--fault-log']
-            if args.display_format != 'lcd':
-                command += ['--display-format', args.display_format]
+            command += ['--display-format', args.display_format]
             if args.display_stride:
                 command += ['--display-stride', str(args.display_stride)]
             completed = subprocess.run(command,
@@ -80,7 +79,7 @@ def main():
     parser.add_argument('--input-script', type=Path)
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--fault-log', action='store_true')
-    parser.add_argument('--display-format', choices=['lcd', 'rgb444', 'rgb565'], default='lcd')
+    parser.add_argument('--display-format', choices=['auto', 'lcd', 'rgb444', 'rgb565'], default='auto')
     parser.add_argument('--display-stride', type=int, default=0)
     args = parser.parse_args()
     if args.steps <= 0 or args.timeout <= 0 or args.jobs < 1:

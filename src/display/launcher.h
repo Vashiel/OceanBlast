@@ -52,6 +52,7 @@ static LRESULT CALLBACK procedure(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
             if (format == 1) command += L" --display-format rgb444 --display-stride 480";
             else if (format == 2) command += L" --display-format rgb444";
             else if (format == 3) command += L" --display-format rgb565";
+            else if (format == 4) command += L" --display-format lcd";
             if (SendMessageW(nvramBox, BM_GETCHECK, 0, 0) == BST_CHECKED)
                 command += L" --nvram \"" + folder + L"\\board.nvram\"";
             SECURITY_ATTRIBUTES security = {sizeof(security), nullptr, TRUE};
@@ -119,7 +120,7 @@ static int run() {
     debugBox = control(L"BUTTON", L"Debug Log", BS_AUTOCHECKBOX | WS_TABSTOP, 505, 90, 100, 28, 0);
     control(L"STATIC", L"Display Decoder", 0, 20, 132, 105, 24, 0);
     formatBox = control(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_TABSTOP, 125, 128, 260, 150, 0);
-    for (auto text : {L"LCD registers (default)", L"RGB444, 480-byte rows (diagnostic)", L"RGB444 (diagnostic)", L"RGB565 (diagnostic)"}) SendMessageW(formatBox, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text));
+    for (auto text : {L"Automatic (default)", L"RGB444, 480-byte rows (diagnostic)", L"RGB444 (diagnostic)", L"RGB565 (diagnostic)", L"LCD registers (diagnostic)"}) SendMessageW(formatBox, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text));
     SendMessageW(formatBox, CB_SETCURSEL, 0, 0);
     nvramBox = control(L"BUTTON", L"Keep Device Settings", BS_AUTOCHECKBOX | WS_TABSTOP, 400, 128, 205, 28, 0);
     SendMessageW(nvramBox, BM_SETCHECK, BST_CHECKED, 0);
