@@ -8,9 +8,10 @@ The Windows launcher defaults to **Plain Window**, enabled audio, and **Automati
 | --- | --- | --- | --- |
 | Pitfall The Lost Expedition, English | 17,301,504 | `d1d6118f` | 2 |
 | Superstar Chefs, English | 17,301,504 | `93209877` | 2 |
+| Wade Hixton's Counter Punch, English | 17,301,504 | `eba2a2c3` | 2 (provisional) |
 | Other content | Any | Other | 1 |
 
-The 2x presets reflect listening reports that these configurations sound better than 1x or experimental register-clock execution. They are compatibility settings, not proof of original hardware speed, exact pitch, or complete gameplay accuracy. Superstar Chefs can still slow down in active scenes. Untested revisions and corrupted images receive the standard fallback rather than inheriting settings from their filenames.
+The 2x presets reflect listening and startup comparisons that these configurations behave better than 1x or experimental register-clock execution. Wade's preset is provisional: its latest recorded run reaches only the story introduction, not a boxing match. These are compatibility settings, not proof of original hardware speed, exact pitch, or complete gameplay accuracy. Superstar Chefs can still slow down in active scenes. Untested revisions and corrupted images receive the standard fallback rather than inheriting settings from their filenames.
 
 The existing automatic display decoder and complete-video-frame capture remain independent of CPU presets. Crazy Jack's specific display-layout transition is still selected by its verified cartridge identity. A CPU profile does not force LCD format, stride, or video playback speed.
 
@@ -24,7 +25,7 @@ Profiles do not dynamically increase CPU work in response to low host FPS or an 
 
 ## Validation
 
-ROM-free selection checks cover known checksums, unknown content, incorrect byte counts, disabled profiles, explicit 1x and 4x overrides, and experimental register timing. Bounded cartridge comparisons check automatic and explicit 2x execution using the same input script and instruction budget. These checks establish selection and execution equivalence, not subjective audio quality or full compatibility.
+ROM-free selection checks cover known checksums, unknown content, incorrect byte counts, disabled profiles, explicit 1x and 4x overrides, and experimental register timing. Bounded cartridge comparisons check automatic and explicit 2x execution using the same input script and instruction budget. The Wade entry was also checked against the local dump's size and CRC and selected automatically in a bounded emulator run ([record](validation/2026-10-09_wade_auto_profile.csv)). These checks establish selection and execution equivalence, not subjective audio quality or full compatibility.
 
 The regression suite passes 257 checks and the Windows presentation/launcher suite passes 20 checks. Five additional bounded CLI starts verify automatic selection, profile disablement, an explicit 1x override, experimental register timing, and the unknown-cartridge fallback. Both cartridges complete 2,400,000,001 instructions in automatic and explicit 2x runs. Their final SDRAM hashes and framebuffer snapshots at instruction 2,400,000,000 match within each pair. See [comparison results](validation/2026-10-09_automatic_cartridge_settings.csv).
 
