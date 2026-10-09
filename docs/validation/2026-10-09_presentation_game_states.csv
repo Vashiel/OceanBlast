@@ -1,0 +1,4 @@
+cartridge,steps,ratio,input_script,sdram_matches_previous,cpu_registers_match_previous,sdram_sha256
+Crazy Jack [G] (EN).bin,2000000000,1,tests/start_buttons.txt,True,True,0c590972f5159aa493a6c45d24eb0fd39cc3c1461fa5799278a7ca70170d99e4
+Superstar Chefs [G] (EN).bin,2000000000,1,tests/start_buttons.txt,True,True,91da1d59384b245c33798908a516ee55c2dd2878b422ce20d7959ad8ad25521f
+Wade Hixton's Counter Punch [G] (EN).bin,2000000000,1,tests/start_buttons.txt,True,True,48da8d3aab58076037701d79c1206e42c1137d15ba5adef343f2fbdfffd6ab34

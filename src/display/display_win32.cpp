@@ -5,6 +5,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <iostream>
+#include "presenter_win32.h"
 
 namespace oceanblast {
 
@@ -15,7 +16,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         if (msg == WM_PAINT) {
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
-            g_currentDisplay->renderToDc(hdc);
+            if (!g_currentDisplay->usesSyncedPresentation()) g_currentDisplay->renderToDc(hdc);
             EndPaint(hwnd, &ps);
             return 0;
         } else if (msg == WM_ERASEBKGND) {
@@ -120,6 +121,16 @@ bool Display::init(const char* title) {
     bmi->bmiHeader.biCompression = BI_RGB;
     m_bitmapInfo = static_cast<void*>(bmi);
 
+    if (!m_gdiOnly) {
+        auto* presenter = new SyncedPresenter();
+        if (presenter->init(hwnd, LCD_WIDTH * m_scale, LCD_HEIGHT * m_scale)) {
+            m_presenter = presenter;
+            std::cout << "[Display] DXGI flip presentation with vertical synchronization.\n";
+        } else {
+            delete presenter;
+            std::cout << "[Display] DXGI unavailable; using GDI fallback.\n";
+        }
+    }
     m_open = true;
     ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
@@ -163,13 +174,29 @@ void Display::updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is16bp
 
     uint32_t offset = fbPhysAddr - SDRAM_BASE;
     const uint8_t* src = sdram + offset;
+    updateFrameData(src, is16bpp, stride, sourceHeight);
+}
 
+void Display::updateFrameData(const uint8_t* src, bool is16bpp, size_t stride, unsigned sourceHeight) {
+    if (!m_open || !src || !sourceHeight || sourceHeight > 1024 || stride < (is16bpp ? 480u : 360u)) return;
     m_sourceHeight = sourceHeight;
     m_pixels.resize(LCD_WIDTH * sourceHeight);
     static_cast<BITMAPINFO*>(m_bitmapInfo)->bmiHeader.biHeight = -static_cast<LONG>(sourceHeight);
     decodeFramebuffer(src, m_pixels.data(), is16bpp, stride, LCD_WIDTH, sourceHeight);
 
-    renderToDc(m_hdc);
+    if (m_presenter && !usesSyncedPresentation()) {
+        std::cout << "[Display] DXGI presentation failed; using GDI fallback.\n";
+        delete static_cast<SyncedPresenter*>(m_presenter); m_presenter = nullptr;
+    }
+    if (usesSyncedPresentation()) static_cast<SyncedPresenter*>(m_presenter)->submit(m_pixels, sourceHeight);
+    else renderToDc(m_hdc);
+}
+
+bool Display::usesSyncedPresentation() const {
+    return m_presenter && static_cast<SyncedPresenter*>(m_presenter)->healthy();
+}
+uint64_t Display::presentedFrames() const {
+    return m_presenter ? static_cast<SyncedPresenter*>(m_presenter)->presented() : 0;
 }
 
 void Display::renderToDc(void* targetHdc) {
@@ -191,8 +218,9 @@ void Display::renderToDc(void* targetHdc) {
 }
 
 void Display::close() {
-    if (!m_open) return;
+    if (!m_open && !m_hwnd && !m_presenter) return;
     m_open = false;
+    delete static_cast<SyncedPresenter*>(m_presenter); m_presenter = nullptr;
 
     if (m_hdc && m_hwnd) {
         ReleaseDC(static_cast<HWND>(m_hwnd), static_cast<HDC>(m_hdc));
@@ -220,6 +248,9 @@ bool Display::init(const char*) { return false; }
 void Display::setTitle(const std::string&) {}
 void Display::processEvents() {}
 void Display::updateFrame(const uint8_t*, uint32_t, bool, size_t, unsigned) {}
+void Display::updateFrameData(const uint8_t*, bool, size_t, unsigned) {}
+bool Display::usesSyncedPresentation() const { return false; }
+uint64_t Display::presentedFrames() const { return 0; }
 void Display::close() {}
 }
 

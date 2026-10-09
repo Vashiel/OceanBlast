@@ -13,6 +13,7 @@
 #include "core/emulation_clock.h"
 #include "core/execution_batch.h"
 #include "core/host_pacer.h"
+#include "core/guest_symbols.h"
 #include "memory/bus.h"
 #include "cpu/arm920t.h"
 #include "cartridge/cart_parser.h"
@@ -50,6 +51,8 @@ void printUsage(const char* progName) {
               << "  --i2c-log               Trace I2C register writes and byte completions\n"
               << "  --mmio-profile          Count guest MMIO accesses (excludes host inspection)\n"
               << "  --display-format <auto|lcd|rgb444|rgb565> Display decoder (default auto)\n"
+              << "  --frame-sync <auto|raw> Complete video write sweeps (default auto)\n"
+              << "  --renderer <auto|gdi> Vsynced DXGI output with GDI fallback (default auto)\n"
               << "  --display-stride <bytes> Diagnostic host scanline stride\n"
               << "  --fault-log             Log all exception contexts, including expected page faults\n"
               << "  --trace-pc <start> <end> Trace an inclusive PC range (decimal or 0x addresses)\n"
@@ -87,6 +90,7 @@ int main(int argc, char* argv[]) {
     bool simpleAluExecution = true;
     int displayFormat = 0; // 0: LCD registers, 1: RGB444, 2: RGB565.
     bool automaticDisplay = true;
+    bool coherentFrames = true, gdiPresentation = false;
     size_t displayStride = 0;
     bool exitOnLimit = false;
     bool traceRange = false;
@@ -120,6 +124,14 @@ int main(int argc, char* argv[]) {
             else if (format == "rgb444") displayFormat = 1;
             else if (format == "rgb565") displayFormat = 2;
             else { std::cerr << "[Error] Invalid display format." << std::endl; return 1; }
+        } else if (arg == "--frame-sync" && i + 1 < argc) {
+            const std::string mode = argv[++i];
+            if (mode != "auto" && mode != "raw") { std::cerr << "[Error] Invalid frame sync mode.\n"; return 1; }
+            coherentFrames = mode == "auto";
+        } else if (arg == "--renderer" && i + 1 < argc) {
+            const std::string mode = argv[++i];
+            if (mode != "auto" && mode != "gdi") { std::cerr << "[Error] Invalid renderer.\n"; return 1; }
+            gdiPresentation = mode == "gdi";
         } else if (arg == "--display-stride" && i + 1 < argc) {
             displayStride = std::stoull(argv[++i]);
         } else if (arg == "--pc-profile" && i + 1 < argc) {
@@ -252,6 +264,7 @@ int main(int argc, char* argv[]) {
     bus.setMmioProfiling(mmioProfile);
 
     oceanblast::Display display(scale);
+    display.useGdiPresentation(gdiPresentation);
     oceanblast::Audio audio;
     if (gui) {
         if (!display.init("OceanBlast - Nikko digiBLAST (2005)")) {
@@ -262,6 +275,8 @@ int main(int argc, char* argv[]) {
             display.updateFrame(bus.getSdramPtr(), 0x30300000, false, 360);
         }
     }
+
+    bus.enableHostFrameCapture(gui && coherentFrames && !displayStride && displayFormat == 0);
 
     if (sound) {
         if (audio.init(audioRate, 2)) {
@@ -300,6 +315,12 @@ int main(int argc, char* argv[]) {
     };
     auto displayIs16Bpp = [&]() { return displayLayout().rgb565; };
     auto displayRowStride = [&]() { return displayLayout().stride; };
+    auto presentFramebuffer = [&](u32 fb, bool rgb565, size_t stride) {
+        if (bus.hostFrameCaptureActive()) {
+            const auto& capture = bus.getHostFrameCapture();
+            if (capture.ready()) display.updateFrameData(capture.data(), rgb565, stride, bus.getFramebufferHeight());
+        } else display.updateFrame(bus.getSdramPtr(), fb, rgb565, stride, bus.getFramebufferHeight());
+    };
 
     auto writePcProfile = [&]() {
         if (pcProfile.empty()) return;
@@ -321,6 +342,10 @@ int main(int argc, char* argv[]) {
             std::ofstream image(stem + ".raw", std::ios::binary);
             image.write(reinterpret_cast<const char*>(bus.getSdramPtr() + (fb - ADDR_SDRAM_BASE)), fbSize);
         }
+        if (bus.getHostFrameCapture().ready()) {
+            std::ofstream committed(stem + "_present.raw", std::ios::binary);
+            committed.write(reinterpret_cast<const char*>(bus.getHostFrameCapture().data()), bus.getHostFrameCapture().size());
+        }
         std::ofstream state(stem + ".txt");
         state << "steps=" << executedSteps << "\nPC=" << std::hex << cpu.getPC()
               << "\nCPSR=" << cpu.getCPSR() << "\nTTB=" << bus.getTtb()
@@ -328,6 +353,9 @@ int main(int argc, char* argv[]) {
               << "\nlcd_format=" << (bus.isLcd16Bpp() ? "16bpp" : "12bpp")
               << "\nstride=" << std::dec << displayRowStride()
               << "\nheight=" << bus.getFramebufferHeight()
+              << "\ncoherent_frames=" << bus.getHostFrameCapture().completed()
+              << "\npartial_sweeps=" << bus.getHostFrameCapture().abandoned()
+              << "\nsynced_presentations=" << display.presentedFrames()
               << "\ndisplay_selection=" << (automaticDisplay ? "auto" : "explicit")
               << "\ndisplay_compatibility=" << displayLayout().compatibility
               << "\ncartridge_crc32=" << std::hex << cartridgeCrc << std::dec
@@ -382,11 +410,22 @@ int main(int argc, char* argv[]) {
     size_t previousStride = 0;
     unsigned previousHeight = 0;
     bool previousIs16bpp = false;
-    bool haveHash = false;
+    bool haveHash = false, previousCaptureReady = false;
     size_t nextDisplayProbe = 0;
+    size_t nextVideoProbe = 1000000000;
+    bool videoDecoderRecognized = false;
     std::ofstream metrics;
-    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples,audio_submitted_frames,audio_queued_frames,audio_empty_queue_events,fclk,pclk,cpu_steps_per_tick,guest_seconds,speed_percent,idle_ticks\n"; }
+    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples,audio_submitted_frames,audio_queued_frames,audio_empty_queue_events,fclk,pclk,cpu_steps_per_tick,guest_seconds,speed_percent,idle_ticks,coherent_frames,partial_sweeps,synchronized_presentations,frame_capture_active,capture_ready\n"; }
     while (!cpu.isHalted() && executedSteps < stepLimit && guestTicks < tickLimit) {
+        if (gui && coherentFrames && displayFormat == 0 && !displayStride &&
+            !videoDecoderRecognized && executedSteps >= nextVideoProbe) {
+            if (findGuestExport(bus, "RV40toYUV420Transform")) {
+                videoDecoderRecognized = true;
+                bus.enableHostFrameCapture(true, true);
+                std::cout << "[Display] Mapped RealVideo decoder: complete native video sweeps enabled.\n";
+            }
+            nextVideoProbe = executedSteps + 250000000;
+        }
         if (automaticDisplay && displayProfile == DisplayProfile::CrazyJack && executedSteps >= nextDisplayProbe) {
             const u32 fb = getActiveFbPhys();
             const size_t stride = bus.getFramebufferStride();
@@ -426,16 +465,21 @@ int main(int argc, char* argv[]) {
                 const size_t fbSize = displayRowStride() * bus.getFramebufferHeight();
                 if (fb >= ADDR_SDRAM_BASE && uint64_t(fb - ADDR_SDRAM_BASE) + fbSize <= ADDR_SDRAM_SIZE) {
                     uint32_t hash = 2166136261u;
-                    const uint32_t* words = reinterpret_cast<const uint32_t*>(bus.getSdramPtr() + (fb - ADDR_SDRAM_BASE));
+                    const auto& capture = bus.getHostFrameCapture();
+                    const bool latched = bus.hostFrameCaptureActive();
+                    const uint8_t* source = latched ? capture.data() : bus.getSdramPtr() + (fb - ADDR_SDRAM_BASE);
+                    const uint32_t* words = reinterpret_cast<const uint32_t*>(source);
                     for (size_t i = 0; i < fbSize / 4; ++i) hash = (hash ^ words[i]) * 16777619u;
                     const size_t stride = displayRowStride();
                     const bool redraw = !haveHash || hash != previousHash || fb != previousFb ||
-                                        stride != previousStride || bus.getFramebufferHeight() != previousHeight || is16bpp != previousIs16bpp;
+                                        stride != previousStride || bus.getFramebufferHeight() != previousHeight || is16bpp != previousIs16bpp ||
+                                        (latched && capture.ready() && !previousCaptureReady);
                     if (haveHash && redraw) ++changed;
                     previousHash = hash; previousFb = fb; previousStride = stride;
+                    previousCaptureReady = latched && capture.ready();
                     previousHeight = bus.getFramebufferHeight();
                     previousIs16bpp = is16bpp; haveHash = true;
-                    if (redraw) { display.updateFrame(bus.getSdramPtr(), fb, is16bpp, stride, bus.getFramebufferHeight()); ++presented; }
+                    if (redraw && (!latched || capture.ready())) { presentFramebuffer(fb, is16bpp, stride); ++presented; }
                 }
                 lastFrame = now;
             }
@@ -449,9 +493,10 @@ int main(int argc, char* argv[]) {
                       << " | Speed " << speed << "%" << (autoTiming ? " Auto" : "")
                       << " | PC " << std::hex << cpu.getPC() << " | FB " << getActiveFbPhys()
                       << " | Audio " << std::dec << bus.getAudioSampleRate() << " Hz | Queue " << audio.getQueuedFrames() << "f | Empty " << audio.getEmptyQueueEvents() << " | Drop " << audio.getDroppedSamples()
+                      << (display.usesSyncedPresentation() ? " | VSync" : " | GDI")
                       << (display.paused ? " | PAUSE" : "");
                 display.setTitle(title.str());
-                if (metrics) { metrics << executedSteps << ',' << seconds << ',' << presented / seconds << ',' << changed / seconds << ',' << mips << ',' << cpu.getPC() << ',' << getActiveFbPhys() << ',' << bus.getAudioSampleRate() << ',' << audio.getDroppedSamples() << ',' << audio.getSubmittedFrames() << ',' << audio.getQueuedFrames() << ',' << audio.getEmptyQueueEvents() << ',' << bus.getCpuClock() << ',' << bus.getPeripheralClock() << ',' << cpuStepsPerTick << ',' << double(guestTicks) / EmulationClock::ticksPerSecond << ',' << speed << ',' << idleTicks << '\n'; metrics.flush(); }
+                if (metrics) { metrics << executedSteps << ',' << seconds << ',' << presented / seconds << ',' << changed / seconds << ',' << mips << ',' << cpu.getPC() << ',' << getActiveFbPhys() << ',' << bus.getAudioSampleRate() << ',' << audio.getDroppedSamples() << ',' << audio.getSubmittedFrames() << ',' << audio.getQueuedFrames() << ',' << audio.getEmptyQueueEvents() << ',' << bus.getCpuClock() << ',' << bus.getPeripheralClock() << ',' << cpuStepsPerTick << ',' << double(guestTicks) / EmulationClock::ticksPerSecond << ',' << speed << ',' << idleTicks << ',' << bus.getHostFrameCapture().completed() << ',' << bus.getHostFrameCapture().abandoned() << ',' << display.presentedFrames() << ',' << bus.hostFrameCaptureActive() << ',' << bus.getHostFrameCapture().ready() << '\n'; metrics.flush(); }
                 lastStats = now; statsSteps = executedSteps; statsTicks = guestTicks; presented = changed = 0;
             }
             if (display.snapshot) {
@@ -684,6 +729,15 @@ int main(int argc, char* argv[]) {
             active.write(reinterpret_cast<const char*>(frame), fbSize);
         }
 
+        const auto& capture = bus.getHostFrameCapture();
+        std::cout << "[Display] Complete video sweeps: " << capture.completed()
+                  << "; abandoned partial sweeps: " << capture.abandoned()
+                  << "; captured bytes: " << capture.size()
+                  << "; synchronized presentations: " << display.presentedFrames() << '\n';
+        if (capture.ready()) {
+            std::ofstream committed("fb_present.raw", std::ios::binary);
+            committed.write(reinterpret_cast<const char*>(capture.data()), capture.size());
+        }
         // Dump Framebuffer memory and full SDRAM
         std::ofstream fb0("fb_30300000.raw", std::ios::binary);
         if (fb0.is_open()) fb0.write(reinterpret_cast<const char*>(sdram + 0x300000), 153600);
@@ -704,11 +758,11 @@ int main(int argc, char* argv[]) {
 
     if (gui && display.isOpen() && !exitOnLimit) {
         u32 fbPhys = getActiveFbPhys();
-        display.updateFrame(bus.getSdramPtr(), fbPhys, displayIs16Bpp(), displayRowStride(), bus.getFramebufferHeight());
+        presentFramebuffer(fbPhys, displayIs16Bpp(), displayRowStride());
         std::cout << "[Display] Emulation paused. Press ESC or close the window to exit." << std::endl;
         while (display.isOpen()) {
             display.processEvents();
-            display.updateFrame(bus.getSdramPtr(), getActiveFbPhys(), displayIs16Bpp(), displayRowStride(), bus.getFramebufferHeight());
+            presentFramebuffer(getActiveFbPhys(), displayIs16Bpp(), displayRowStride());
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
         }
     }

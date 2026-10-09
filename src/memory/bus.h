@@ -3,6 +3,7 @@
 #include "i2c_eeprom.h"
 #include "timer4.h"
 #include "clock_tree.h"
+#include "../display/frame_latch.h"
 #include <vector>
 #include <string>
 #include <unordered_map>
@@ -52,6 +53,15 @@ public:
     bool saveMmioProfile(const std::string& path) const;
     bool loadEeprom(const std::string& path);
     bool saveEeprom(const std::string& path) const;
+
+    void enableHostFrameCapture(bool enabled, bool nativeVideo = false) { hostFrameEnabled = enabled; hostNativeVideo = nativeVideo; refreshHostFrameCapture(); }
+    const FrameLatch& getHostFrameCapture() const { return hostFrameCapture; }
+    bool hostFrameCaptureActive() const { return hostFrameSize != 0; }
+    void refreshHostFrameCapture();
+    inline void captureFrameWrite(u32 pa, unsigned bytes) {
+        const u32 offset = pa - hostFrameBase;
+        if (offset < hostFrameSize) hostFrameCapture.store(offset, bytes, sdramPtr + hostFrameBase - ADDR_SDRAM_BASE);
+    }
 
     // MMU / Virtual Memory Translation
     enum class MmuFault {
@@ -134,6 +144,7 @@ public:
     inline void write8Phys(u32 pa, u8 val) {
         if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) < ADDR_SDRAM_SIZE) {
             sdramPtr[pa - ADDR_SDRAM_BASE] = val;
+            captureFrameWrite(pa, 1);
             return;
         }
         write8PhysSlow(pa, val);
@@ -186,6 +197,7 @@ public:
         lastFault = MmuFault::NONE;
         if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) < ADDR_SDRAM_SIZE) {
             sdramPtr[pa - ADDR_SDRAM_BASE] = val;
+            captureFrameWrite(pa, 1);
             return;
         }
         write8PhysSlow(pa, val);
@@ -202,6 +214,7 @@ public:
         lastFault = MmuFault::NONE;
         if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 2) && (pa & 1) == 0) {
             std::memcpy(sdramPtr + (pa - ADDR_SDRAM_BASE), &val, 2);
+            captureFrameWrite(pa, 2);
             return;
         }
         write16PhysSlow(pa, val);
@@ -218,6 +231,7 @@ public:
         lastFault = MmuFault::NONE;
         if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 4) && (pa & 3) == 0) {
             std::memcpy(sdramPtr + (pa - ADDR_SDRAM_BASE), &val, 4);
+            captureFrameWrite(pa, 4);
             return;
         }
         write32PhysSlow(pa, val);
@@ -302,6 +316,9 @@ public:
     u32  getFramebufferSize() const;
 
 private:
+    bool hostFrameEnabled = false, hostNativeVideo = false;
+    u32 hostFrameBase = 0, hostFrameSize = 0;
+    FrameLatch hostFrameCapture;
     bool mmioProfiling = false;
     struct MmioAccesses { uint64_t reads = 0, writes = 0; };
     std::map<u32, MmioAccesses> mmioAccesses;
