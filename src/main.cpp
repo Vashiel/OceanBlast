@@ -316,7 +316,7 @@ int main(int argc, char* argv[]) {
         if (mmioProfile) bus.saveMmioProfile(stem + "_mmio.csv");
         const u32 fb = getActiveFbPhys();
         const bool is16bpp = displayIs16Bpp();
-        const size_t fbSize = displayRowStride() * 160;
+        const size_t fbSize = displayRowStride() * bus.getFramebufferHeight();
         if (fb >= ADDR_SDRAM_BASE && uint64_t(fb - ADDR_SDRAM_BASE) + fbSize <= ADDR_SDRAM_SIZE) {
             std::ofstream image(stem + ".raw", std::ios::binary);
             image.write(reinterpret_cast<const char*>(bus.getSdramPtr() + (fb - ADDR_SDRAM_BASE)), fbSize);
@@ -327,6 +327,7 @@ int main(int argc, char* argv[]) {
               << "\nframebuffer=" << fb << "\nformat=" << (is16bpp ? "16bpp" : "12bpp")
               << "\nlcd_format=" << (bus.isLcd16Bpp() ? "16bpp" : "12bpp")
               << "\nstride=" << std::dec << displayRowStride()
+              << "\nheight=" << bus.getFramebufferHeight()
               << "\ndisplay_selection=" << (automaticDisplay ? "auto" : "explicit")
               << "\ndisplay_compatibility=" << displayLayout().compatibility
               << "\ncartridge_crc32=" << std::hex << cartridgeCrc << std::dec
@@ -379,6 +380,7 @@ int main(int argc, char* argv[]) {
     uint32_t previousHash = 0;
     u32 previousFb = 0;
     size_t previousStride = 0;
+    unsigned previousHeight = 0;
     bool previousIs16bpp = false;
     bool haveHash = false;
     size_t nextDisplayProbe = 0;
@@ -388,7 +390,7 @@ int main(int argc, char* argv[]) {
         if (automaticDisplay && displayProfile == DisplayProfile::CrazyJack && executedSteps >= nextDisplayProbe) {
             const u32 fb = getActiveFbPhys();
             const size_t stride = bus.getFramebufferStride();
-            const bool fits = fb >= ADDR_SDRAM_BASE && uint64_t(fb - ADDR_SDRAM_BASE) + stride * 160 <= ADDR_SDRAM_SIZE;
+            const bool fits = fb >= ADDR_SDRAM_BASE && uint64_t(fb - ADDR_SDRAM_BASE) + stride * bus.getFramebufferHeight() <= ADDR_SDRAM_SIZE;
             const bool wasActive = displayTransition.active();
             displayTransition.observe(fb, bus.getMmio(0x4D000000), stride,
                 fits ? bus.getSdramPtr() + (fb - ADDR_SDRAM_BASE) : nullptr);
@@ -421,18 +423,19 @@ int main(int argc, char* argv[]) {
             if (now - lastFrame >= std::chrono::milliseconds(16)) {
                 const u32 fb = getActiveFbPhys();
                 const bool is16bpp = displayIs16Bpp();
-                const size_t fbSize = displayRowStride() * 160;
+                const size_t fbSize = displayRowStride() * bus.getFramebufferHeight();
                 if (fb >= ADDR_SDRAM_BASE && uint64_t(fb - ADDR_SDRAM_BASE) + fbSize <= ADDR_SDRAM_SIZE) {
                     uint32_t hash = 2166136261u;
                     const uint32_t* words = reinterpret_cast<const uint32_t*>(bus.getSdramPtr() + (fb - ADDR_SDRAM_BASE));
                     for (size_t i = 0; i < fbSize / 4; ++i) hash = (hash ^ words[i]) * 16777619u;
                     const size_t stride = displayRowStride();
                     const bool redraw = !haveHash || hash != previousHash || fb != previousFb ||
-                                        stride != previousStride || is16bpp != previousIs16bpp;
+                                        stride != previousStride || bus.getFramebufferHeight() != previousHeight || is16bpp != previousIs16bpp;
                     if (haveHash && redraw) ++changed;
                     previousHash = hash; previousFb = fb; previousStride = stride;
+                    previousHeight = bus.getFramebufferHeight();
                     previousIs16bpp = is16bpp; haveHash = true;
-                    if (redraw) { display.updateFrame(bus.getSdramPtr(), fb, is16bpp, stride); ++presented; }
+                    if (redraw) { display.updateFrame(bus.getSdramPtr(), fb, is16bpp, stride, bus.getFramebufferHeight()); ++presented; }
                 }
                 lastFrame = now;
             }
@@ -670,7 +673,7 @@ int main(int argc, char* argv[]) {
         const u32 activeFb = getActiveFbPhys();
         std::cout << "Active framebuffer PA: 0x" << std::hex << activeFb << std::dec << std::endl;
         const bool is16bpp = displayIs16Bpp();
-        const size_t fbSize = displayRowStride() * 160;
+        const size_t fbSize = displayRowStride() * bus.getFramebufferHeight();
         if (activeFb >= ADDR_SDRAM_BASE && activeFb - ADDR_SDRAM_BASE <= ADDR_SDRAM_SIZE - fbSize) {
             const u8* frame = sdram + activeFb - ADDR_SDRAM_BASE;
             size_t nonzero = 0;
@@ -701,11 +704,11 @@ int main(int argc, char* argv[]) {
 
     if (gui && display.isOpen() && !exitOnLimit) {
         u32 fbPhys = getActiveFbPhys();
-        display.updateFrame(bus.getSdramPtr(), fbPhys, displayIs16Bpp(), displayRowStride());
+        display.updateFrame(bus.getSdramPtr(), fbPhys, displayIs16Bpp(), displayRowStride(), bus.getFramebufferHeight());
         std::cout << "[Display] Emulation paused. Press ESC or close the window to exit." << std::endl;
         while (display.isOpen()) {
             display.processEvents();
-            display.updateFrame(bus.getSdramPtr(), getActiveFbPhys(), displayIs16Bpp(), displayRowStride());
+            display.updateFrame(bus.getSdramPtr(), getActiveFbPhys(), displayIs16Bpp(), displayRowStride(), bus.getFramebufferHeight());
             std::this_thread::sleep_for(std::chrono::milliseconds(16));
         }
     }

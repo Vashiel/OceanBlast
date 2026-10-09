@@ -43,10 +43,10 @@ int main(int argc,char** argv) {
         const u32 address=(bus.getMmio(0x4d000014)&0x1fffffff)<<1;
         const size_t stride=std::max(bus.getFramebufferStride(),bus.isLcd16Bpp()?size_t(480):size_t(360));
         uint32_t hash=2166136261u;
-        if(address>=ADDR_SDRAM_BASE&&uint64_t(address-ADDR_SDRAM_BASE)+stride*160<=ADDR_SDRAM_SIZE){
+        if(address>=ADDR_SDRAM_BASE&&uint64_t(address-ADDR_SDRAM_BASE)+stride*bus.getFramebufferHeight()<=ADDR_SDRAM_SIZE){
             const auto* data=bus.getSdramPtr()+address-ADDR_SDRAM_BASE;
-            for(size_t byte=0;byte<stride*160;++byte)hash=(hash^data[byte])*16777619u;
-            if(ticks%report==0){std::ofstream frame(output/("frame_"+std::to_string(ticks)+".raw"),std::ios::binary);frame.write(reinterpret_cast<const char*>(data),stride*160);}
+            for(size_t byte=0;byte<stride*bus.getFramebufferHeight();++byte)hash=(hash^data[byte])*16777619u;
+            if(ticks%report==0){std::ofstream frame(output/("frame_"+std::to_string(ticks)+".raw"),std::ios::binary);frame.write(reinterpret_cast<const char*>(data),stride*bus.getFramebufferHeight());}
         }else hash=0;
         if(hash!=oldHash||address!=oldAddress){
             ++changes;frames<<ticks<<','<<step+1<<",0x"<<std::hex<<address<<",0x"<<hash<<std::dec<<','<<step+1-lastChange<<'\n';

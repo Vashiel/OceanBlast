@@ -23,9 +23,13 @@ Each cartridge executes five billion instructions at ratios 1 and 4, with identi
 
 All recorded transform returns report success. Readability and chroma classification apply to the inspected returned buffers, not every internal decoder frame. The chroma classification uses observed U/V extrema outside 120..136. Dark startup frames are valid decoded output; nonzero byte counts alone cannot distinguish them from visible content.
 
-The content classification inspects the upper 240x136 pixels of the final active framebuffer, excluding the lower player controls. Sonic uses packed RGB444 with 360-byte rows in both comparisons. Winx ends with RGB565 and 480-byte rows in both. No display override is applied. The 4x buffers contain episode imagery and hundreds of distinct content colors; the 1x content is uniform despite chromatic decoder output.
+The original content classification inspects the upper 240x136 pixels of the final active framebuffer, excluding the lower player controls. Sonic uses packed RGB444 with 360-byte rows in both comparisons. Winx ends with RGB565 and 480-byte rows in both. No display override is applied. The 4x buffers contain episode imagery and hundreds of distinct content colors; the 1x content is uniform despite chromatic decoder output.
 
 The increased instruction allowance permits decoded imagery to reach the visible buffer in these replays. This narrows the remaining cause to execution time, player clock/scheduling and frame delivery. It does not yet identify a specific late-frame discard branch or prove that the instruction ratio is correct for the console. Raising the instruction allowance increases the host throughput required by audio deadlines, as quantified in [Gameplay Work and CPU Execution Cost](29_gameplay_work_and_execution_cost.md).
+
+These original framebuffer captures covered only 160 rows. Subsequent LCD geometry inspection found that the video player programs 240 rows, so color counts and matching captures establish image delivery but not correct framing. [Programmed scanout height](31_programmed_scanout_height.md) describes the cropping correction.
+
+The original captures covered only 160 rows. Subsequent LCD inspection found that the player programs 240 rows: color counts establish image delivery, but not correct framing. [Programmed scanout height](31_programmed_scanout_height.md) describes the cropping correction.
 
 Additional five-billion-instruction probes at 4x also produce colored episode imagery for Winx Club (NL/FR/EN/TR) and Totally Spies (IT), using the same blank device image and input script. The [additional observations](validation/2026-10-09_additional_video_delivery.csv) record 407 and 472 successful transform returns respectively. These two probes have no matched 1x or GUI/audio comparison.
 

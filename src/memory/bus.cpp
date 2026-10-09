@@ -1202,8 +1202,14 @@ size_t Bus::getFramebufferStride() const {
     return stride >= minimum ? stride : minimum;
 }
 
+unsigned Bus::getFramebufferHeight() const {
+    const auto it = mmioRegs.find(0x4D000004); // LCDCON2 LINEVAL
+    if (it == mmioRegs.end() || it->second == 0) return 160;
+    return ((it->second >> 14) & 0x3ff) + 1;
+}
+
 u32 Bus::getFramebufferSize() const {
-    return static_cast<u32>(getFramebufferStride() * 160);
+    return static_cast<u32>(getFramebufferStride() * getFramebufferHeight());
 }
 
 } // namespace oceanblast

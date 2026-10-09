@@ -35,6 +35,8 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 
 ### Current compatibility status (2026-10-09)
 
+[Programmed LCD scanout height](docs/31_programmed_scanout_height.md) includes video rows previously omitted by the fixed 160-row display path.
+
 [RealVideo frame-delivery tests](docs/30_realvideo_frame_delivery.md) show Sonic X and Italian/Spanish Winx video imagery at a higher diagnostic CPU allowance. Both decode colored frames while remaining dark at the standard allowance. Hardware timing, continuous audio and synchronized playback remain unresolved.
 
 [Gameplay profiling and optimized CPU execution](docs/29_gameplay_work_and_execution_cost.md) identify substantial mixer and software drawing costs. A validated profile-guided build improves controlled instruction throughput by 21–27% across Chefs, Wade and DigiQUAD and reduces observed Chefs audio starvation at 4x. Game speed and sound acceptance remain incomplete.

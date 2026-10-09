@@ -24,6 +24,15 @@ int main() {
     bus.write32(0x4d000000, 0x14c9);
     bus.write32(0x4d00001c, 180);
     check("Packed RGB444 retains a 360-byte native stride", bus.getFramebufferStride() == 360 && bus.getFramebufferSize() == 57600);
+    bus.write32(0x4d000004, 0x303bc605);
+    check("Video LINEVAL includes all 240 rows", bus.getFramebufferHeight() == 240 && bus.getFramebufferSize() == 86400);
+    std::vector<uint8_t> video(480 * 240, 0);
+    video[239 * 480] = 0xe0; video[239 * 480 + 1] = 0x07;
+    std::vector<uint32_t> full(240 * 240);
+    oceanblast::decodeFramebuffer(video.data(), full.data(), true, 480, 240, 240);
+    check("Last video scanline is decoded", full[239 * 240] == 0x00ff00);
+    bus.write32(0x4d000004, 0x4f27d245);
+    check("Game LINEVAL retains 160 rows", bus.getFramebufferHeight() == 160);
     using namespace oceanblast;
     const auto known = identifyDisplayProfile(17301504, 0x9bce041a);
     const uint8_t crcFixture[] = {'1','2','3','4','5','6','7','8','9'};

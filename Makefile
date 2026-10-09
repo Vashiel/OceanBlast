@@ -121,3 +121,8 @@ build/cpu_regression.exe build/input_test.exe: src/cpu/arm920t.h
 build/emulation_timing.exe: tests/emulation_timing.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cpu/arm920t.h src/memory/bus.h src/memory/clock_tree.h src/memory/timer4.h src/memory/i2c_eeprom.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
+
+# Windows/GDI presentation check; opens and closes its own bounded test window.
+build/display_height_win32.exe: tests/display_height_win32.cpp src/display/display_win32.cpp src/display/display.h src/display/framebuffer.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^) -lgdi32 -luser32

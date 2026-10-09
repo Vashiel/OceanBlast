@@ -90,11 +90,11 @@ int main(int argc,char** argv) {
     memory.write(reinterpret_cast<const char*>(bus.getSdramPtr()),ADDR_SDRAM_SIZE);
     const u32 framebuffer=(bus.getMmio(0x4d000014)&0x1fffffff)<<1;
     const size_t stride=std::max(bus.getFramebufferStride(),bus.isLcd16Bpp()?size_t(480):size_t(360));
-    if(framebuffer>=ADDR_SDRAM_BASE&&uint64_t(framebuffer-ADDR_SDRAM_BASE)+stride*160<=ADDR_SDRAM_SIZE){
+    if(framebuffer>=ADDR_SDRAM_BASE&&uint64_t(framebuffer-ADDR_SDRAM_BASE)+stride*bus.getFramebufferHeight()<=ADDR_SDRAM_SIZE){
         std::ofstream frame(output/"fb_active.raw",std::ios::binary);
-        frame.write(reinterpret_cast<const char*>(bus.getSdramPtr()+framebuffer-ADDR_SDRAM_BASE),stride*160);if(!frame)return 1;
+        frame.write(reinterpret_cast<const char*>(bus.getSdramPtr()+framebuffer-ADDR_SDRAM_BASE),stride*bus.getFramebufferHeight());if(!frame)return 1;
     }
-    std::cout<<"Final TTB: 0x"<<std::hex<<bus.getTtb()<<"; framebuffer: 0x"<<framebuffer<<std::dec<<"; stride: "<<stride<<"; RGB565: "<<bus.isLcd16Bpp()<<'\n';
+    std::cout<<"Final TTB: 0x"<<std::hex<<bus.getTtb()<<"; framebuffer: 0x"<<framebuffer<<std::dec<<"; stride: "<<stride<<"; height: "<<bus.getFramebufferHeight()<<"; RGB565: "<<bus.isLcd16Bpp()<<'\n';
     std::cout<<"Decoder entries: "<<entries<<"; completed returns: "<<returns<<"; unfinished calls: "<<calls.size()<<'\n';
     cpu.dumpState();return records&&memory?0:1;
 }
