@@ -10,6 +10,7 @@
 #include <map>
 #include "core/types.h"
 #include "core/input_script.h"
+#include "core/cartridge_settings.h"
 #include "core/emulation_clock.h"
 #include "core/execution_batch.h"
 #include "core/host_pacer.h"
@@ -36,9 +37,10 @@ void printBanner() {
 void printUsage(const char* progName) {
     std::cout << "Usage: " << progName << " <cartridge.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--sound] [--trace]" << std::endl;
     std::cout << "  --clock-mips <N>  GUI step-rate limit (default 20 times CPU ratio; 0 disables pacing)\n"
+              << "  --preset <auto|off> Content-based cartridge settings (default auto); explicit CPU ratio overrides\n"
               << "  --timing <legacy|auto> Register-clock CPU timing with cached cycle estimates (experimental)\n"
               << "  --emulated-seconds <N> Stop after a bounded amount of modeled time\n"
-              << "  --cpu-steps-per-tick <N> Diagnostic CPU work per peripheral tick (1..16; default 1)\n"
+              << "  --cpu-steps-per-tick <N> Diagnostic CPU work per peripheral tick (1..16; overrides cartridge preset)\n"
               << "  --execution-batch <N> Host bookkeeping batch (1..4096; 1 selects scalar execution)\n"
               << "  --simple-alu <on|off> Common ARM ALU execution path (default on)\n"
               << "  --host-wait <timer|sleep> GUI pacing wait (default high-resolution timer when supported)\n"
@@ -52,7 +54,7 @@ void printUsage(const char* progName) {
               << "  --mmio-profile          Count guest MMIO accesses (excludes host inspection)\n"
               << "  --display-format <auto|lcd|rgb444|rgb565> Display decoder (default auto)\n"
               << "  --frame-sync <auto|raw> Complete video write sweeps (default auto)\n"
-              << "  --window-mode <skin|plain> Window appearance (default skin); F11 toggles fullscreen\n"
+              << "  --window-mode <skin|plain> Window appearance (default plain); F11 toggles fullscreen\n"
               << "  --fullscreen Start with a borderless fullscreen LCD\n"
               << "  --renderer <auto|gdi> Vsynced DXGI output with GDI fallback (default auto)\n"
               << "  --display-stride <bytes> Diagnostic host scanline stride\n"
@@ -80,7 +82,7 @@ int main(int argc, char* argv[]) {
     bool customSteps = false;
     bool trace = false;
     bool gui = false;
-    bool windowSkin = true, startFullscreen = false;
+    bool windowSkin = false, startFullscreen = false;
     int scale = 3;
 
     bool sound = false;
@@ -102,6 +104,7 @@ int main(int argc, char* argv[]) {
     double clockMips = 20.0; // Timer/DMA model currently assumes 20M instructions/s.
     bool explicitClock = false;
     bool autoTiming = false;
+    bool automaticPreset = true, explicitRatio = false;
     uint64_t tickLimit = UINT64_MAX;
     size_t cpuStepsPerTick = 1;
     size_t executionBatch = 4096;
@@ -160,6 +163,10 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--clock-mips" && i + 1 < argc) {
             clockMips = std::stod(argv[++i]);
             explicitClock = true;
+        } else if (arg == "--preset" && i + 1 < argc) {
+            const std::string mode = argv[++i];
+            if (mode != "auto" && mode != "off") { std::cerr << "[Error] Invalid preset mode.\n"; return 1; }
+            automaticPreset = mode == "auto";
         } else if (arg == "--timing" && i + 1 < argc) {
             const std::string mode = argv[++i];
             if (mode != "auto" && mode != "legacy") { std::cerr << "[Error] Invalid timing mode.\n"; return 1; }
@@ -169,6 +176,7 @@ int main(int argc, char* argv[]) {
             if (!(duration > 0 && duration <= 86400)) { std::cerr << "[Error] Invalid modeled duration.\n"; return 1; }
             tickLimit = uint64_t(duration * EmulationClock::ticksPerSecond);
         } else if (arg == "--cpu-steps-per-tick" && i + 1 < argc) {
+            explicitRatio = true;
             try { cpuStepsPerTick = std::stoull(argv[++i]); }
             catch (...) { std::cerr << "[Error] Invalid CPU/peripheral ratio.\n"; return 1; }
         } else if (arg == "--execution-batch" && i + 1 < argc) {
@@ -210,7 +218,6 @@ int main(int argc, char* argv[]) {
     if (autoTiming && (cpuStepsPerTick != 1 || (explicitClock && clockMips != 0))) {
         std::cerr << "[Error] Automatic timing cannot be combined with an instruction ratio or MIPS limit.\n"; return 1;
     }
-    if (!explicitClock) clockMips *= cpuStepsPerTick;
     if (gui && !customSteps) {
         stepLimit = std::numeric_limits<size_t>::max();
     }
@@ -257,6 +264,12 @@ int main(int argc, char* argv[]) {
     oceanblast::CartParser::printInfo(cartInfo);
     const auto& cartridge = bus.getCartNand();
     const uint32_t cartridgeCrc = cartridgeCrc32(cartridge.data(), cartridge.size());
+    const auto cartridgeSettings = resolveCartridgeSettings(cartridge.size(), cartridgeCrc,
+        automaticPreset, explicitRatio, cpuStepsPerTick, autoTiming);
+    cpuStepsPerTick = cartridgeSettings.cpuStepsPerTick;
+    if (!explicitClock) clockMips *= cpuStepsPerTick;
+    std::cout << "[Preset] " << cartridgeSettings.name << "; CPU ratio: " << cpuStepsPerTick
+              << "; selection: " << (automaticPreset ? "automatic" : "disabled") << '\n';
     const DisplayProfile displayProfile = identifyDisplayProfile(cartridge.size(), cartridgeCrc);
     std::cout << "[Display] Cartridge CRC32: " << std::hex << cartridgeCrc << std::dec
               << "; selection: " << (automaticDisplay ? "automatic" : "explicit")
@@ -372,6 +385,7 @@ int main(int argc, char* argv[]) {
               << "\nlcdcon1=" << std::hex << bus.getMmio(0x4D000000) << std::dec
               << "\ntiming=" << (autoTiming ? "auto" : "legacy")
               << "\nguest_ticks=" << guestTicks << "\nidle_ticks=" << idleTicks
+              << "\ncartridge_preset=" << cartridgeSettings.name
               << "\ncpu_steps_per_tick=" << cpuStepsPerTick
               << "\ndisplay_override=" << (displayFormat != 0 || displayStride != 0)
               << "\naudio_rate=" << std::dec << bus.getAudioSampleRate()
@@ -500,6 +514,7 @@ int main(int argc, char* argv[]) {
                 std::ostringstream title;
                 title << "OceanBlast | Display " << std::fixed << std::setprecision(1) << presented / seconds
                       << " FPS | Changes " << changed / seconds << "/s | " << mips << " MIPS"
+                      << " | CPU " << cpuStepsPerTick << "x"
                       << " | Speed " << speed << "%" << (autoTiming ? " Auto" : "")
                       << " | PC " << std::hex << cpu.getPC() << " | FB " << getActiveFbPhys()
                       << " | Audio " << std::dec << bus.getAudioSampleRate() << " Hz | Queue " << audio.getQueuedFrames() << "f | Empty " << audio.getEmptyQueueEvents() << " | Drop " << audio.getDroppedSamples()

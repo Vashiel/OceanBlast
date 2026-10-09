@@ -2,7 +2,7 @@
 
 ## Window modes
 
-The Windows launcher offers **Console Skin**, **Fullscreen**, and **Plain Window**. Console Skin is the default. The reconstructed silver console surrounds the live LCD output; it does not replace cartridge framebuffer data. The companion loading illustration is an asset preview, not a simulated guest loading progress indicator.
+The Windows launcher offers **Console Skin**, **Fullscreen**, and **Plain Window**. Plain Window is the default. The reconstructed silver console surrounds the live LCD output; it does not replace cartridge framebuffer data. The companion loading illustration is an asset preview, not a simulated guest loading progress indicator.
 
 - `--window-mode skin`: console frame and interactive controls.
 - `--window-mode plain`: LCD-only window.
