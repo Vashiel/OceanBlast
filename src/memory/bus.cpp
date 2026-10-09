@@ -49,6 +49,7 @@ void Bus::reset() {
     sdramPtr = sdram.data();
     std::fill(steppingstone.begin(), steppingstone.end(), 0);
     std::fill(sdram.begin(), sdram.end(), 0);
+    hostFrameEnabled = hostNativeVideo = false; hostFrameBase = hostFrameSize = 0; hostFrameCapture.configure(0, 0);
     mmioRegs.clear();
     mmioAccesses.clear();
     clocks.reset();
@@ -217,10 +218,12 @@ void Bus::write8PhysSlow(u32 addr, u8 val) {
     }
     if (addr >= ADDR_SDRAM_BASE && (addr - ADDR_SDRAM_BASE) < ADDR_SDRAM_SIZE) {
         sdram[addr - ADDR_SDRAM_BASE] = val;
+        captureFrameWrite(addr, 1);
         return;
     }
     if (addr >= 0x32000000 && (addr - 0x32000000) < ADDR_SDRAM_SIZE) {
         sdram[addr - 0x32000000] = val;
+        captureFrameWrite(addr - 0x02000000, 1);
         return;
     }
 
@@ -297,6 +300,7 @@ void Bus::write32PhysSlow(u32 pa, u32 val) {
     }
     if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 4) && (pa & 3) == 0) {
         std::memcpy(sdram.data() + (pa - ADDR_SDRAM_BASE), &val, 4);
+        captureFrameWrite(pa, 4);
         return;
     }
     if (pa <= (ADDR_STEPPINGSTONE_SIZE - 4) && (pa & 3) == 0) {
@@ -823,6 +827,7 @@ void Bus::writeMmio(u32 addr, u32 val) {
 
         default:
             mmioRegs[addr] = val;
+            if (addr >= 0x4d000000 && addr <= 0x4d00001c) refreshHostFrameCapture();
             break;
     }
 }
@@ -1200,6 +1205,20 @@ size_t Bus::getFramebufferStride() const {
     if (it == mmioRegs.end()) return minimum;
     const size_t stride = ((it->second & 0x7ff) + ((it->second >> 11) & 0x7ff)) * 2;
     return stride >= minimum ? stride : minimum;
+}
+
+void Bus::refreshHostFrameCapture() {
+    const u32 address = (getMmio(0x4d000014) & 0x1fffffff) << 1;
+    const size_t stride = getFramebufferStride();
+    const size_t bytes = stride * getFramebufferHeight();
+    const bool packedRows = stride == (isLcd16Bpp() ? 480u : 360u);
+    // Observed video scanout mode. Partial-update game surfaces retain native presentation.
+    const bool enabled = hostFrameEnabled && (getMmio(0x4d000000) & 1) &&
+        (getFramebufferHeight() == 240 || (hostNativeVideo && getFramebufferHeight() == 160)) && packedRows && address >= ADDR_SDRAM_BASE &&
+        uint64_t(address - ADDR_SDRAM_BASE) + bytes <= ADDR_SDRAM_SIZE;
+    hostFrameBase = enabled ? address : 0;
+    hostFrameSize = enabled ? static_cast<u32>(bytes) : 0;
+    hostFrameCapture.configure(hostFrameBase, hostFrameSize);
 }
 
 unsigned Bus::getFramebufferHeight() const {

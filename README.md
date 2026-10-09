@@ -35,7 +35,7 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 
 ### Current compatibility status (2026-10-09)
 
-[Programmed LCD scanout height](docs/31_programmed_scanout_height.md) includes video rows previously omitted by the fixed 160-row display path.
+[Programmed LCD scanout height](docs/31_programmed_scanout_height.md) includes video rows previously omitted by the fixed 160-row display path. [Complete video frames and synchronized presentation](docs/32_coherent_video_and_vsync.md) prevent sampling partially written video images and add explicit Windows vertical synchronization.
 
 [RealVideo frame-delivery tests](docs/30_realvideo_frame_delivery.md) show Sonic X and Italian/Spanish Winx video imagery at a higher diagnostic CPU allowance. Both decode colored frames while remaining dark at the standard allowance. Hardware timing, continuous audio and synchronized playback remain unresolved.
 

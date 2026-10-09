@@ -1,0 +1,5 @@
+cartridge,steps,ratio,exit_code,complete_sweeps,abandoned_sweeps,capture_bytes,synchronized_presentations,mid_write_snapshots,sdram_matches_previous,committed_matches_final_live,committed_sha256,executable_sha256,cpu_registers_match_previous
+Sonic X 1 [V] (IT ES).bin,5000000000,4,0,353,0,57600,377,1,True,True,61e6592c4cb603f06426171cd21685df5a215e680257318a2a28ea953c7127e8,cc5a99d5e3ef7b1da64f2893f26d0258ad06ae7aef22ca30ad7337b3d3289cbf,True
+Winx Club 1 [V] (IT ES).bin,5000000000,4,0,397,0,115200,414,4,True,True,f20e4c7f3c8a94cde09db713ac4ef33ec0e9cc7510392a144351c7a9850cfc8e,cc5a99d5e3ef7b1da64f2893f26d0258ad06ae7aef22ca30ad7337b3d3289cbf,True
+Winx Club 1 [V] (NL FR EN TR).bin,5000000000,4,0,373,0,115200,391,4,True,False,db3388ec2811841a34d250d72fc02508003981568e24216033bd42f4450738b1,cc5a99d5e3ef7b1da64f2893f26d0258ad06ae7aef22ca30ad7337b3d3289cbf,True
+Totally Spies! 1 [V] (IT).bin,5000000000,4,0,427,0,115200,426,3,True,True,1796404cea1b2f1b61b553dcc3a9d0209761d0ae340e72ebd551d3345277239e,cc5a99d5e3ef7b1da64f2893f26d0258ad06ae7aef22ca30ad7337b3d3289cbf,True

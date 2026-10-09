@@ -34,7 +34,11 @@ public:
     bool init(const char* title = "OceanBlast - Nikko digiBLAST Emulator");
     void processEvents();
     void updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is16bpp = true, size_t stride = 0, unsigned sourceHeight = LCD_HEIGHT);
+    void updateFrameData(const uint8_t* source, bool is16bpp, size_t stride, unsigned sourceHeight);
     void renderToDc(void* targetHdc);
+    void useGdiPresentation(bool value) { m_gdiOnly = value; }
+    bool usesSyncedPresentation() const;
+    uint64_t presentedFrames() const;
     bool isOpen() const { return m_open; }
     void close();
     void setTitle(const std::string& title);
@@ -69,6 +73,8 @@ private:
     void* m_hwnd;
     void* m_hdc;
     void* m_bitmapInfo;
+    void* m_presenter = nullptr;
+    bool m_gdiOnly = false;
     std::vector<uint32_t> m_pixels; // 240x160 32-bit XRGB
 };
 

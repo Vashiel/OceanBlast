@@ -7,6 +7,7 @@ param(
     [ValidateRange(1,16)][int]$CpuStepsPerTick = 2,
     [ValidateSet('O2','O3')][string]$Optimization = 'O2',
     [switch]$Unity,
+    [switch]$Gui,
     [ValidateSet('legacy','auto')][string]$Timing = 'legacy'
 )
 $ErrorActionPreference = 'Stop'
@@ -26,7 +27,7 @@ if ($Unity) {
     ($sources | ForEach-Object { '#include "../../' + $_ + '"' }) | Set-Content -LiteralPath $unitySource -Encoding utf8
     $sources = @($outputRelative + '/unity.cpp')
 }
-$common = @('-std=c++17','-Wall','-Wextra',('-' + $Optimization),'-Isrc') + $sources + @('-lgdi32','-luser32','-lwinmm','-lcomdlg32','-o',($outputRelative + '/oceanblast_profiled.exe'))
+$common = @('-std=c++17','-Wall','-Wextra',('-' + $Optimization),'-Isrc') + $sources + @('-lgdi32','-luser32','-lwinmm','-lcomdlg32','-ld3d11','-ldxgi','-ld3dcompiler','-o',($outputRelative + '/oceanblast_profiled.exe'))
 $profileOption = $profileRoot.Replace('\','/')
 Push-Location $projectRoot
 try {
@@ -38,6 +39,7 @@ foreach ($rom in $romPaths) {
     $sessionRoot = Join-Path $outputRoot ('session-' + $index++)
     New-Item -ItemType Directory -Force -Path $sessionRoot | Out-Null
     $arguments = @($rom,'--steps',$Steps.ToString())
+    if ($Gui) { $arguments += @('--gui','--exit-on-limit') }
     if ($Timing -eq 'auto') { $arguments += @('--timing','auto') }
     else { $arguments += @('--cpu-steps-per-tick',$CpuStepsPerTick.ToString()) }
     if ($InputScript) { $arguments += @('--input-script',$InputScript) }

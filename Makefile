@@ -11,15 +11,15 @@ SRCS = src/main.cpp \
        src/audio/audio_win32.cpp
 
 OBJS = $(SRCS:.cpp=.o)
-LDFLAGS = -lgdi32 -luser32 -lwinmm -lcomdlg32
+LDFLAGS = -lgdi32 -luser32 -lwinmm -lcomdlg32 -ld3d11 -ldxgi -ld3dcompiler
 
 all: $(TARGET)
 
-src/main.o: src/cpu/arm920t.h src/display/display.h src/display/launcher.h src/core/input_script.h src/audio/audio.h src/audio/resampler.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
+src/main.o: src/core/guest_symbols.h src/display/frame_latch.h src/cpu/arm920t.h src/display/display.h src/display/launcher.h src/core/input_script.h src/audio/audio.h src/audio/resampler.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
 src/audio/audio_win32.o: src/audio/audio.h src/audio/resampler.h
 src/cpu/arm920t.o: src/cpu/arm920t.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/core/types.h
-src/memory/bus.o: src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
-src/display/display_win32.o: src/display/display.h src/display/framebuffer.h
+src/memory/bus.o: src/display/frame_latch.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
+src/display/display_win32.o: src/display/display.h src/display/framebuffer.h src/display/presenter_win32.h
 src/main.o build/framebuffer.exe: src/display/display_profile.h
 
 $(TARGET): $(OBJS)
@@ -29,7 +29,8 @@ $(TARGET): $(OBJS)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-test: build/emulation_timing.exe build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
+test: build/frame_latch.exe build/emulation_timing.exe build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
+	./build/frame_latch.exe
 	./build/emulation_timing.exe
 	./build/cpu_regression.exe
 	./build/input_test.exe
@@ -125,4 +126,8 @@ build/emulation_timing.exe: tests/emulation_timing.cpp src/cpu/arm920t.cpp src/m
 # Windows/GDI presentation check; opens and closes its own bounded test window.
 build/display_height_win32.exe: tests/display_height_win32.cpp src/display/display_win32.cpp src/display/display.h src/display/framebuffer.h
 	@mkdir -p build
-	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^) -lgdi32 -luser32
+	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^) $(LDFLAGS)
+
+build/frame_latch.exe: tests/frame_latch.cpp src/memory/bus.cpp src/memory/bus.h src/display/frame_latch.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)

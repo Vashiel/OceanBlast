@@ -1,0 +1,3 @@
+cartridge,steps,ratio,scanout_rows,stride_bytes,framebuffer_bytes,observed_bursts,uninterrupted_full_bursts,median_write_instructions
+Winx Club 1 [V] (IT ES).bin,5000000000,4,240,480,115200,549,192,2121806.5
+Sonic X 1 [V] (IT ES).bin,5000000000,4,160,360,57600,443,273,1225221
