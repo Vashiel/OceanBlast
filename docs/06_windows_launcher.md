@@ -25,3 +25,5 @@ The updated launcher exposes both controls through Windows accessibility, starts
 ## Window Appearance
 
 **Window Mode** defaults to Plain Window and also offers Console Skin and Fullscreen. **Enable Audio** is checked by default. The console skin has clickable controls and keyboard press feedback. F11 or Alt+Enter toggles fullscreen; Escape returns to the previous window mode before closing the game. See [console skin and fullscreen display](33_console_skin_and_fullscreen.md) for input mapping, asset deployment, and validation limits.
+
+For motion diagnosis, `--record-frames <path>` writes the decoded LCD image to a raw RGB24 frame stream at 30 fps and opens the display automatically. It records only the emulated 240×160 LCD image. See [LCD frame recording](35_lcd_frame_recording.md) for conversion to a video file.

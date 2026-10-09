@@ -39,6 +39,8 @@ public:
     void processEvents();
     void updateFrame(const uint8_t* sdram, uint32_t fbPhysAddr, bool is16bpp = true, size_t stride = 0, unsigned sourceHeight = LCD_HEIGHT);
     void updateFrameData(const uint8_t* source, bool is16bpp, size_t stride, unsigned sourceHeight);
+    const std::vector<uint32_t>& framePixels() const { return m_pixels; }
+    unsigned frameSourceHeight() const { return m_sourceHeight; }
     void renderToDc(void* targetHdc);
     void configureWindow(bool skin, bool fullscreen = false) { m_skinEnabled = skin; m_startFullscreen = fullscreen; }
     void toggleFullscreen();
