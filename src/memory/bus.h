@@ -51,6 +51,13 @@ public:
     void setI2cLogging(bool enabled) { i2cLogging = enabled; }
     void setMmioProfiling(bool enabled) { mmioProfiling = enabled; }
     bool saveMmioProfile(const std::string& path) const;
+    struct MmioAccesses { uint64_t reads = 0, writes = 0; };
+    const std::map<u32, MmioAccesses>& getMmioProfile() const { return mmioAccesses; }
+    struct IrqDiagnostics {
+        std::array<uint64_t, 32> requests{}, alreadyPending{}, sourceClears{}, selectedClears{};
+    };
+    const IrqDiagnostics& getIrqDiagnostics() const { return irqDiagnostics; }
+    uint64_t getTimer4Expirations() const { return timer4.getExpirations(); }
     bool loadEeprom(const std::string& path);
     bool saveEeprom(const std::string& path) const;
 
@@ -344,7 +351,7 @@ private:
     u32 hostFrameBase = 0, hostFrameSize = 0;
     FrameLatch hostFrameCapture;
     bool mmioProfiling = false;
-    struct MmioAccesses { uint64_t reads = 0, writes = 0; };
+    IrqDiagnostics irqDiagnostics;
     std::map<u32, MmioAccesses> mmioAccesses;
     bool i2cLogging = false;
     // S3C2410 Keypad / GPIO Button State

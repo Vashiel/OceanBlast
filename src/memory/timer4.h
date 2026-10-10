@@ -22,6 +22,7 @@ public:
     }
     uint32_t observe() const { return remaining ? uint32_t((remaining - 1) / denominator) : 0; }
     bool isRunning() const { return running && !external && remaining != 0; }
+    uint64_t getExpirations() const { return expirations; }
     uint64_t ticksUntilExpiry() const {
         return isRunning() ? (remaining + pclk - 1) / pclk : UINT64_MAX;
     }
@@ -31,12 +32,14 @@ public:
         if (elapsed < remaining) { remaining -= elapsed; return false; }
         if (reload) {
             const uint64_t period = (uint64_t(buffer) + 1) * denominator;
+            expirations += 1 + (elapsed - remaining) / period;
             remaining = period - (elapsed - remaining) % period;
-        } else { remaining = 0; running = false; }
+        } else { ++expirations; remaining = 0; running = false; }
         return true;
     }
 private:
     uint64_t denominator = 40000000, remaining = 0;
+    uint64_t expirations = 0;
     uint32_t buffer = 0;
     uint32_t pclk = 12000000;
     bool running = false, reload = false, external = false;

@@ -37,6 +37,8 @@ GUI/audio observations precede the separate [host pacing correction](27_windows_
 
 ## Guest Register Access Profile
 
+The [guest time and LCD wait probe](38_guest_time_and_lcd_wait_diagnostics.md) adds per-second PC/MMIO observations, independently inspected kernel jiffies and separate timer/interrupt counters.
+
 `--mmio-profile` writes `mmio_profile.csv` at exit and cumulative `snapshot_<steps>_mmio.csv` files at snapshot boundaries. Addresses are physical register addresses. Counts cover calls into the register decoder from guest memory operations; direct NAND data streaming bypasses this decoder. Split byte accesses may produce more than one decoder call per guest instruction. These counts are not bus-cycle measurements.
 
 Host inspection through `getMmio`, including display polling, audio diagnostics and snapshot collection, is excluded. This distinction permits testing whether guest code repeatedly polls LCD or sound registers without confusing host rendering with guest behavior. Profiling is optional and disabled by default. Its additional counter work makes profiled runs unsuitable for isolated throughput comparisons.

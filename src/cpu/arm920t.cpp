@@ -1037,6 +1037,11 @@ void ARM920T::executeSWI(u32 instr) {
     u32 swiNum = instr & 0x00FFFFFF;
     u32 retAddr = r[15];
     u32 oldCpsr = cpsr;
+    if (syscallObserver && (oldCpsr & 31u) == 0x10 && bus.isMmuEnabled()) {
+        const u32 number = swiNum ? (swiNum & 0xfffffu) : r[7];
+        syscallObserver(number, retAddr - ((oldCpsr & FLAG_T) ? 2u : 4u),
+                        {r[0], r[1], r[2], r[3], r[4], r[5]});
+    }
     switchMode(0x13); // Supervisor mode
     spsr = oldCpsr;
     cpsr |= FLAG_I;              // Disable IRQ
