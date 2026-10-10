@@ -2,104 +2,100 @@
 
 <p align="center"><img src="assets/oceanblast-logo.png" alt="OceanBlast" width="720" /></p>
 
+<p align="center">
+  <a href="https://github.com/Vashiel/OceanBlast/releases"><img src="https://img.shields.io/github/v/release/Vashiel/OceanBlast?include_prereleases&label=Download%20Windows%20Build" alt="Download Windows Build" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPLv3" /></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Docs%20%26%20History-CHANGELOG-informational" alt="Changelog" /></a>
+</p>
+
 **OceanBlast** is an open-source, independent research and emulation project targeting the **Nikko digiBLAST** (2005), a European multimedia handheld console powered by the Samsung OCEAN-L-20 System-on-a-Chip (Samsung S3C2410 architecture, ARM920T CPU core).
 
 The goal of this project is digital preservation, architectural documentation, and software interoperability for an obscure and historically undocumented platform.
 
 ---
 
+## 🖼️ Interface & Console Skin Preview
+
+| Interactive Console Skin (`--window-mode skin`) | Cartridge Loading Illustration Preview |
+| :---: | :---: |
+| <img src="assets/digiblast-skin.png" alt="OceanBlast Console Skin" width="420" /> | <img src="assets/digiblast-loading.png" alt="OceanBlast Loading Illustration" width="420" /> |
+
+> **Prebuilt Windows Binaries:** Ready-to-run Windows 64-bit builds (`oceanblast.exe` + skin assets) are available on the [**GitHub Releases**](https://github.com/Vashiel/OceanBlast/releases) page.
+
+---
+
 ## 🚀 Quick Start & Windows Launcher
 
-Double-click `bin/oceanblast.exe` without arguments to launch the graphical interface. Click **Browse ROM…**, choose display scaling (2×, 3×, 4×), leave sound enabled or disable it, and click **Start Game**. The launcher includes session controls, optional FPS/debug logging, and built-in keyboard help. Plain Window and automatic ROM settings are selected by default. Known Pitfall, Superstar Chefs, and Wade dumps use a 2x CPU ratio; Wade's setting is provisional. Other dumps retain 1x. See [automatic cartridge settings](docs/34_automatic_cartridge_settings.md). Choose Console Skin, Fullscreen, or Plain Window; F11 switches between windowed and fullscreen play. See [console skin and fullscreen controls](docs/33_console_skin_and_fullscreen.md). Command-line invocation remains fully supported, including direct LCD frame recording for motion diagnosis. See [Windows launcher documentation](docs/06_windows_launcher.md) and [LCD frame recording](docs/35_lcd_frame_recording.md).
+Double-click `bin/oceanblast.exe` (or `oceanblast.exe` from a release archive) without arguments to launch the graphical interface:
+1. Click **Browse ROM…** and select a legally dumped `.bin` cartridge image.
+2. Choose display scaling (**2×**, **3×**, **4×**), window appearance (**Plain Window**, **Console Skin**, or **Fullscreen**; press **F11** / **Alt+Enter** at any time to toggle fullscreen), and leave **Sound** enabled.
+3. Click **Start Game**.
+
+Automatic per-cartridge settings are enabled by default (see [docs/34](docs/34_automatic_cartridge_settings.md), [docs/33](docs/33_console_skin_and_fullscreen.md), and [docs/06](docs/06_windows_launcher.md)).
 
 ---
 
-## 🏛️ Technical Overview
+## 📊 Cartridge Compatibility Overview (2026-10-10)
 
-The Nikko digiBLAST hardware is structured around the Samsung S3C2410A application processor:
+All tested cartridges boot autonomously through the 4-KB S3C2410 Steppingstone SRAM, U-Boot 1.1.2 (`nidc` NAND ID & `checkbattery` ADC checks), and the embedded Linux 2.6.11 kernel without kernel panics or guest segmentation faults. Sustained full-speed gameplay and glitch-free audio synchronization remain under active development.
 
-| Component | Hardware Specification |
-| :--- | :--- |
-| **CPU Core** | ARM920T (ARMv4T architecture, 5-stage pipeline, MMU, CP15, separate 16KB I-Cache / 16KB D-Cache) |
-| **SoC** | Samsung OCEAN-L-20 (S3C2410 derivative / rebrand) |
-| **System Memory** | 32 MB SDRAM (`0x30000000 - 0x31FFFFFF`, with alias at `0x32000000`) |
-| **Boot SRAM** | 4 KB internal Steppingstone SRAM (`0x00000000 - 0x00000FFF`) |
-| **Cartridge Bus** | S3C2410 NAND Flash controller (`0x4E000000`) interfacing 8-bit NAND chips (Toshiba TC58 / Samsung K9 / KM29 series) |
-| **NAND Format** | Tested small-page dumps: 512 data + 16 OOB bytes; photographed Samsung large-page cartridge: 2,048 + 64 bytes, not modeled natively; see [cartridge hardware](docs/39_photographed_cartridge_hardware.md) |
-| **Operating System** | Embedded Das U-Boot 1.1.2 bootloader loading Linux 2.4/2.6 kernel and SquashFS root filesystem |
-| **Display** | 2.7" TFT LCD (S3C2410 LCD controller at `0x4D000000`, 4096 colors / 16-bit RGB) |
-| **Audio** | S3C2410 IIS bus (`0x55000000`) with DMA playback (nominal 22.05 kHz stereo, register-derived source rates and dynamic resampling) |
-| **Debug Console** | S3C2410 UART0 (`0x50000000`) streamed via 115200 baud serial console |
+For the complete chronological engineering log and all 42 technical reports (`docs/00`–`docs/41`), see [**CHANGELOG.md**](CHANGELOG.md).
 
----
+### 1. Commercial Game Cartridges (11 / 11 Boot to Game Binary)
 
-## 📈 Emulation Progress
+| Cartridge Title | Boots (U-Boot + Linux) | Menus / In-Game Status | Audio Status | Display / Technical Notes & Docs |
+| :--- | :---: | :---: | :---: | :--- |
+| **Crazy Jack** `[G] (EN)` | ✅ Yes | 🟡 Title, Level Select & In-Game | 🟡 Plays (underruns) | Auto packed RGB444 / 480B rows ([docs/16](docs/16_i2c_eeprom_and_player_startup.md), [docs/25](docs/25_automatic_display_selection.md)) |
+| **Cuccioli Cerca Amici** `[G] (IT)` | ✅ Yes | 🟡 Main Menu & Save-Slot Select | 🟡 Plays (unverified) | 64 MB NAND (`0x98, 0x76`) ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/28](docs/28_cartridge_register_audit.md)) |
+| **DigiQUAD** `[G] (EN)` | ✅ Yes | 🟢 Main Menu & Racing Scene | 🟡 Improved ([docs/20](docs/20_pcm_capture_and_dma_sample_lifetime.md)) | Fast execution; DMA sample lifetime fix ([docs/18](docs/18_manual_cartridge_validation.md)) |
+| **Gormiti: Agguato nella Valle** `[G] (IT)` | ✅ Yes | 🟡 Title, Character Select & Bracket | 🟡 Plays (unverified) | Scene transition sensitive to input timing ([docs/17](docs/17_timer_and_runtime_validation.md), [docs/28](docs/28_cartridge_register_audit.md)) |
+| **Gormiti: Lotta Oscura** `[G] (IT)` | ✅ Yes | 🟡 Intro & Title / Start Prompt | 🟡 Plays (unverified) | 32 MB NAND ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/28](docs/28_cartridge_register_audit.md)) |
+| **Gormiti: Masters of the Gorm Island** `[G] (IT)` | ✅ Yes | 🟢 Main Menu & In-Game Level/HUD | 🟡 Plays (unverified) | 32 MB NAND ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/28](docs/28_cartridge_register_audit.md)) |
+| **Pitfall: The Lost Expedition** `[G] (EN)` | ✅ Yes | 🟡 Intro, Title & Gameplay | 🟡 Plays (slow pacing) | Native 12-bpp LCD444; auto 2× ratio ([docs/21](docs/21_pitfall_original_hardware_reference.md), [docs/34](docs/34_automatic_cartridge_settings.md)) |
+| **Rayman 3** `[G] (M10)` | ✅ Yes | 🟡 Intro, Title & In-Game | 🟡 Stutters under load | High CPU/blitter load ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/18](docs/18_manual_cartridge_validation.md)) |
+| **Spider-Man: Mysterio's Menace** `[G] (EN)` | ✅ Yes | 🟢 Main Menu, Story & In-Game | 🟡 Plays (metallic/crackling) | ~17.5 FPS sampled changes at 1× ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/18](docs/18_manual_cartridge_validation.md)) |
+| **Superstar Chefs** `[G] (EN)` | ✅ Yes | 🟢 Menus & Interactive Gameplay | 🟡 Improved at 4× ([docs/37](docs/37_cpu_fetch_and_interpreter_execution.md)) | Needs UART0 TX IRQ ([docs/15](docs/15_uart_video_startup.md)); auto 2× ratio ([docs/24](docs/24_automatic_timing_and_chefs_load.md)) |
+| **Wade Hixton's Counter Punch** `[G] (EN)` | ✅ Yes | 🟢 Intro, Menus & First Fight | 🟡 Plays (slow at 1×–4×) | 64 frames/counter unit; `GPH8` TV-Out vs. 12-bpp LCD ([docs/40](docs/40_wade_sdl_formats_and_work_scaling.md), [docs/41](docs/41_wade_binary_and_s3c2410fb_analysis.md)) |
 
-### Current compatibility status (2026-10-10)
+### 2. Video & Combined Game+Video Cartridges
 
-[Programmed LCD scanout height](docs/31_programmed_scanout_height.md) includes video rows previously omitted by the fixed 160-row display path. [Complete video frames and synchronized presentation](docs/32_coherent_video_and_vsync.md) prevent sampling partially written video images and add explicit Windows vertical synchronization.
-
-[RealVideo frame-delivery tests](docs/30_realvideo_frame_delivery.md) show Sonic X and Italian/Spanish Winx video imagery at a higher diagnostic CPU allowance. Both decode colored frames while remaining dark at the standard allowance. Hardware timing, continuous audio and synchronized playback remain unresolved.
-
-[CPU fetch and interpreter execution](docs/37_cpu_fetch_and_interpreter_execution.md) improve controlled instruction throughput by 17–45% relative to the preceding optimized build, with identical tested guest states. Chefs at 4x reaches 98.3% of its modeled pacing target in a bounded GUI comparison, with fewer empty audio queues. Wade reaches its first fight after the uninterrupted introduction at manual 4x, but remains visibly slow near its legacy pacing target. Hardware speed, graphics accuracy, and sound acceptance remain incomplete. [Gameplay profiling](docs/29_gameplay_work_and_execution_cost.md) identifies substantial software mixer and drawing costs.
-
-[Wade SDL format and work-scaling measurements](docs/40_wade_sdl_formats_and_work_scaling.md) identify dominant pixel-conversion routines and counter progress proportional to guest work in the measured first fight. SDL requests a 12-bit display while the guest framebuffer driver returns RGB565, producing an RGB444 shadow surface in the replay. [Executable and framebuffer driver disassembly](docs/41_wade_binary_and_s3c2410fb_analysis.md) confirms a 64-frame-per-unit counter cadence (`vblTime = 16` ms), internal BGR444-to-RGB444 layer/sprite blits, and `GPH8` (`0x56000074` bit 8) TV-Out detection in `s3c2410fb_probe`. Original-console rendering behavior and speed remain unverified.
-
-[Register-derived clocks and IIS playback control](docs/23_register_clocks_and_iis_pause.md) make Timer 4 and audio follow programmed clocks, preserve exact integer audio rates, pause IIS DMA when the transmit path is disabled, and advance peripheral time on IRQ entry. These corrections do not establish hardware-equivalent CPU speed or complete cartridge compatibility.
-
-The [automatic timing experiment and Superstar Chefs load analysis](docs/24_automatic_timing_and_chefs_load.md) distinguish slow animation at a sustained 40 MIPS from audio queue starvation. Register-clock CPU execution is available as an experimental mode, with modeled speed diagnostics. It remains incomplete and is not enabled by default.
-
-[Bounded execution batches](docs/26_execution_batches_and_mmio_diagnostics.md) reduce host bookkeeping while preserving tested CPU, memory, interrupt and DMA states. [Windows host pacing](docs/27_windows_host_pacing.md) uses a high-resolution waitable timer to reduce short-deadline jitter. These changes do not establish complete game or synchronized media compatibility.
-
-[Consumed-sample DMA capture](docs/20_pcm_capture_and_dma_sample_lifetime.md) corrects source RAM being reread after a game has reused it. A controlled DigiQUAD comparison reduces large changes at audio callback boundaries from 127 to 13; listening confirms a significant improvement, with residual defects. The [manual cartridge reports](docs/18_manual_cartridge_validation.md) preserve the remaining speed, input and audio issues. Normal audio and synchronized gameplay are not yet established.
-
-The [EEPROM and player-startup investigation](docs/16_i2c_eeprom_and_player_startup.md) identifies missing I2C EEPROM transactions as a startup blocker. Crazy Jack reaches its title, level selection and an interactive gameplay scene. [Automatic display selection](docs/25_automatic_display_selection.md) recognizes its checked dump and selects packed RGB444/480-byte rows only for the matching game framebuffer configuration. Boot splashes retain native packed rows. The underlying register/pixel-format disagreement remains unresolved.
-
-Both Italian/Spanish SpongeBob and Winx combined cartridges now reach visible episode images after language and launcher selection. All nine tested video-only cartridges start their media player. Several still produce black or near-black output. The [Timer 4 correction](docs/17_timer_and_runtime_validation.md) restores a first episode image on video-only Italian/Spanish Winx; continued playback and Netherlands Winx output remain unresolved. Complete gameplay and smooth, synchronized movie playback remain open acceptance goals. The earlier [game matrix](docs/12_game_cartridge_compatibility.md) and [UART investigation](docs/15_uart_video_startup.md) preserve the preceding baselines.
-
-The [cartridge register audit](docs/28_cartridge_register_audit.md) completes bounded runs for all eleven games and nine video cartridges without guest segmentation faults or kernel panics. Black media output remains unresolved; guest-only counters show no continued LCD register polling during the final measured video interval.
-
-Cartridge identity and source-data limitations are documented in the [MAME checksum and ROM integrity report](docs/14_rom_integrity.md). Twenty-one of 25 checked files/archive members match the reference in size, CRC32 and SHA-1; four variants are unlisted. The matching international Winx combined dump contains independently reproducible invalid SquashFS/zlib blocks. The alternative MAME Italian/Spanish Winx set is not available locally for comparison.
-
-Audio output includes streaming audio-rate conversion, aggregation of small audio fragments, DMA current-position registers, GUI pacing at 20 MIPS, and audio diagnostics. The short Spider-Man comparison reported zero dropped output samples after these changes; this is a boot-only measurement and does not establish synchronized gameplay audio. See the [audio timing investigation, verification and open issues](docs/11_audio_timing_followup.md) for reproduction steps and the next investigation targets. The component milestones below do not imply complete game support.
-
-* [x] **Autonomous Boot SRAM:** S3C2410 Steppingstone hardware logic autonomously parsing initial 4 KB bootloader into internal SRAM (`0x00000000`).
-* [x] **ARM920T CPU Core & CP15:** 32-bit ARM instruction interpreter with condition evaluation, branch exchange (`BX`), block transfer (`LDM`/`STM`), barrel shifter, coprocessor CP15 transfers (`MRC`/`MCR`), and virtual memory address translation.
-* [x] **SDRAM & Memory Controller:** Dynamic physical bus mapping with SDRAM mirroring and MMIO routing.
-* [x] **NAND Flash Controller:** Hardware registers `NFCONF`, `NFCMD`, `NFADDR`, `NFDATA`, and `NFSTAT`.
-* [x] **Chip ID & Security Handshake (`nidc`):** Accurate Read ID (`0x90`) responses for production Toshiba NAND flash (`0x98, 0x73` for 16MB) allowing U-Boot's proprietary security check `nidc` to validate successfully.
-* [x] **OOB & ECC Architecture:** Passthrough of authentic raw OOB data for complete dumps; dynamic reconstruction of standard Linux MTD 256-byte 1-bit Hamming ECC for blank-OOB dumps.
-* [x] **U-Boot 1.1.2 Execution:** Bootloader successfully verifies memory, configures RAM, identifies NAND flash, relocates to high SDRAM (`0x30F80000`), and executes interactive boot scripts.
-* [x] **S3C2410 ADC Subsystem (`checkbattery`):** ADC conversion registers (`ADCCON`, `ADCDAT0`) returning proper battery counts within the boot validation window.
-* [x] **Linux Kernel Handoff & Decompression:** U-Boot loads the 1.8 MB kernel image from cartridge NAND, verifies CRC, unpacks via gunzip to `0x30008000`, and passes control with ATAGS parameters.
-* [x] **Linux 2.6.11 Kernel Boot:** ARM920T MMU page table traversal, virtual memory switch (`0xC0000000`), S3C2410A chip identification (`GSTATUS1 = 0x32410002`), clock management, memory zones, slab allocator, and early `dmesg` logging.
-* [x] **System Timer 4 IRQ:** Timer 4 interrupt delivery advances `jiffies` during `calibrate_delay()`, completing calibration loop at 19.86 BogoMIPS.
-* [x] **Peripheral Driver Probes:** S3C2410 DMA (4 channels), UART0..2, I2C, ALSA CS43L43 audio driver, and `s3c2410fb` framebuffer device initialized. *(Note: USB Host `s3c2410-ohci` fails with startup error -1 as expected).*
-* [x] **SquashFS 2.2 RootFS Mount:** Kernel mounts MTD partition 5 (`/dev/mtdblock/5`) as read-only SquashFS root filesystem and initializes `devfs`.
-* [x] **Userspace Pipeline & ARMv4/v5 Copy-On-Write (COW):** MMU Access Permission (AP) checking implemented, generating `PAGE_PERMISSION_FAULT` (FSR `0xF`) on user-mode stack writes to shared pages. Linux `do_wp_page()` successfully isolates child/parent stack frames.
-* [x] **Multi-Process Initialization (`startup.sh`):** `/linuxrc` and `/usr/packages/startupscripts/startup.sh` successfully execute all three symlinks (`/dev/dsp`, `/dev/fb0`, `/dev/video`), set dynamic library paths (`setpath`), and mount system filesystems via `/bin/mount` (`/bin/busybox`).
-* [x] **Diagnostic Keypad & Framebuffer Splash (`fb_test`):** `/usr/packages/showversion/bin/iskeydown` tests hardware button lines; `/usr/packages/fb_test/bin/fb_test` opens `/dev/fb0` and transfers 57,600 bytes of splash image data to framebuffer memory.
-* [x] **Commercial Game Binary Launch:** Startup script executes game binary (`./Rayman`); Linux dynamic linker maps `libSDL-1.2.so.0`, `libboost_thread`, `libboost_filesystem`, `libstdc++.so.5`, `libpthread.so.0`, and `libdl.so.2`; game code actively scheduled past 260M steps.
-* [x] **Live Host Display Output:** Real-time native desktop window with dynamic S3C2410 dual color depth support (16-bit RGB565 true-color and 12-bit packed LCD444 for bootloader splashes and titles like *Pitfall*) directly from SDRAM with configurable integer scaling (`--gui`, `--scale 2|3|4`).
-* [x] **Host Keypad & GPIO Input Subsystem:** Reverse-engineered hardware pin wiring from the kernel `greykbd.c` driver; host keyboard events are converted into active-low S3C2410 GPIO states (`GPFDAT`, `GPGDAT`) and trigger `EINT0..3`, `EINT4_7`, and `EINT8_23` interrupts directly to the Linux input subsystem (`/dev/input/event0`).
-* [x] **Real-Time Audio Output:** Hardware modeling of S3C2410 DMA Channel 2 (`0x4B000080`) and IIS FIFO; periodic audio buffer delivery generates `INT_DMA2` (IRQ 35), driving ALSA `snd-pcm-oss` buffer replenishment and streaming live 16-bit signed stereo PCM through a Win32 `waveOut` audio backend (`--sound`, `--gui`).
-* [x] **Audio Timing and Diagnostics:** Dynamic IIS rate detection, streaming linear resampling, aggregated waveOut submissions and DMA current-position registers. GUI pacing defaults to the existing 20-MIPS timing model. Per-cartridge pitch, underruns and audio/video synchronization remain under investigation; jitter-free playback is not established.
+| Cartridge Group | Boots & Launches Player | Video Output | Media Controls & Audio | Notes & Documentation |
+| :--- | :---: | :---: | :---: | :--- |
+| **Gormiti / SpongeBob / Yu-Gi-Oh!** *(Video)* | ✅ Yes | 🟢 Visible Episode Imagery | 🟡 Keypad Controls Active | 240-row scanout & coherent frame latch ([docs/28](docs/28_cartridge_register_audit.md), [docs/31](docs/31_programmed_scanout_height.md), [docs/32](docs/32_coherent_video_and_vsync.md)) |
+| **SpongeBob / Winx** *(IT/ES Combined Game+Video)* | ✅ Yes | 🟢 Language Menu & Episode Video | 🟡 Keypad Controls Active | Requires I2C EEPROM ([docs/16](docs/16_i2c_eeprom_and_player_startup.md)); intl. Winx dump has corrupt blocks ([docs/14](docs/14_rom_integrity.md)) |
+| **Sonic X / Winx** *(IT/ES Video-Only)* | ✅ Yes | 🟡 Decodes Frames at High CPU Budget | 🟡 Play/Pause/Seek Verified | Dark at 1×; decodes colored RealVideo frames at higher budget ([docs/30](docs/30_realvideo_frame_delivery.md), [docs/33](docs/33_console_skin_and_fullscreen.md)) |
+| **Totally Spies / Winx** *(NL Video-Only)* | ✅ Yes | 🔴 Black Framebuffer at Tested Budget | 🟡 Player State Reaches `PLAYING` | Active framebuffer remains zeroed at 2.5B steps ([docs/28](docs/28_cartridge_register_audit.md), [docs/30](docs/30_realvideo_frame_delivery.md)) |
 
 ---
 
-## 🛠️ Building & Running
+## 🏛️ Hardware & Emulated Subsystems
+
+The Nikko digiBLAST hardware is built around the Samsung S3C2410A / OCEAN-L-20 processor:
+
+| Subsystem | Hardware Specification | Emulation Status |
+| :--- | :--- | :--- |
+| **CPU Core & MMU** | ARM920T (ARMv4T, 32-bit ARM + 16-bit Thumb, CP15, MMU, 16 KB I/D-Cache) | ✅ Interpreter with fast page-cache, AP permission faults (Linux COW), and bounded batches ([docs/05](docs/05_black_screen_investigation.md), [docs/37](docs/37_cpu_fetch_and_interpreter_execution.md)) |
+| **Memory & Boot** | 4 KB Steppingstone SRAM (`0x00000000`), 32 MB SDRAM (`0x30000000`) | ✅ Autonomous 4 KB NAND boot copy, SDRAM mirroring (`0x32000000`), and MMIO bus ([docs/01](docs/01_memory_map.md)) |
+| **NAND Flash** | S3C2410 NAND (`0x4E000000`), Toshiba TC58 / Samsung K9 (16–128 MB) | ✅ Read ID (`0x90` for `nidc`), 512+16 raw OOB passthrough, and 1-bit Hamming ECC synthesis ([docs/03](docs/03_boot_progress.md), [docs/39](docs/39_photographed_cartridge_hardware.md)) |
+| **Clocks & Timer 4** | PLL (`MPLLCON`, `CLKDIVN`) & PWM Timer 4 (`0x51000000`, `HZ=200`) | ✅ Register-derived FCLK/HCLK/PCLK, 200-Hz IRQ 14, and 1-µs `TCNTO4` interpolation ([docs/17](docs/17_timer_and_runtime_validation.md), [docs/23](docs/23_register_clocks_and_iis_pause.md), [docs/41](docs/41_wade_binary_and_s3c2410fb_analysis.md)) |
+| **Display (`s3c2410fb`)** | 2.7" TFT LCD (`0x4D000000`, 240×160 / 240×240, 12-bpp LCD444 & 16-bpp RGB565) | ✅ DXGI VSync presenter, coherent frame latch, 12-bpp & 16-bpp decoding ([docs/10](docs/10_color_depth_and_rgb565_support.md), [docs/31](docs/31_programmed_scanout_height.md), [docs/32](docs/32_coherent_video_and_vsync.md)) |
+| **Audio (DMA2 + IIS)** | S3C2410 IIS (`0x55000000`), DMA Ch. 2 (`0x4B000080`), CS43L43 DAC | 🟡 Consumed-sample DMA capture, dynamic IIS rate detection & Win32 `waveOut` resampler ([docs/20](docs/20_pcm_capture_and_dma_sample_lifetime.md), [docs/23](docs/23_register_clocks_and_iis_pause.md)) |
+| **Input (`greykbd`)** | GPIO Ports F & G (`0x56000050`), External IRQs `EINT0..23` | ✅ All D-Pad, A/B/C, L/R, Start/Select, and media player keys (`KEY_P/S/B/N`) ([docs/33](docs/33_console_skin_and_fullscreen.md)) |
+| **I2C EEPROM & ADC** | 2-KB I2C EEPROM (`0x54000000`), Battery ADC (`0x58000000`) | ✅ Persistent/volatile 2-KB EEPROM state and `checkbattery` ADC conversion ([docs/03](docs/03_boot_progress.md), [docs/16](docs/16_i2c_eeprom_and_player_startup.md)) |
+
+---
+
+## 🛠️ Building, Testing & Command-Line Usage
 
 ### Prerequisites
-* A C++17 compatible compiler (`g++`, MinGW-w64, or MSVC)
-* `make` (optional, for automated builds)
+* A C++17 compiler (`g++` / MinGW-w64 or MSVC) on Windows
+* `make` (optional, for automated builds and test suites)
 
 ### Building from Source
-Using `make`:
 ```bash
 make
 ```
-
-Or compiling directly with `g++`:
+Or compile directly with `g++`:
 ```bash
 g++ -std=c++17 -Wall -Wextra -O2 -Isrc \
     src/main.cpp \
@@ -112,65 +108,47 @@ g++ -std=c++17 -Wall -Wextra -O2 -Isrc \
     -o bin/oceanblast.exe
 ```
 
-### Running Test Suites
-OceanBlast includes ROM-free CPU/DMA regression, GPIO keypad and streaming audio resampler verification suites:
+### Running ROM-Free Regression Suites
 ```bash
 make test
 ```
 
-### Running
-Double-click `bin/oceanblast.exe` for the Windows GUI launcher, or run via command line:
+### Command-Line Invocation
 ```bash
-bin/oceanblast.exe <path_to_cartridge_dump.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--sound] [--audio-rate <Hz>] [--clock-mips <N>] [--profile] [--trace]
+bin/oceanblast.exe <path_to_cartridge_dump.bin> [--steps <N>] [--gui] [--window-mode <plain|skin>] [--fullscreen] [--scale <2|3|4>] [--sound] [--clock-mips <N>] [--profile]
 ```
 
-Example (interactive GUI with sound):
-```bash
-bin/oceanblast.exe "roms/test.bin" --gui --scale 3 --sound
-```
-
-GUI execution defaults to a 20-MIPS limit; `--clock-mips 0` disables it for diagnostics. This is an instruction-based approximation, not cycle-accurate ARM920T timing. `--profile` writes `performance.csv` in the working directory with presentation rate, framebuffer-change rate, MIPS, inferred audio rate and cumulative dropped output samples. The window title shows the audio rate and dropped-sample counter too. Zero dropped samples does not rule out underruns or audio/video drift.
-
-#### Default Keyboard Controls
+### Default Controls
 | Console Button | Hardware Line | Host Keyboard Key |
 | :--- | :--- | :--- |
-| **D-Pad Up** | `GPF2` / `EINT2` | `Up Arrow` |
-| **D-Pad Down** | `GPF7` / `EINT7` | `Down Arrow` |
-| **D-Pad Left** | `GPF3` / `EINT3` | `Left Arrow` |
-| **D-Pad Right** | `GPF6` / `EINT6` | `Right Arrow` |
-| **Button A** | `GPF0` / `EINT0` | `Z` or `K` |
-| **Button B** | `GPF1` / `EINT1` | `X` or `J` |
-| **L Shoulder** | `GPG11` / `EINT19` | `A` or `Q` |
-| **R Shoulder** | `GPG8` / `EINT16` | `S` or `W` |
-| **Start** | `GPG10` / `EINT18` | `Enter` |
-| **Select / Pause** | `GPG9` / `EINT17` | `Space` |
-| **Exit Window** | — | `Escape` |
+| **D-Pad** | `GPF2` / `GPF7` / `GPF3` / `GPF6` | `Arrow Keys` |
+| **Button A / B / C** | `GPF0` / `GPF1` / `GPF4` | `Z` (`K`) / `X` (`J`) / `C` |
+| **L / R Shoulder** | `GPG11` / `GPG8` | `A` (`Q`) / `S` (`W`) |
+| **Start / Stop** | `GPG10` (`EINT18`) | `Enter` or `F9` |
+| **Select / Play-Pause** | `GPG9` (`EINT17`) | `Space` or `F10` |
+| **Rewind / Forward** | `GPG0` / `GPG13` | `F8` / `F12` |
+| **Fullscreen / Exit** | — | `F11` (`Alt+Enter`) / `Escape` |
 
 ---
 
-## ⚖️ Legal & Intellectual Property Notice
+## ⚖️ Legal & Interoperability Notice
 
-### 1. Independent Clean-Room Implementation
-OceanBlast is developed independently as a clean-room educational and digital preservation project. The emulator code is written from the ground up using publicly available hardware documentation (e.g., the *Samsung S3C2410A User's Manual*) and technical observation of hardware protocols.
+### 1. Independent Reverse-Engineering & Interoperability Implementation
+OceanBlast is an independent open-source software implementation written from scratch for hardware documentation, digital preservation, and interoperability. Hardware and system behavior is modeled using publicly available documentation (such as the *Samsung S3C2410A User's Manual*) combined with empirical protocol and binary interoperability analysis.
 
 ### 2. No Proprietary Assets, Firmware, or ROMs
-* OceanBlast **does not contain, distribute, host, or link to** any proprietary software, firmware, BIOS binaries, copyrighted game ROMs, commercial operating system images, or cryptographic secrets.
-* All testing and usage of this emulator require the user to provide their own legally acquired cartridge dumps and data for personal educational and preservation purposes.
-* Any game titles, video files, or software referenced in documentation or commit histories are mentioned strictly for descriptive compatibility and testing identification.
+* OceanBlast **does not contain, distribute, host, or link to** any proprietary software, bootloader/kernel binaries, copyrighted game ROMs, commercial operating system images, or cryptographic secrets.
+* All testing and usage of this emulator require users to supply their own legally acquired cartridge dumps for personal preservation and research purposes.
+* Reconstructed visual skin assets in `assets/` are original vector/raster reconstructions created for the emulator interface.
 
-### 3. Interoperability & Reverse Engineering
-Development of OceanBlast is conducted exclusively for the purpose of research, educational analysis, digital preservation, and software interoperability in strict accordance with applicable statutory provisions:
-* **European Union:** Article 6 of Directive 2009/24/EC of the European Parliament and of the Council of 23 April 2009 on the legal protection of computer programs (Decompilation for the purpose of achieving interoperability).
-* **United States:** 17 U.S.C. § 1201(f) (Reverse Engineering exemption of the Digital Millennium Copyright Act for interoperability of an independently created computer program).
-* **Germany:** § 69e Urheberrechtsgesetz (UrhG) (Dekompilierung zur Herstellung von Interoperabilität).
+### 3. Research, Preservation & Interoperability Context
+Development and interoperability analysis are conducted in good faith for research, education, digital preservation, and software compatibility (see, where applicable in your jurisdiction, statutory provisions regarding interoperability and research such as EU Directive 2009/24/EC Art. 6, 17 U.S.C. § 1201(f), or § 69e UrhG). *Note: This statement describes the project's technical scope and intent and does not constitute legal advice.*
 
-### 4. Trademark & Nominative Fair Use Notice
-All product names, logos, brands, trademarks, and registered trademarks—including but not limited to **Nikko**, **digiBLAST**, **Grey Innovation**, **Samsung**, **RealPlayer**, **Ubisoft**, and individual game titles—are the property of their respective owners. 
+### 4. Trademark & Nominative Use Notice
+All product names, logos, brands, and trademarks—including **Nikko**, **digiBLAST**, **Grey Innovation**, **Samsung**, **RealPlayer**, **Ubisoft**, and individual game or media titles—are the property of their respective owners and are referenced solely for descriptive identification. OceanBlast is completely independent and is not affiliated with, authorized, sponsored, or endorsed by Nikko Entertainment B.V., Grey Innovation Pty Ltd, Samsung Electronics Co., Ltd., or any game publishers.
 
-All company, product, and service names used in this repository are for identification, historical reference, and nominative fair use purposes only. The use of these names, logos, and brands does not imply endorsement, sponsorship, or affiliation with the owners of those marks. OceanBlast is completely independent and is not affiliated with, authorized, maintained, sponsored, or endorsed by Nikko Entertainment B.V., Grey Innovation Pty Ltd, Samsung Electronics Co., Ltd., or any game publishers.
-
-### 5. Disclaimer of Warranty & Limitation of Liability
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+### 5. Disclaimer of Warranty
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. SEE THE [GNU GENERAL PUBLIC LICENSE v3.0](LICENSE) FOR FULL TERMS.
 
 ---
 
