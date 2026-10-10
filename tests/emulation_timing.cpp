@@ -1,6 +1,7 @@
 #include "core/emulation_clock.h"
 #include "core/execution_batch.h"
 #include "cpu/arm920t.h"
+#include "../tools/kernel_jiffies.h"
 #include <iostream>
 #include <vector>
 #include <fstream>
@@ -15,6 +16,37 @@ static void arm(Bus& bus, ARM920T& cpu, u32 instr) {
     bus.write32(cpu.getPC(), instr); cpu.step(0);
 }
 int main() {
+    { Bus bus;ARM920T cpu(bus);cpu.reset();
+      arm(bus,cpu,0xe321f010); // MSR CPSR_c, user mode.
+      cpu.setReg(15,0);
+      u32 number=0,callPC=0;std::array<u32,6> args{};
+      cpu.setSyscallObserver([&](u32 n,u32 pc,const std::array<u32,6>& a){number=n;callPC=pc;args=a;});
+      cpu.setReg(0,9);cpu.setReg(1,0x4680);cpu.setReg(7,54);
+      bus.setMmuEnabled(false);
+      // Execute under an identity section mapping, without loading a cartridge.
+      bus.write32(ADDR_SDRAM_BASE+0x4000,0x00000c02);bus.setTtb(ADDR_SDRAM_BASE+0x4000);bus.setDacr(3);
+      bus.write32(0,0xef900036);bus.setMmuEnabled(true);cpu.step(0);
+      check("OABI syscall observation precedes exception entry and preserves arguments",number==54 && callPC==0 && args[0]==9 && args[1]==0x4680 && cpu.getPC()==8);
+      cpu.reset();arm(bus,cpu,0xe321f010);cpu.setReg(15,0);cpu.setReg(7,54);
+      number=0;callPC=UINT32_MAX;
+      bus.setTtb(ADDR_SDRAM_BASE+0x4000);bus.setDacr(3);
+      bus.write32(0,0xef000000);bus.setMmuEnabled(true);cpu.step(0);
+      check("Zero-immediate EABI syscall observation uses r7",number==54 && callPC==0 && args[0]==0 && cpu.getPC()==8);
+    }
+    { Bus bus;bus.reset();
+      for(unsigned i=0;i<8;++i)bus.write8(ADDR_SDRAM_BASE+0x100+i,"jiffies"[i]);
+      for(unsigned i=0;i<11;++i)bus.write8(ADDR_SDRAM_BASE+0x120+i,"jiffies_64"[i]);
+      bus.write32(ADDR_SDRAM_BASE+0x200,0xc0000300);bus.write32(ADDR_SDRAM_BASE+0x204,0xc0000100);
+      bus.write32(ADDR_SDRAM_BASE+0x208,0xc0000300);bus.write32(ADDR_SDRAM_BASE+0x20c,0xc0000120);
+      check("Jiffies discovery requires agreeing kernel export pairs",findKernelJiffies(bus)==0xc0000300);
+      bus.setTtb(ADDR_SDRAM_BASE+0x4000);bus.write32(ADDR_SDRAM_BASE+0x7000,0x30000402);
+      bus.write32(ADDR_SDRAM_BASE+0x300,123);bus.setMmuEnabled(true);bus.setUserMode(true);
+      u32 value=0;check("Jiffies inspection verifies section mapping without changing privilege",readKernelJiffies(bus,0xc0000300,value)&&value==123&&bus.isUserMode());
+      bus.setMmuEnabled(false);bus.write32(ADDR_SDRAM_BASE+0x7000,0x30100402);bus.setMmuEnabled(true);
+      check("Jiffies inspection rejects an unexpected physical mapping",!readKernelJiffies(bus,0xc0000300,value));
+      bus.setMmuEnabled(false);bus.write32(ADDR_SDRAM_BASE+0x208,0xc0000304);
+      check("Jiffies discovery rejects disagreeing exports",findKernelJiffies(bus)==0);
+    }
     { Bus bus;bus.setMmioProfiling(true);
       bus.write32(0x4d000000,0x579);bus.read32(0x4d000000);
       bus.getMmio(0x4d000000);bus.getMmio(0x4d000000);

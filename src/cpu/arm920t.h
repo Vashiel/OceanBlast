@@ -32,6 +32,9 @@ public:
     bool isWaitingForInterrupt() const { return waitingForInterrupt; }
     void setDebugLogging(bool enabled) { debugLogging = enabled; }
     void setFaultLogging(bool enabled) { faultLogging = enabled; }
+    // Observe a userspace SWI before exception entry; disabled in normal execution.
+    using SyscallObserver = std::function<void(u32, u32, const std::array<u32, 6>&)>;
+    void setSyscallObserver(SyscallObserver observer) { syscallObserver = std::move(observer); }
 
     // Register Access
     u32 getReg(int index) const { return (index >= 0 && index < 16) ? r[index] : 0; }
@@ -62,6 +65,7 @@ private:
     uint32_t lastCycles = 1;
     bool debugLogging = false;
     bool faultLogging = false;
+    SyscallObserver syscallObserver;
     void logFaultContext(const char* kind, u32 instructionPC, u32 faultAddress);
 
     // Banked Registers for ARM Exception Modes

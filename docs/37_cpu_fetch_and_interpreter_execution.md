@@ -49,6 +49,8 @@ A separate isolated GUI comparison runs both builds with sound, the high-resolut
 | Baseline | 69.49 | 86.86% | 14.35 | 77 | 0 |
 | Candidate | 78.63 | 98.29% | 16.23 | 10 | 0 |
 
+The target percentage measures achieved instruction pacing relative to the configured host limiter. It does not measure game speed or original-console performance.
+
 The candidate records seven empty queues by modeled second 30 and ten at the end. Residual queue starvation remains. [GUI records](validation/2026-10-10_cpu_fetch_chefs_gui.csv) include the run parameters and hashes. Framebuffer-change counts are not complete game frames. This sound-enabled comparison is separate from the headless throughput measurements; host audio delivery can expose bottlenecks that a headless run omits.
 
 ## Wade Introduction and First Fight
@@ -67,6 +69,8 @@ The active-fight interval at wall seconds 440 through 470, before the knockout t
 | Sampled framebuffer changes per wall second | 21.09 |
 | Empty-queue counter at first/last interval | 396 / 405 |
 | Dropped samples | 0 |
+
+The 99.16% figure measures instruction pacing against the configured host limiter, not the game's speed relative to original hardware.
 
 The fight remains visibly slow despite reaching the legacy pacing target. In recorded frames at wall seconds 440, 450, 460 and 470, the round counter reads 90, 88, 85 and 82 respectively. This is an observation of the displayed counter; its update logic and original-console timing have not been established. The knockout screen remains static while the CPU continues executing. Continuing past that screen is untested.
 

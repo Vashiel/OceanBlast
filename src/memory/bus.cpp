@@ -53,6 +53,7 @@ void Bus::reset() {
     hostFrameEnabled = hostNativeVideo = false; hostFrameBase = hostFrameSize = 0; hostFrameCapture.configure(0, 0);
     mmioRegs.clear();
     mmioAccesses.clear();
+    irqDiagnostics = {};
     clocks.reset();
     mmioRegs[0x4C000004] = 0x5c080;
     mmioRegs[0x4C000010] = 4;
@@ -649,6 +650,8 @@ void Bus::writeMmio(u32 addr, u32 val) {
     switch (addr) {
         // S3C2410 Interrupt Controller (W1C registers)
         case 0x4A000000: // SRCPND: Write 1 to clear
+            if (mmioProfiling) for (u32 bit = 0; bit < 32; ++bit)
+                if (val & regSrcpnd & (1u << bit)) ++irqDiagnostics.sourceClears[bit];
             regSrcpnd &= ~val;
             mmioRegs[0x4A000000] = regSrcpnd;
             return;
@@ -659,6 +662,8 @@ void Bus::writeMmio(u32 addr, u32 val) {
             selectPendingIrq();
             return;
         case 0x4A000010: { // INTPND: Write 1 to clear
+            if (mmioProfiling) for (u32 bit = 0; bit < 32; ++bit)
+                if (val & regIntpnd & (1u << bit)) ++irqDiagnostics.selectedClears[bit];
             regIntpnd &= ~val;
             selectPendingIrq();
             mmioRegs[0x4A000010] = regIntpnd;
@@ -852,6 +857,10 @@ void Bus::updateUart0TxInterrupt(bool emptyTransition) {
 }
 
 void Bus::requestIrq(u32 bit) {
+    if (mmioProfiling) {
+        ++irqDiagnostics.requests[bit];
+        if (regSrcpnd & (1u << bit)) ++irqDiagnostics.alreadyPending[bit];
+    }
     regSrcpnd |= (1 << bit);
     mmioRegs[0x4A000000] = regSrcpnd;
     selectPendingIrq();
