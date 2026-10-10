@@ -156,6 +156,14 @@ void Audio::writeSamples(const int16_t* samples, size_t sampleCount, int inputSa
 
         size_t chunkSize = std::min(byteCount - offset, static_cast<size_t>(BUFFER_BYTES));
         std::memcpy(targetBuf->data.data(), reinterpret_cast<const uint8_t*>(playSamples) + offset, chunkSize);
+        if (m_volume < 100) {
+            auto* outSamples = reinterpret_cast<int16_t*>(targetBuf->data.data());
+            const size_t count = chunkSize / sizeof(int16_t);
+            const int vol = static_cast<int>(m_volume);
+            for (size_t s = 0; s < count; ++s) {
+                outSamples[s] = static_cast<int16_t>((static_cast<int>(outSamples[s]) * vol) / 100);
+            }
+        }
         if (chunkSize < BUFFER_BYTES) {
             std::memset(targetBuf->data.data() + chunkSize, 0, BUFFER_BYTES - chunkSize);
         }
