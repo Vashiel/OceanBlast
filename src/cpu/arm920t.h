@@ -92,7 +92,7 @@ private:
     u32 shiftOperand(u32 value, u32 shiftType, u32 shiftAmount, bool& carryOut, bool immediate = false);
 
     // ARM Execution
-    void stepARM(u32 physAddr = 0xFFFFFFFF);
+    void stepARM(u32 instruction);
     void executeBranch(u32 instr);
     void executeBX(u32 instr);
     void executeMRS(u32 instr);
@@ -107,7 +107,7 @@ private:
     void executeSWI(u32 instr);
 
     // Thumb Execution
-    void stepThumb(u32 physAddr = 0xFFFFFFFF);
+    void stepThumb(u16 instruction);
 };
 
 } // namespace oceanblast

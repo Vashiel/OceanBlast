@@ -225,7 +225,8 @@ void ARM920T::step(size_t peripheralTicks) {
 
     u32 currentPC = r[15];
     Bus::MmuFault fetchFault = Bus::MmuFault::NONE;
-    u32 pa = bus.translate(currentPC, &fetchFault);
+    const bool thumb = isThumb();
+    const u32 instruction = bus.readInstruction(currentPC, thumb, fetchFault);
     if (fetchFault != Bus::MmuFault::NONE) {
         handlePrefetchAbort(currentPC);
         lastCycles = 3;
@@ -233,10 +234,10 @@ void ARM920T::step(size_t peripheralTicks) {
         return;
     }
 
-    if (isThumb()) {
-        stepThumb(pa);
+    if (thumb) {
+        stepThumb(static_cast<u16>(instruction));
     } else {
-        stepARM(pa);
+        stepARM(instruction);
     }
 
     bus.tick(peripheralTicks);
@@ -344,42 +345,80 @@ u32 ARM920T::shiftOperand(u32 val, u32 type, u32 amount, bool& carryOut, bool im
     }
 }
 
-// Common non-flag-setting ALU operations need no shifter carry or CPSR work.
+// Immediate and constant-shift register ALU operations need no general decoder.
 // Fetch, condition checks and peripheral/exception boundaries remain in step().
 bool ARM920T::executeSimpleDataProcessing(u32 instr) {
-    if ((instr & 0x0c100000) != 0 || ((instr >> 12) & 15) == 15) return false;
+    if ((instr & 0x0c000000) != 0 || ((instr >> 12) & 15) == 15) return false;
     const bool immediate = (instr & (1u << 25)) != 0;
-    if (!immediate && (instr & 0xff0) != 0) return false;
+    if (!immediate && (instr & (1u << 4))) return false;
     const u32 opcode = (instr >> 21) & 15;
-    if (opcode >= 5 && opcode <= 11) return false;
+    const bool flags = (instr & (1u << 20)) != 0;
+    // Carry arithmetic and control-register encodings use the general path.
+    if ((opcode >= 5 && opcode <= 7) || (opcode >= 8 && opcode <= 11 && !flags)) return false;
     const u32 rn = (instr >> 16) & 15;
     const u32 rd = (instr >> 12) & 15;
     const u32 op1 = rn == 15 ? r[15] + 4 : r[rn];
     u32 op2;
+    bool carry = (cpsr & FLAG_C) != 0;
     if (immediate) {
         const u32 rotation = ((instr >> 8) & 15) * 2;
         const u32 value = instr & 255;
         op2 = rotation ? (value >> rotation) | (value << (32 - rotation)) : value;
+        if (rotation) carry = (op2 & FLAG_N) != 0;
     } else {
         const u32 rm = instr & 15;
         op2 = rm == 15 ? r[15] + 4 : r[rm];
+        const u32 amount = (instr >> 7) & 31;
+        switch ((instr >> 5) & 3) {
+            case 0: // LSL #0 leaves the operand and carry unchanged.
+                if (amount) { carry = (op2 >> (32 - amount)) & 1; op2 <<= amount; }
+                break;
+            case 1: // Encoded LSR #0 means LSR #32.
+                carry = (op2 >> (amount ? amount - 1 : 31)) & 1;
+                op2 = amount ? op2 >> amount : 0;
+                break;
+            case 2: // Encoded ASR #0 means ASR #32.
+                carry = (op2 >> (amount ? amount - 1 : 31)) & 1;
+                op2 = amount ? u32(int32_t(op2) >> amount) : u32(int32_t(op2) >> 31);
+                break;
+            case 3:
+                if (amount) {
+                    carry = (op2 >> (amount - 1)) & 1;
+                    op2 = (op2 >> amount) | (op2 << (32 - amount));
+                } else { // RRX uses the old carry before replacing it.
+                    const u32 value = (carry ? FLAG_N : 0) | (op2 >> 1);
+                    carry = (op2 & 1) != 0; op2 = value;
+                }
+                break;
+        }
     }
+    u32 result = 0;
     switch (opcode) {
-        case 0: r[rd] = op1 & op2; break;
-        case 1: r[rd] = op1 ^ op2; break;
-        case 2: r[rd] = op1 - op2; break;
-        case 3: r[rd] = op2 - op1; break;
-        case 4: r[rd] = op1 + op2; break;
-        case 12: r[rd] = op1 | op2; break;
-        case 13: r[rd] = op2; break;
-        case 14: r[rd] = op1 & ~op2; break;
-        case 15: r[rd] = ~op2; break;
+        case 0: case 8: result = op1 & op2; break;
+        case 1: case 9: result = op1 ^ op2; break;
+        case 2: case 10: result = op1 - op2; break;
+        case 3: result = op2 - op1; break;
+        case 4: case 11: result = op1 + op2; break;
+        case 12: result = op1 | op2; break;
+        case 13: result = op2; break;
+        case 14: result = op1 & ~op2; break;
+        case 15: result = ~op2; break;
+    }
+    if (opcode < 8 || opcode > 11) r[rd] = result;
+    if (flags) {
+        if (opcode == 2 || opcode == 10) setSubFlags(op1, op2, result);
+        else if (opcode == 3) setSubFlags(op2, op1, result);
+        else if (opcode == 4 || opcode == 11) setAddFlags(op1, op2, result);
+        else {
+            setNZFlags(result);
+            cpsr = (cpsr & ~FLAG_C) | (carry ? FLAG_C : 0);
+        }
     }
     lastCycles = 1;
     return true;
 }
 
-void ARM920T::stepARM(u32 physAddr) {
+void ARM920T::stepARM(u32 instr) {
     u32 pc = r[15];
     if (debugLogging) {
     if (pc == 0xc001a538) {
@@ -461,7 +500,6 @@ void ARM920T::stepARM(u32 physAddr) {
         std::cout << std::dec;
     }
     }
-    u32 instr = (physAddr != 0xFFFFFFFF) ? bus.read32Phys(physAddr) : bus.read32(pc);
     r[15] += 4; // Advance PC to instruction address + 4
 
     u32 cond = instr >> 28;
@@ -469,66 +507,36 @@ void ARM920T::stepARM(u32 physAddr) {
 
     if (simpleAluExecution && executeSimpleDataProcessing(instr)) return;
 
-    // 1. BX / BLX
-    if ((instr & 0x0FFFFFF0) == 0x012FFF10 || (instr & 0x0FFFFFF0) == 0x012FFF30) {
-        executeBX(instr);
+    // Select the major instruction class before examining overlapping
+    // encodings. Loads and branches avoid the control/multiply comparisons.
+    switch ((instr >> 25) & 7) {
+        case 0:
+            if ((instr & 0x0FFFFFF0) == 0x012FFF10 || (instr & 0x0FFFFFF0) == 0x012FFF30) executeBX(instr);
+            else if ((instr & 0x0FBF0FFF) == 0x010F0000) executeMRS(instr);
+            else if ((instr & 0x0FB0F000) == 0x0120F000) executeMSR(instr);
+            else if ((instr & 0x0FB00FF0) == 0x01000090) executeSwap(instr);
+            else if ((instr & 0x0F000090) == 0x00000090 && !(instr & 0x60)) executeMultiply(instr);
+            else if ((instr & 0x0E000090) == 0x00000090 && (instr & 0x60)) executeHalfwordTransfer(instr);
+            else executeDataProcessing(instr);
+            return;
+        case 1:
+            if ((instr & 0x0FB0F000) == 0x0320F000) executeMSR(instr);
+            else executeDataProcessing(instr);
+            return;
+        case 2: case 3: executeSingleDataTransfer(instr); return;
+        case 4: executeBlockDataTransfer(instr); return;
+        case 5: executeBranch(instr); return;
+        case 7:
+            if ((instr & 0x0F000000) == 0x0F000000) { executeSWI(instr); return; }
+            if ((instr & 0x0F000010) == 0x0E000010 && ((instr >> 8) & 15) == 15) { executeCP15(instr); return; }
+            break;
     }
-    // 2. MRS
-    else if ((instr & 0x0FBF0FFF) == 0x010F0000) {
-        executeMRS(instr);
+    static int unkCount = 0;
+    if (unkCount++ < 10 && debugLogging) {
+        std::cerr << "[CPU] Undefined/Unhandled ARM instruction 0x" << std::hex << std::setw(8) << instr
+                  << " at PC 0x" << pc << std::dec << std::endl;
     }
-    // 3. MSR (Register)
-    else if ((instr & 0x0FB0F000) == 0x0120F000) {
-        executeMSR(instr);
-    }
-    // 4. MSR (Immediate)
-    else if ((instr & 0x0FB0F000) == 0x0320F000) {
-        executeMSR(instr);
-    }
-    // 5. Swap (SWP / SWPB)
-    else if ((instr & 0x0FB00FF0) == 0x01000090) {
-        executeSwap(instr);
-    }
-    // 6. Multiply
-    else if ((instr & 0x0F000090) == 0x00000090 && ((instr & 0x00000060) == 0)) {
-        executeMultiply(instr);
-    }
-    // 7. Halfword Data Transfer
-    else if ((instr & 0x0E000090) == 0x00000090 && ((instr & 0x00000060) != 0)) {
-        executeHalfwordTransfer(instr);
-    }
-    // 7. SWI
-    else if ((instr & 0x0F000000) == 0x0F000000) {
-        executeSWI(instr);
-    }
-    // 8. Coprocessor 15 (System Control)
-    else if ((instr & 0x0F000010) == 0x0E000010 && (((instr >> 8) & 0xF) == 15)) {
-        executeCP15(instr);
-    }
-    // 9. Branch B / BL
-    else if ((instr & 0x0E000000) == 0x0A000000) {
-        executeBranch(instr);
-    }
-    // 10. Block Data Transfer (LDM / STM)
-    else if ((instr & 0x0E000000) == 0x08000000) {
-        executeBlockDataTransfer(instr);
-    }
-    // 11. Single Data Transfer (LDR / STR)
-    else if ((instr & 0x0C000000) == 0x04000000) {
-        executeSingleDataTransfer(instr);
-    }
-    // 12. Data Processing
-    else if ((instr & 0x0C000000) == 0x00000000) {
-        executeDataProcessing(instr);
-    }
-    else {
-        static int unkCount = 0;
-        if (unkCount++ < 10 && debugLogging) {
-            std::cerr << "[CPU] Undefined/Unhandled ARM instruction 0x" << std::hex << std::setw(8) << instr
-                      << " at PC 0x" << pc << std::dec << std::endl;
-        }
-        handleUndefinedInstruction(instr);
-    }
+    handleUndefinedInstruction(instr);
 }
 
 void ARM920T::executeBranch(u32 instr) {
@@ -1077,9 +1085,8 @@ void ARM920T::executeSWI(u32 instr) {
     }
 }
 
-void ARM920T::stepThumb(u32 physAddr) {
+void ARM920T::stepThumb(u16 instr) {
     u32 instrPC = r[15];
-    u16 instr = (physAddr != 0xFFFFFFFF) ? bus.read16Phys(physAddr) : bus.read16(instrPC);
     r[15] += 2;
 
     // Format 2: Add/subtract (register / 3-bit immediate)

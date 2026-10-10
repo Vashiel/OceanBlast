@@ -74,14 +74,14 @@ public:
         PAGE_PERMISSION_FAULT = 0xF,
     };
 
-    void setUserMode(bool um) { userMode = um; }
+    void setUserMode(bool um) { if (userMode != um) instructionPage = UINT32_MAX; userMode = um; }
     bool isUserMode() const { return userMode; }
 
     void flushTlb() const;
     void setMmuEnabled(bool en) { mmuEnabled = en; flushTlb(); }
     void setTtb(u32 val) { ttb = val; flushTlb(); }
     u32  getTtb() const { return ttb; }
-    void setDacr(u32 val) { dacr = val; }
+    void setDacr(u32 val) { dacr = val; instructionPage = UINT32_MAX; }
     bool isMmuEnabled() const { return mmuEnabled; }
 
     u32  translateSlow(u32 va, MmuFault* fault, bool isWrite) const;
@@ -139,6 +139,27 @@ public:
             return val;
         }
         return read32PhysSlow(pa);
+    }
+
+    // Cache a translated RAM address, never an instruction's contents. The
+    // 1 KB span stays within a small-page access-permission subregion. Mode
+    // changes and all guest TLB invalidations discard the cached address.
+    inline u32 readInstruction(u32 va, bool thumb, MmuFault& fault) {
+        const u32 page = va & ~1023u;
+        const bool aligned = (va & (thumb ? 1u : 3u)) == 0;
+        if (page != instructionPage || !aligned) {
+            const u32 pa = translate(va, &fault);
+            if (fault != MmuFault::NONE) return 0;
+            if (!aligned || pa < ADDR_SDRAM_BASE || pa - ADDR_SDRAM_BASE >= ADDR_SDRAM_SIZE)
+                return thumb ? read16Phys(pa) : read32Phys(pa);
+            instructionPointer = sdramPtr + ((pa - ADDR_SDRAM_BASE) & ~1023u);
+            instructionPage = page;
+        }
+        fault = MmuFault::NONE;
+        if (thumb) {
+            u16 value; std::memcpy(&value, instructionPointer + (va & 1023), sizeof(value)); return value;
+        }
+        u32 value; std::memcpy(&value, instructionPointer + (va & 1023), sizeof(value)); return value;
     }
 
     inline void write8Phys(u32 pa, u8 val) {
@@ -266,6 +287,9 @@ public:
         // Register writes handle subpending/mask changes; tick reasserts after
         // the guest clears the main source while the empty level remains active.
         if (uart0TxLevelActive && !(regSrcpnd & (1u << 28))) updateUart0TxInterrupt();
+        // Ratio execution also calls tick with no elapsed time. Preserve the
+        // level-triggered UART check, but do not revisit timed devices then.
+        if (!cycles) return;
         if (timer4.isRunning() && timer4.advance(cycles)) requestIrq(14);
         if (dma2Active && (!dma2Paused || dma2Dst != 0x55000010)) {
             if (cycles >= dma2Timer) {
@@ -342,6 +366,8 @@ private:
     };
     static constexpr size_t TLB_SIZE = 2048;
     mutable std::array<TlbEntry, TLB_SIZE> tlb = {};
+    mutable u32 instructionPage = UINT32_MAX;
+    const u8* instructionPointer = nullptr;
 
     u32 regTcon = 0;
     u32 regIntmsk = ~0u;

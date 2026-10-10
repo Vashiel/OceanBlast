@@ -46,6 +46,7 @@ bool Bus::saveEeprom(const std::string& path) const {
 }
 
 void Bus::reset() {
+    instructionPage = UINT32_MAX;
     sdramPtr = sdram.data();
     std::fill(steppingstone.begin(), steppingstone.end(), 0);
     std::fill(sdram.begin(), sdram.end(), 0);
@@ -1020,6 +1021,7 @@ void Bus::completeI2cByte() {
 }
 
 void Bus::flushTlb() const {
+    instructionPage = UINT32_MAX;
     for (size_t i = 0; i < TLB_SIZE; ++i) {
         tlb[i].valid = false;
     }

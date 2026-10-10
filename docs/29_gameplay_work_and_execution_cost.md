@@ -18,6 +18,8 @@ At 100 framebuffer polls per modeled second, the same gameplay intervals record 
 
 ## Execution Changes
 
+The subsequent [fetch and interpreter optimization](37_cpu_fetch_and_interpreter_execution.md) extends the ALU path to flag updates and constant register shifts. The measurements in this document describe the earlier build below.
+
 Common ARM data-processing operations without flag updates now have a shorter execution path. It covers immediate operands and unshifted register operands for AND, EOR, SUB, RSB, ADD, ORR, MOV, BIC and MVN, with a general-register destination. Operations involving flags, carry arithmetic, shifted registers or a PC destination retain the ordinary implementation. PC source operands retain the existing pipeline offset.
 
 Every instruction still performs its normal memory fetch and condition evaluation. Interrupt checks, MMU permissions, exception boundaries and peripheral advancement are retained. This is an interpreter optimization, not a guest instruction cache, code substitution or hardware timing adjustment. `--simple-alu off` selects the general execution path for comparison.
