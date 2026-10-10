@@ -1,0 +1,29 @@
+{
+  "sdl_current_video": "0x005d2230",
+  "screen": {
+    "address": "0x005d26c8",
+    "flags": "0x80000021",
+    "width": 240,
+    "height": 160,
+    "pitch": 480,
+    "bits_per_pixel": 16,
+    "masks": [
+      "0xf800",
+      "0x07e0",
+      "0x001f"
+    ]
+  },
+  "shadow": {
+    "address": "0x005d3028",
+    "flags": "0x80000020",
+    "width": 240,
+    "height": 160,
+    "pitch": 480,
+    "bits_per_pixel": 12,
+    "masks": [
+      "0x0f00",
+      "0x00f0",
+      "0x000f"
+    ]
+  }
+}

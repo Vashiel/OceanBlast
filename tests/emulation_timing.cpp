@@ -2,6 +2,7 @@
 #include "core/execution_batch.h"
 #include "cpu/arm920t.h"
 #include "../tools/kernel_jiffies.h"
+#include "../tools/guest_ram.h"
 #include <iostream>
 #include <vector>
 #include <fstream>
@@ -16,6 +17,16 @@ static void arm(Bus& bus, ARM920T& cpu, u32 instr) {
     bus.write32(cpu.getPC(), instr); cpu.step(0);
 }
 int main() {
+    { Bus bus;u32 word=0;bus.write32(0x30002000,0x12345678);
+      check("Diagnostic RAM inspection reads physical SDRAM",readGuestRam32(bus,0x30002000,word)&&word==0x12345678);
+      bus.setTtb(0x30004000);bus.write32(0x30004004,0x30000002);bus.setMmuEnabled(true);bus.setUserMode(true);
+      check("Diagnostic section inspection does not change guest privilege",readGuestRam32(bus,0x00102000,word)&&word==0x12345678&&bus.isUserMode());
+      bus.setMmuEnabled(false);bus.write32(0x30004008,0x30008001);bus.write32(0x3000800c,0x30002002);bus.setMmuEnabled(true);
+      check("Diagnostic coarse-page inspection reads mapped RAM",readGuestRam32(bus,0x00203000,word)&&word==0x12345678);
+      check("Diagnostic RAM inspection rejects unmapped and unaligned addresses",!readGuestRam32(bus,0x00300000,word)&&!readGuestRam32(bus,0x00203001,word));
+      bus.setMmuEnabled(false);bus.setMmioProfiling(true);
+      check("Diagnostic RAM inspection never reads MMIO",!readGuestRam32(bus,0x51000040,word)&&bus.getMmioProfile().empty());
+    }
     { Bus bus;ARM920T cpu(bus);cpu.reset();
       arm(bus,cpu,0xe321f010); // MSR CPSR_c, user mode.
       cpu.setReg(15,0);
