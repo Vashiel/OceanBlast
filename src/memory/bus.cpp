@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include <cstdlib>
 #include <iomanip>
 
 namespace oceanblast {
@@ -622,6 +623,15 @@ u32 Bus::readMmio(u32 addr, bool guestAccess) {
             if (buttonMask & (1 << 8)) gpg &= ~(1 << 10); // BTN_START -> GPG10
             if (buttonMask & (1 << 6)) gpg &= ~(1 << 11); // BTN_L -> GPG11
             return gpg;
+        }
+        case 0x56000074: { // GPHDAT: input pins read the external level, not the written latch
+            auto it = mmioRegs.find(0x56000074);
+            u32 value = (it != mmioRegs.end()) ? it->second : 0;
+            // Diagnostic: OCEANBLAST_GPH8=1 drives the TV-out sense pin (GPH8) high
+            // while GPHCON configures it as an input (bits [17:16] == 00).
+            static const bool gph8High = [] { const char* v = std::getenv("OCEANBLAST_GPH8"); return v && v[0] == '1'; }();
+            if (gph8High && ((mmioRegs[0x56000070] >> 16) & 3) == 0) value |= 0x100;
+            return value;
         }
         case 0x560000A4: { // EINTMASK
             auto it = mmioRegs.find(0x560000A4);
