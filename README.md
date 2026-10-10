@@ -10,7 +10,7 @@ The goal of this project is digital preservation, architectural documentation, a
 
 ## 🚀 Quick Start & Windows Launcher
 
-Double-click `bin/oceanblast.exe` without arguments to launch the graphical interface. Click **Browse ROM…**, choose display scaling (2×, 3×, 4×), leave sound enabled or disable it, and click **Start Game**. The launcher includes session controls, optional FPS/debug logging, and built-in keyboard help. Plain Window and automatic ROM settings are selected by default. Known Pitfall and Superstar Chefs dumps use a 2x CPU ratio; other dumps retain 1x. See [automatic cartridge settings](docs/34_automatic_cartridge_settings.md). Choose Console Skin, Fullscreen, or Plain Window; F11 switches between windowed and fullscreen play. See [console skin and fullscreen controls](docs/33_console_skin_and_fullscreen.md). Command-line invocation remains fully supported, including direct LCD frame recording for motion diagnosis. See [Windows launcher documentation](docs/06_windows_launcher.md) and [LCD frame recording](docs/35_lcd_frame_recording.md).
+Double-click `bin/oceanblast.exe` without arguments to launch the graphical interface. Click **Browse ROM…**, choose display scaling (2×, 3×, 4×), leave sound enabled or disable it, and click **Start Game**. The launcher includes session controls, optional FPS/debug logging, and built-in keyboard help. Plain Window and automatic ROM settings are selected by default. Known Pitfall, Superstar Chefs, and Wade dumps use a 2x CPU ratio; Wade's setting is provisional. Other dumps retain 1x. See [automatic cartridge settings](docs/34_automatic_cartridge_settings.md). Choose Console Skin, Fullscreen, or Plain Window; F11 switches between windowed and fullscreen play. See [console skin and fullscreen controls](docs/33_console_skin_and_fullscreen.md). Command-line invocation remains fully supported, including direct LCD frame recording for motion diagnosis. See [Windows launcher documentation](docs/06_windows_launcher.md) and [LCD frame recording](docs/35_lcd_frame_recording.md).
 
 ---
 
@@ -35,13 +35,13 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 
 ## 📈 Emulation Progress
 
-### Current compatibility status (2026-10-09)
+### Current compatibility status (2026-10-10)
 
 [Programmed LCD scanout height](docs/31_programmed_scanout_height.md) includes video rows previously omitted by the fixed 160-row display path. [Complete video frames and synchronized presentation](docs/32_coherent_video_and_vsync.md) prevent sampling partially written video images and add explicit Windows vertical synchronization.
 
 [RealVideo frame-delivery tests](docs/30_realvideo_frame_delivery.md) show Sonic X and Italian/Spanish Winx video imagery at a higher diagnostic CPU allowance. Both decode colored frames while remaining dark at the standard allowance. Hardware timing, continuous audio and synchronized playback remain unresolved.
 
-[Gameplay profiling and optimized CPU execution](docs/29_gameplay_work_and_execution_cost.md) identify substantial mixer and software drawing costs. A validated profile-guided build improves controlled instruction throughput by 21–27% across Chefs, Wade and DigiQUAD and reduces observed Chefs audio starvation at 4x. Game speed and sound acceptance remain incomplete.
+[CPU fetch and interpreter execution](docs/37_cpu_fetch_and_interpreter_execution.md) improve controlled instruction throughput by 17–45% relative to the preceding optimized build, with identical tested guest states. Chefs at 4x reaches 98.3% of its modeled pacing target in a bounded GUI comparison, with fewer empty audio queues. Wade reaches its first fight after the uninterrupted introduction at manual 4x, but remains visibly slow near its legacy pacing target. Hardware speed, graphics accuracy, and sound acceptance remain incomplete. [Gameplay profiling](docs/29_gameplay_work_and_execution_cost.md) identifies substantial software mixer and drawing costs.
 
 [Register-derived clocks and IIS playback control](docs/23_register_clocks_and_iis_pause.md) make Timer 4 and audio follow programmed clocks, preserve exact integer audio rates, pause IIS DMA when the transmit path is disabled, and advance peripheral time on IRQ entry. These corrections do not establish hardware-equivalent CPU speed or complete cartridge compatibility.
 
@@ -59,7 +59,7 @@ The [cartridge register audit](docs/28_cartridge_register_audit.md) completes bo
 
 Cartridge identity and source-data limitations are documented in the [MAME checksum and ROM integrity report](docs/14_rom_integrity.md). Twenty-one of 25 checked files/archive members match the reference in size, CRC32 and SHA-1; four variants are unlisted. The matching international Winx combined dump contains independently reproducible invalid SquashFS/zlib blocks. The alternative MAME Italian/Spanish Winx set is not available locally for comparison.
 
-The latest changes add streaming audio-rate conversion, aggregation of small audio fragments, DMA current-position registers, GUI pacing at 20 MIPS, and audio diagnostics. The short Spider-Man comparison reported zero dropped output samples after these changes; this is a boot-only measurement and does not establish synchronized gameplay audio. See the [audio timing investigation, verification and open issues](docs/11_audio_timing_followup.md) for reproduction steps and the next investigation targets. The component milestones below do not imply complete game support.
+Audio output includes streaming audio-rate conversion, aggregation of small audio fragments, DMA current-position registers, GUI pacing at 20 MIPS, and audio diagnostics. The short Spider-Man comparison reported zero dropped output samples after these changes; this is a boot-only measurement and does not establish synchronized gameplay audio. See the [audio timing investigation, verification and open issues](docs/11_audio_timing_followup.md) for reproduction steps and the next investigation targets. The component milestones below do not imply complete game support.
 
 * [x] **Autonomous Boot SRAM:** S3C2410 Steppingstone hardware logic autonomously parsing initial 4 KB bootloader into internal SRAM (`0x00000000`).
 * [x] **ARM920T CPU Core & CP15:** 32-bit ARM instruction interpreter with condition evaluation, branch exchange (`BX`), block transfer (`LDM`/`STM`), barrel shifter, coprocessor CP15 transfers (`MRC`/`MCR`), and virtual memory address translation.

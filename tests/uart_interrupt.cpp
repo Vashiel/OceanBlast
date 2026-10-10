@@ -27,6 +27,10 @@ int main() {
         bus.write32(0x4A000010, uart);
         bus.tick();
         check("UART0 empty level reasserts after main acknowledgement", bus.hasPendingIrq());
+        bus.write32(0x4A000000, uart);
+        bus.write32(0x4A000010, uart);
+        bus.tick(0);
+        check("Zero-time tick retains UART level reassertion", bus.hasPendingIrq());
         bus.write32(0x4A00001C, 0x7ff);
         bus.write32(0x4A000000, uart);
         bus.write32(0x4A000010, uart);

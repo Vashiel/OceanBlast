@@ -17,6 +17,68 @@ static void thumb(Bus& b, ARM920T& c, u16 instruction) {
     c.step();
 }
 int main() {
+    { Bus b; Bus::MmuFault fault=Bus::MmuFault::NONE;
+      b.write32(0x30000000,0x12345678);
+      bool correct=b.readInstruction(0x30000000,false,fault)==0x12345678&&fault==Bus::MmuFault::NONE;
+      b.write32(0x30000000,0xaabbccdd);
+      correct=correct&&b.readInstruction(0x30000000,false,fault)==0xaabbccdd;
+      correct=correct&&b.readInstruction(0x30000002,true,fault)==0xaabb;
+      b.write32(0x300003fc,0x11223344);b.write32(0x30000400,0x55667788);
+      correct=correct&&b.readInstruction(0x300003fc,false,fault)==0x11223344&&
+              b.readInstruction(0x30000400,false,fault)==0x55667788;
+      check("RAM instruction fetch observes modified code ARM Thumb and subregion boundaries",correct);
+    }
+    { Bus b; Bus::MmuFault fault=Bus::MmuFault::NONE;
+      b.write32(0x30000000,0x11111111);b.write32(0x30200000,0x22222222);
+      b.write32(0x30101000,0x30000c02);b.setTtb(0x30100000);b.setMmuEnabled(true);
+      bool correct=b.readInstruction(0x40000000,false,fault)==0x11111111;
+      b.write32PhysSlow(0x30101000,0x30200c02);b.flushTlb();
+      correct=correct&&b.readInstruction(0x40000000,false,fault)==0x22222222;
+      b.write32PhysSlow(0x30105000,0x30000c02);b.setTtb(0x30104000);
+      correct=correct&&b.readInstruction(0x40000000,false,fault)==0x11111111;
+      b.write32PhysSlow(0x30104c00,0x30200c02);
+      correct=correct&&b.readInstruction(0x30000000,false,fault)==0x22222222;
+      b.setMmuEnabled(false);
+      correct=correct&&b.readInstruction(0x30000000,false,fault)==0x11111111;
+      check("RAM instruction fetch invalidates on TTB MMU and guest TLB changes",correct);
+      b.setMmuEnabled(true);b.write32PhysSlow(0x30105000,0x30000402);b.flushTlb();
+      correct=b.readInstruction(0x40000000,false,fault)==0x11111111&&fault==Bus::MmuFault::NONE;
+      b.setUserMode(true);b.readInstruction(0x40000000,false,fault);
+      check("RAM instruction fetch rechecks permissions on entry to user mode",correct&&fault!=Bus::MmuFault::NONE);
+    }
+    { Bus b; Bus::MmuFault fault=Bus::MmuFault::NONE;
+      b.write32(0,0xe3a00001);b.write32(0x30000000,0x12345678);
+      b.readInstruction(0x30000000,false,fault);
+      bool correct=b.readInstruction(0,false,fault)==0xe3a00001;
+      correct=correct&&b.readInstruction(0x30000001,false,fault)==b.read32Phys(0x30000001);
+      b.write32(0x31fffffc,0xaabbccdd);
+      correct=correct&&b.readInstruction(0x31fffffc,false,fault)==0xaabbccdd&&
+              b.readInstruction(0x31fffffe,true,fault)==0xaabb;
+      b.reset();
+      correct=correct&&b.readInstruction(0x30000000,false,fault)==0;
+      check("Instruction fetch preserves SRAM unaligned RAM end and reset behavior",correct);
+    }
+    { Bus fastBus,referenceBus; ARM920T fast(fastBus),reference(referenceBus);
+      reference.setSimpleAluExecution(false); bool equivalent=true;
+      const u32 edges[]={0,1,0x7fffffff,0x80000000,0xffffffff};
+      for (unsigned nzcv=0;nzcv<16;++nzcv) for (u32 opcode:{0u,1u,2u,3u,4u,8u,9u,10u,11u,12u,13u,14u,15u})
+        for (u32 left:edges) for (u32 right:edges) for (bool immediate:{false,true}) {
+          // Logical rotated immediates replace C; unshifted registers preserve
+          // it. Arithmetic operations derive C/V from the arithmetic result.
+          const u32 operand=immediate ? 0x480u : 2u;
+          const u32 instruction=0xe0100000|(u32(immediate)<<25)|(opcode<<21)|(1u<<16)|operand;
+          for (Bus* b:{&fastBus,&referenceBus}) {
+            b->write32(0x30000000,0xe128f004); b->write32(0x30000004,instruction);
+          }
+          for (ARM920T* c:{&fast,&reference}) {
+            c->setReg(0,0x12345678);c->setReg(1,left);c->setReg(2,right);c->setReg(4,nzcv<<28);
+            c->setReg(15,0x30000000);c->step();c->step();
+          }
+          for (int reg=0;reg<16;++reg) equivalent=equivalent&&fast.getReg(reg)==reference.getReg(reg);
+          equivalent=equivalent&&fast.getCPSR()==reference.getCPSR()&&fast.getLastCycles()==reference.getLastCycles();
+        }
+      check("Flag-setting ALU path preserves carry overflow test destinations and cycle counts",equivalent);
+    }
     { Bus fastBus,referenceBus; ARM920T fast(fastBus),reference(referenceBus);
       reference.setSimpleAluExecution(false);
       uint32_t random = 0x9182acdf;
@@ -25,7 +87,7 @@ int main() {
       for(unsigned trial=0;trial<8192;++trial) {
           const uint32_t opcode=next()&15,rd=next()&15,rn=next()&15,rm=next()&15;
           const bool immediate=next()&1,flags=next()&1;
-          const uint32_t operand=immediate ? next()&4095 : rm;
+          const uint32_t operand=immediate ? next()&4095 : rm|(next()&0xfe0);
           const uint32_t word=0xe0000000|(uint32_t(immediate)<<25)|(opcode<<21)|(uint32_t(flags)<<20)|(rn<<16)|(rd<<12)|operand;
           for(int reg=0;reg<15;++reg){const uint32_t value=next();fast.setReg(reg,value);reference.setReg(reg,value);}
           for(Bus* b:{&fastBus,&referenceBus})b->write32(0x30000000,word);
@@ -34,6 +96,25 @@ int main() {
           equivalent=equivalent&&fast.getCPSR()==reference.getCPSR()&&fast.getLastCycles()==reference.getLastCycles();
       }
       check("Simple ALU path preserves reference registers flags cycles and PC operands",equivalent);
+    }
+    { Bus fastBus,referenceBus; ARM920T fast(fastBus),reference(referenceBus);
+      reference.setSimpleAluExecution(false); bool equivalent=true;
+      const u32 edges[]={0,1,0x7fffffff,0x80000000,0xffffffff};
+      for (unsigned nzcv=0;nzcv<16;++nzcv) for (unsigned type=0;type<4;++type)
+        for (unsigned amount=0;amount<32;++amount) for (u32 value:edges)
+          for (bool pcSource:{false,true}) for (bool flags:{false,true}) {
+            const u32 instruction=0xe1810000|(u32(flags)<<20)|(amount<<7)|(type<<5)|(pcSource?15u:2u);
+            for (Bus* b:{&fastBus,&referenceBus}) {
+              b->write32(0x30000000,0xe128f004);b->write32(0x30000004,instruction);
+            }
+            for (ARM920T* c:{&fast,&reference}) {
+              c->setReg(1,0x01010101);c->setReg(2,value);c->setReg(4,nzcv<<28);
+              c->setReg(15,0x30000000);c->step();c->step();
+            }
+            for (int reg=0;reg<16;++reg) equivalent=equivalent&&fast.getReg(reg)==reference.getReg(reg);
+            equivalent=equivalent&&fast.getCPSR()==reference.getCPSR()&&fast.getLastCycles()==reference.getLastCycles();
+          }
+      check("Constant ALU shifts preserve all amounts carry flags PC operands and RRX",equivalent);
     }
     { Bus fastBus,referenceBus; ARM920T fast(fastBus),reference(referenceBus);
       reference.setSimpleAluExecution(false);bool equivalent=true;
