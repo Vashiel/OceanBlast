@@ -627,9 +627,10 @@ u32 Bus::readMmio(u32 addr, bool guestAccess) {
         case 0x56000074: { // GPHDAT: input pins read the external level, not the written latch
             auto it = mmioRegs.find(0x56000074);
             u32 value = (it != mmioRegs.end()) ? it->second : 0;
-            // Diagnostic: OCEANBLAST_GPH8=1 drives the TV-out sense pin (GPH8) high
-            // while GPHCON configures it as an input (bits [17:16] == 00).
-            static const bool gph8High = [] { const char* v = std::getenv("OCEANBLAST_GPH8"); return v && v[0] == '1'; }();
+            // GPH8 is the TV-out sense input. With no TV-out adapter attached the pull-up
+            // enabled by s3c2410fb_probe holds it high, selecting the handheld 12-bpp LCD mode.
+            // OCEANBLAST_GPH8=0 forces the low (TV-out) level for diagnostics.
+            static const bool gph8High = [] { const char* v = std::getenv("OCEANBLAST_GPH8"); return !(v && v[0] == '0'); }();
             if (gph8High && ((mmioRegs[0x56000070] >> 16) & 3) == 0) value |= 0x100;
             return value;
         }

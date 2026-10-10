@@ -1,11 +1,15 @@
 # Changelog & Technical Investigation History
 
-This changelog records the chronological development, hardware reverse-engineering milestones, and empirical validation reports (`docs/00`–`docs/41`) for **OceanBlast**.
+This changelog records the chronological development, hardware reverse-engineering milestones, and empirical validation reports (`docs/00`–`docs/42`) for **OceanBlast**.
 
 ---
 
 ## 2026-10-10 — Executable Attribution, Framebuffer Modes & CPU Throughput
 
+* **Handheld 12-bpp LCD Mode via `GPH8 = 1` Across Cartridges ([docs/42](docs/42_wade_gph8_lcd_mode.md)):**
+  * Modeled S3C2410 GPIO pin **`GPH8`** (`0x56000074` bit 8) as a pulled-high input when `GPHCON` bits `[17:16] == 00`, so `s3c2410fb_probe` boots in native handheld 12-bpp `'LCD'` mode (`use_tvout = 0`, `LCDCON1 = 0x14c9`, `LCDSADDR3 = 0xb4` = `360` bytes/row) instead of PAL 16-bpp TV-Out mode.
+  * In *Wade Hixton's Counter Punch*, eliminating the 16-bpp shadow surface removes `BlitNtoN` completely (`51.33% -> 0.00%`, replaced by `FB_LCD444Update` at `10.08%`) and cuts active-fight CPU work by **50.0%** (`4.50M -> 2.25M` step calls/frame; `144M` step calls per 64-frame counter unit, fitting within a 180 MHz ARM920T cycle budget).
+  * Audited all 11 games and 3 combined cartridges: *Crazy Jack*, *DigiQUAD*, *Superstar Chefs*, *Wade Hixton*, and all 3 combined menus switch to native `57,600`-byte 12-bpp LCD444 mode, resolving *Crazy Jack*'s register/pixel-format disagreement ([docs/25](docs/25_automatic_display_selection.md)) and boot-splash conversion artifacts natively.
 * **Wade Executable & `s3c2410fb` Driver Disassembly ([docs/41](docs/41_wade_binary_and_s3c2410fb_analysis.md)):**
   * Extracted the unstripped `Wade` ELF binary from the cartridge's SquashFS image and performed byte-verified function attribution across ratios 4 and 16.
   * Confirmed the round counter decrements strictly every 64 frames (`GLOBAL_nFrameCounter & 0x3f` in `_Z10_PlayRoundv`), with a 16-ms frame limiter (`vblTime = 16` at `0x005b9840` in `_Z11vblank_waitv`) and 1-µs sub-jiffy `gettimeofday` interpolation via `s3c2410_gettimeoffset` (`TCNTO4` at `0x51000040`).

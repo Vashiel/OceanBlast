@@ -39,30 +39,30 @@ Automatic per-cartridge settings are enabled by default (see [docs/34](docs/34_a
 
 All tested cartridges boot autonomously through the 4-KB S3C2410 Steppingstone SRAM, U-Boot 1.1.2 (`nidc` NAND ID & `checkbattery` ADC checks), and the embedded Linux 2.6.11 kernel without kernel panics or guest segmentation faults. Sustained full-speed gameplay and glitch-free audio synchronization remain under active development.
 
-For the complete chronological engineering log and all 42 technical reports (`docs/00`–`docs/41`), see [**CHANGELOG.md**](CHANGELOG.md).
+For the complete chronological engineering log and all 43 technical reports (`docs/00`–`docs/42`), see [**CHANGELOG.md**](CHANGELOG.md).
 
 ### 1. Commercial Game Cartridges (11 / 11 Boot to Game Binary)
 
 | Cartridge Title | Boots (U-Boot + Linux) | Menus / In-Game Status | Audio Status | Display / Technical Notes & Docs |
 | :--- | :---: | :---: | :---: | :--- |
-| **Crazy Jack** `[G] (EN)` | ✅ Yes | 🟡 Title, Level Select & In-Game | 🟡 Plays (underruns) | Auto packed RGB444 / 480B rows ([docs/16](docs/16_i2c_eeprom_and_player_startup.md), [docs/25](docs/25_automatic_display_selection.md)) |
+| **Crazy Jack** `[G] (EN)` | ✅ Yes | 🟢 Title, Level Select & In-Game | 🟡 Plays (underruns) | Native 12-bpp LCD444 via `GPH8 = 1` ([docs/16](docs/16_i2c_eeprom_and_player_startup.md), [docs/25](docs/25_automatic_display_selection.md), [docs/42](docs/42_wade_gph8_lcd_mode.md)) |
 | **Cuccioli Cerca Amici** `[G] (IT)` | ✅ Yes | 🟡 Main Menu & Save-Slot Select | 🟡 Plays (unverified) | 64 MB NAND (`0x98, 0x76`) ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/28](docs/28_cartridge_register_audit.md)) |
-| **DigiQUAD** `[G] (EN)` | ✅ Yes | 🟢 Main Menu & Racing Scene | 🟡 Improved ([docs/20](docs/20_pcm_capture_and_dma_sample_lifetime.md)) | Fast execution; DMA sample lifetime fix ([docs/18](docs/18_manual_cartridge_validation.md)) |
+| **DigiQUAD** `[G] (EN)` | ✅ Yes | 🟢 Main Menu & Racing Scene | 🟡 Improved ([docs/20](docs/20_pcm_capture_and_dma_sample_lifetime.md)) | Native 12-bpp LCD444 (`GPH8 = 1`); DMA fix ([docs/18](docs/18_manual_cartridge_validation.md), [docs/42](docs/42_wade_gph8_lcd_mode.md)) |
 | **Gormiti: Agguato nella Valle** `[G] (IT)` | ✅ Yes | 🟡 Title, Character Select & Bracket | 🟡 Plays (unverified) | Scene transition sensitive to input timing ([docs/17](docs/17_timer_and_runtime_validation.md), [docs/28](docs/28_cartridge_register_audit.md)) |
 | **Gormiti: Lotta Oscura** `[G] (IT)` | ✅ Yes | 🟡 Intro & Title / Start Prompt | 🟡 Plays (unverified) | 32 MB NAND ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/28](docs/28_cartridge_register_audit.md)) |
 | **Gormiti: Masters of the Gorm Island** `[G] (IT)` | ✅ Yes | 🟢 Main Menu & In-Game Level/HUD | 🟡 Plays (unverified) | 32 MB NAND ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/28](docs/28_cartridge_register_audit.md)) |
 | **Pitfall: The Lost Expedition** `[G] (EN)` | ✅ Yes | 🟡 Intro, Title & Gameplay | 🟡 Plays (slow pacing) | Native 12-bpp LCD444; auto 2× ratio ([docs/21](docs/21_pitfall_original_hardware_reference.md), [docs/34](docs/34_automatic_cartridge_settings.md)) |
 | **Rayman 3** `[G] (M10)` | ✅ Yes | 🟡 Intro, Title & In-Game | 🟡 Stutters under load | High CPU/blitter load ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/18](docs/18_manual_cartridge_validation.md)) |
 | **Spider-Man: Mysterio's Menace** `[G] (EN)` | ✅ Yes | 🟢 Main Menu, Story & In-Game | 🟡 Plays (metallic/crackling) | ~17.5 FPS sampled changes at 1× ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/18](docs/18_manual_cartridge_validation.md)) |
-| **Superstar Chefs** `[G] (EN)` | ✅ Yes | 🟢 Menus & Interactive Gameplay | 🟡 Improved at 4× ([docs/37](docs/37_cpu_fetch_and_interpreter_execution.md)) | Needs UART0 TX IRQ ([docs/15](docs/15_uart_video_startup.md)); auto 2× ratio ([docs/24](docs/24_automatic_timing_and_chefs_load.md)) |
-| **Wade Hixton's Counter Punch** `[G] (EN)` | ✅ Yes | 🟢 Intro, Menus & First Fight | 🟡 Plays (slow at 1×–4×) | 64 frames/counter unit; `GPH8` TV-Out vs. 12-bpp LCD ([docs/40](docs/40_wade_sdl_formats_and_work_scaling.md), [docs/41](docs/41_wade_binary_and_s3c2410fb_analysis.md)) |
+| **Superstar Chefs** `[G] (EN)` | ✅ Yes | 🟢 Menus & Interactive Gameplay | 🟡 Improved at 4× ([docs/37](docs/37_cpu_fetch_and_interpreter_execution.md)) | Native 12-bpp LCD444 (`GPH8 = 1`); auto 2× ratio ([docs/24](docs/24_automatic_timing_and_chefs_load.md), [docs/42](docs/42_wade_gph8_lcd_mode.md)) |
+| **Wade Hixton's Counter Punch** `[G] (EN)` | ✅ Yes | 🟢 Intro, Menus & First Fight | 🟡 Improved (`-50%` frame work) | `GPH8 = 1` removes 16-bpp shadow blit (`4.5M -> 2.25M` steps/frame) ([docs/41](docs/41_wade_binary_and_s3c2410fb_analysis.md), [docs/42](docs/42_wade_gph8_lcd_mode.md)) |
 
 ### 2. Video & Combined Game+Video Cartridges
 
 | Cartridge Group | Boots & Launches Player | Video Output | Media Controls & Audio | Notes & Documentation |
 | :--- | :---: | :---: | :---: | :--- |
 | **Gormiti / SpongeBob / Yu-Gi-Oh!** *(Video)* | ✅ Yes | 🟢 Visible Episode Imagery | 🟡 Keypad Controls Active | 240-row scanout & coherent frame latch ([docs/28](docs/28_cartridge_register_audit.md), [docs/31](docs/31_programmed_scanout_height.md), [docs/32](docs/32_coherent_video_and_vsync.md)) |
-| **SpongeBob / Winx** *(IT/ES Combined Game+Video)* | ✅ Yes | 🟢 Language Menu & Episode Video | 🟡 Keypad Controls Active | Requires I2C EEPROM ([docs/16](docs/16_i2c_eeprom_and_player_startup.md)); intl. Winx dump has corrupt blocks ([docs/14](docs/14_rom_integrity.md)) |
+| **SpongeBob / Winx** *(IT/ES Combined Game+Video)* | ✅ Yes | 🟢 Language Menu & Episode Video | 🟡 Keypad Controls Active | Native 12-bpp LCD444 (`GPH8 = 1`) & I2C EEPROM ([docs/16](docs/16_i2c_eeprom_and_player_startup.md), [docs/42](docs/42_wade_gph8_lcd_mode.md)); intl. Winx has corrupt blocks ([docs/14](docs/14_rom_integrity.md)) |
 | **Sonic X / Winx** *(IT/ES Video-Only)* | ✅ Yes | 🟡 Decodes Frames at High CPU Budget | 🟡 Play/Pause/Seek Verified | Dark at 1×; decodes colored RealVideo frames at higher budget ([docs/30](docs/30_realvideo_frame_delivery.md), [docs/33](docs/33_console_skin_and_fullscreen.md)) |
 | **Totally Spies / Winx** *(NL Video-Only)* | ✅ Yes | 🔴 Black Framebuffer at Tested Budget | 🟡 Player State Reaches `PLAYING` | Active framebuffer remains zeroed at 2.5B steps ([docs/28](docs/28_cartridge_register_audit.md), [docs/30](docs/30_realvideo_frame_delivery.md)) |
 
@@ -78,7 +78,7 @@ The Nikko digiBLAST hardware is built around the Samsung S3C2410A / OCEAN-L-20 p
 | **Memory & Boot** | 4 KB Steppingstone SRAM (`0x00000000`), 32 MB SDRAM (`0x30000000`) | ✅ Autonomous 4 KB NAND boot copy, SDRAM mirroring (`0x32000000`), and MMIO bus ([docs/01](docs/01_memory_map.md)) |
 | **NAND Flash** | S3C2410 NAND (`0x4E000000`), Toshiba TC58 / Samsung K9 (16–128 MB) | ✅ Read ID (`0x90` for `nidc`), 512+16 raw OOB passthrough, and 1-bit Hamming ECC synthesis ([docs/03](docs/03_boot_progress.md), [docs/39](docs/39_photographed_cartridge_hardware.md)) |
 | **Clocks & Timer 4** | PLL (`MPLLCON`, `CLKDIVN`) & PWM Timer 4 (`0x51000000`, `HZ=200`) | ✅ Register-derived FCLK/HCLK/PCLK, 200-Hz IRQ 14, and 1-µs `TCNTO4` interpolation ([docs/17](docs/17_timer_and_runtime_validation.md), [docs/23](docs/23_register_clocks_and_iis_pause.md), [docs/41](docs/41_wade_binary_and_s3c2410fb_analysis.md)) |
-| **Display (`s3c2410fb`)** | 2.7" TFT LCD (`0x4D000000`, 240×160 / 240×240, 12-bpp LCD444 & 16-bpp RGB565) | ✅ DXGI VSync presenter, coherent frame latch, 12-bpp & 16-bpp decoding ([docs/10](docs/10_color_depth_and_rgb565_support.md), [docs/31](docs/31_programmed_scanout_height.md), [docs/32](docs/32_coherent_video_and_vsync.md)) |
+| **Display (`s3c2410fb`)** | 2.7" TFT LCD (`0x4D000000`, 240×160 / 240×240, 12-bpp LCD444 & 16-bpp RGB565) | ✅ DXGI VSync presenter, coherent frame latch, `GPH8` handheld LCD strap, 12-bpp & 16-bpp decoding ([docs/10](docs/10_color_depth_and_rgb565_support.md), [docs/32](docs/32_coherent_video_and_vsync.md), [docs/42](docs/42_wade_gph8_lcd_mode.md)) |
 | **Audio (DMA2 + IIS)** | S3C2410 IIS (`0x55000000`), DMA Ch. 2 (`0x4B000080`), CS43L43 DAC | 🟡 Consumed-sample DMA capture, dynamic IIS rate detection & Win32 `waveOut` resampler ([docs/20](docs/20_pcm_capture_and_dma_sample_lifetime.md), [docs/23](docs/23_register_clocks_and_iis_pause.md)) |
 | **Input (`greykbd`)** | GPIO Ports F & G (`0x56000050`), External IRQs `EINT0..23` | ✅ All D-Pad, A/B/C, L/R, Start/Select, and media player keys (`KEY_P/S/B/N`) ([docs/33](docs/33_console_skin_and_fullscreen.md)) |
 | **I2C EEPROM & ADC** | 2-KB I2C EEPROM (`0x54000000`), Battery ADC (`0x58000000`) | ✅ Persistent/volatile 2-KB EEPROM state and `checkbattery` ADC conversion ([docs/03](docs/03_boot_progress.md), [docs/16](docs/16_i2c_eeprom_and_player_startup.md)) |
