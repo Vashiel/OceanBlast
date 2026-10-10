@@ -1,4 +1,5 @@
 CXX ?= g++
+WINDRES ?= windres
 CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -g -Isrc
 
 TARGET = bin/oceanblast.exe
@@ -11,18 +12,23 @@ SRCS = src/main.cpp \
        src/audio/audio_win32.cpp
 
 OBJS = $(SRCS:.cpp=.o)
-LDFLAGS = -lgdi32 -luser32 -lwinmm -lcomdlg32 -ld3d11 -ldxgi -ld3dcompiler -lgdiplus
+RES_OBJ = build/oceanblast_res.o
+LDFLAGS = -lgdi32 -luser32 -lwinmm -lcomdlg32 -lcomctl32 -lshell32 -lole32 -ldinput8 -ldxguid -ld3d11 -ldxgi -ld3dcompiler -lgdiplus
 
 all: $(TARGET)
 
-src/main.o: src/core/guest_symbols.h src/display/frame_latch.h src/cpu/arm920t.h src/display/display.h src/display/launcher.h src/core/input_script.h src/audio/audio.h src/audio/resampler.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
+src/main.o: src/core/guest_symbols.h src/display/frame_latch.h src/cpu/arm920t.h src/display/display.h src/display/launcher.h src/display/windows_input.h src/display/input_mapping.h src/core/input_script.h src/audio/audio.h src/audio/resampler.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
 src/audio/audio_win32.o: src/audio/audio.h src/audio/resampler.h
 src/cpu/arm920t.o: src/cpu/arm920t.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/core/types.h
 src/memory/bus.o: src/display/frame_latch.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
-src/display/display_win32.o: src/display/display.h src/display/framebuffer.h src/display/presenter_win32.h src/display/console_skin_win32.h
+src/display/display_win32.o: src/display/display.h src/display/framebuffer.h src/display/presenter_win32.h src/display/console_skin_win32.h src/display/windows_input.h src/display/input_mapping.h
 src/main.o build/framebuffer.exe: src/display/display_profile.h
 
-$(TARGET): $(OBJS)
+$(RES_OBJ): src/display/oceanblast.rc assets/oceanblast-logo.png assets/oceanblast-symbol.png
+	@mkdir -p build
+	$(WINDRES) src/display/oceanblast.rc -O coff -o $@
+
+$(TARGET): $(OBJS) $(RES_OBJ)
 	@mkdir -p bin
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp %.o,$^) $(LDFLAGS)
 
@@ -67,11 +73,11 @@ build/audio_resampler.exe: tests/audio_resampler.cpp src/audio/resampler.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
-build/cpu_regression.exe: tests/cpu_regression.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cartridge/cart_parser.cpp src/display/display_win32.cpp src/audio/audio_win32.cpp src/core/input_script.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/display/framebuffer.h src/display/display.h src/audio/audio.h src/audio/resampler.h
+build/cpu_regression.exe: tests/cpu_regression.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cartridge/cart_parser.cpp src/display/display_win32.cpp src/audio/audio_win32.cpp src/core/input_script.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/display/framebuffer.h src/display/display.h src/display/windows_input.h src/display/input_mapping.h src/audio/audio.h src/audio/resampler.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^) $(LDFLAGS)
 
-build/input_test.exe: tests/input_test.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cartridge/cart_parser.cpp src/display/display_win32.cpp src/audio/audio_win32.cpp src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/display/framebuffer.h src/display/display.h src/audio/audio.h src/audio/resampler.h
+build/input_test.exe: tests/input_test.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cartridge/cart_parser.cpp src/display/display_win32.cpp src/audio/audio_win32.cpp src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/display/framebuffer.h src/display/display.h src/display/windows_input.h src/display/input_mapping.h src/audio/audio.h src/audio/resampler.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp %.o,$^) $(LDFLAGS)
 
@@ -79,7 +85,7 @@ clean:
 	rm -f build/emulation_timing.exe
 	rm -f build/runtime_probe.exe
 	rm -f build/capture_audio.exe
-	rm -f $(OBJS) $(TARGET) build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe
+	rm -f $(OBJS) $(RES_OBJ) $(TARGET) build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe
 	rm -f build/i2c_eeprom.exe
 	rm -f build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
 
@@ -126,7 +132,7 @@ build/emulation_timing.exe: tests/emulation_timing.cpp src/cpu/arm920t.cpp src/m
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
 
 # Windows/GDI presentation check; opens and closes its own bounded test window.
-build/display_height_win32.exe: src/display/console_skin_win32.h src/display/presenter_win32.h tests/display_height_win32.cpp src/display/display_win32.cpp src/display/display.h src/display/framebuffer.h
+build/display_height_win32.exe: src/display/console_skin_win32.h src/display/presenter_win32.h src/display/windows_input.h src/display/input_mapping.h tests/display_height_win32.cpp src/display/display_win32.cpp src/display/display.h src/display/framebuffer.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^) $(LDFLAGS)
 
@@ -135,7 +141,7 @@ build/frame_latch.exe: tests/frame_latch.cpp src/memory/bus.cpp src/memory/bus.h
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
 
 # Window modes and controls; opens and closes its own test window.
-build/console_skin_win32.exe: tests/console_skin_win32.cpp src/display/display_win32.cpp src/display/display.h src/display/console_skin_win32.h src/display/presenter_win32.h
+build/console_skin_win32.exe: tests/console_skin_win32.cpp src/display/display_win32.cpp src/display/display.h src/display/console_skin_win32.h src/display/presenter_win32.h src/display/windows_input.h src/display/input_mapping.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^) $(LDFLAGS)
 
@@ -153,6 +159,6 @@ build/cartridge_settings.exe: tests/cartridge_settings.cpp src/core/cartridge_se
 	$(CXX) $(CXXFLAGS) -o $@ $<
 test: build/cartridge_settings.exe
 
-build/launcher_defaults_win32.exe: tests/launcher_defaults_win32.cpp src/display/launcher.h
+build/launcher_defaults_win32.exe: tests/launcher_defaults_win32.cpp src/display/launcher.h src/display/windows_input.h src/display/input_mapping.h $(RES_OBJ)
 	@mkdir -p build
-	$(CXX) $(CXXFLAGS) -o $@ $< -lcomdlg32 -luser32 -lgdi32
+	$(CXX) $(CXXFLAGS) -o $@ tests/launcher_defaults_win32.cpp $(RES_OBJ) $(LDFLAGS)

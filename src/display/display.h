@@ -25,7 +25,7 @@ enum Button {
     BTN_R      = 1 << 7,
     BTN_START  = 1 << 8,
     BTN_SELECT = 1 << 9,
-    BTN_C = 1 << 10,
+    BTN_C      = 1 << 10,
     BTN_REWIND = 1 << 11,
     BTN_FORWARD = 1 << 12
 };
@@ -43,6 +43,12 @@ public:
     unsigned frameSourceHeight() const { return m_sourceHeight; }
     void renderToDc(void* targetHdc);
     void configureWindow(bool skin, bool fullscreen = false) { m_skinEnabled = skin; m_startFullscreen = fullscreen; }
+    void setParentWindow(uintptr_t parentHwnd) { m_parentHwnd = parentHwnd; }
+    uintptr_t parentWindow() const { return m_parentHwnd; }
+    void reloadUserSettings();
+    unsigned configuredAudioVolume() const { return m_audioVolume; }
+    bool configuredAudioEnabled() const { return m_audioEnabled; }
+    uint32_t mapConfiguredKeyboardKey(unsigned key) const;
     void toggleFullscreen();
     bool fullscreen() const { return m_fullscreen; }
     void refreshLayout();
@@ -50,7 +56,9 @@ public:
     void mouseButton(int x, int y, bool down);
     void refreshControls();
     void keyboardButton(unsigned key, uint32_t mask, bool down);
+    void gamepadButtons(uint32_t mask);
     void updateHostButtons();
+    void onDeviceChange();
     void useGdiPresentation(bool value) { m_gdiOnly = value; }
     bool usesSyncedPresentation() const;
     uint64_t presentedFrames() const;
@@ -74,18 +82,29 @@ public:
     }
     void synchronizeButtons() { m_buttonTransitions.clear(); m_guestButtonMask = m_buttonMask; }
     void releaseButtons() {
-        m_keyboardButtons.fill(0); m_mouseMask = 0;
+        m_keyboardButtons.fill(0); m_mouseMask = 0; m_gamepadMask = 0;
         if (m_buttonMask) { m_buttonMask = 0; m_buttonTransitions.push_back(0); }
     }
 
 private:
     bool m_skinEnabled = false, m_startFullscreen = false, m_fullscreen = false;
+    uintptr_t m_parentHwnd = 0;
+    unsigned m_videoAspect = 0;
+    bool m_integerScale = false;
+    bool m_smoothVideo = false;
+    unsigned m_audioVolume = 100;
+    bool m_audioEnabled = true;
+    std::array<unsigned, 12> m_keyboardKeys{0x26, 0x28, 0x25, 0x27, 'Z', 'X', 'C', 'V', 'A', 'S', 0x20, 0x0D};
+    std::array<int, 12> m_padMap{200, 201, 202, 203, 0, 1, 2, 3, 4, 5, 6, 7};
+    void* m_inputManager = nullptr;
+    void* m_appIcon = nullptr;
     void* m_skin = nullptr;
     void* m_lcdWindow = nullptr;
     int m_outputWidth = 0, m_outputHeight = 0;
     int m_savedX = 0, m_savedY = 0, m_savedW = 0, m_savedH = 0;
     uint32_t m_mouseMask = 0;
-    std::array<uint32_t,256> m_keyboardButtons{};
+    uint32_t m_gamepadMask = 0;
+    std::array<uint32_t, 256> m_keyboardButtons{};
     uint64_t m_previousPresented = 0;
     unsigned m_sourceHeight = LCD_HEIGHT;
     int m_scale;

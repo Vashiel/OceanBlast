@@ -18,6 +18,8 @@ public:
     void close();
 
     bool isInitialized() const { return m_initialized; }
+    void setVolume(unsigned volumePercent) { m_volume = volumePercent > 100 ? 100 : volumePercent; }
+    unsigned getVolume() const { return m_volume; }
     int getSampleRate() const { return m_sampleRate; }
     int getChannels() const { return m_channels; }
     uint64_t getDroppedSamples() const { return m_droppedSamples; }
@@ -30,6 +32,7 @@ private:
     void* m_hWaveOut;
     int m_sampleRate;
     int m_channels;
+    unsigned m_volume = 100;
 
     static constexpr size_t NUM_BUFFERS = 16;
     static constexpr size_t BUFFER_BYTES = 4096;

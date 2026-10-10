@@ -115,6 +115,7 @@ int main(int argc, char* argv[]) {
     std::map<std::pair<u32, u32>, uint64_t> pcProfile;
     std::string inputScriptPath;
     std::string recordFramesPath;
+    uintptr_t parentHwnd = 0;
 
     for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
@@ -203,6 +204,9 @@ int main(int argc, char* argv[]) {
             const std::string mode = argv[++i];
             if (mode != "skin" && mode != "plain") { std::cerr << "[Error] Invalid window mode.\n"; return 1; }
             windowSkin = mode == "skin";
+        } else if (arg == "--parent-hwnd" && i + 1 < argc) {
+            parentHwnd = static_cast<uintptr_t>(std::stoull(argv[++i], nullptr, 0));
+            gui = true;
         } else if (arg == "--gui" || arg == "--window") {
             gui = true;
         } else if (arg == "--sound" || arg == "--audio") {
@@ -292,6 +296,7 @@ int main(int argc, char* argv[]) {
 
     oceanblast::Display display(scale);
     display.configureWindow(windowSkin, startFullscreen);
+    display.setParentWindow(parentHwnd);
     display.useGdiPresentation(gdiPresentation);
     oceanblast::Audio audio;
     if (gui) {
@@ -308,7 +313,9 @@ int main(int argc, char* argv[]) {
 
     if (sound) {
         if (audio.init(audioRate, 2)) {
+            audio.setVolume(display.configuredAudioVolume());
             bus.setAudioCallback([&](const int16_t* s, size_t n) {
+                audio.setVolume(display.configuredAudioVolume());
                 u32 currentRate = bus.getAudioSampleRate();
                 audio.writeSamples(s, n, currentRate);
             });

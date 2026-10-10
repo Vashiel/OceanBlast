@@ -1,11 +1,15 @@
 # Changelog & Technical Investigation History
 
-This changelog records the chronological development, hardware reverse-engineering milestones, and empirical validation reports (`docs/00`–`docs/42`) for **OceanBlast**.
+This changelog records the chronological development, hardware reverse-engineering milestones, and empirical validation reports (`docs/00`–`docs/43`) for **OceanBlast**.
 
 ---
 
-## 2026-10-10 — Executable Attribution, Framebuffer Modes & CPU Throughput
+## 2026-10-10 — Executable Attribution, Framebuffer Modes, CPU Throughput & Controller Frontend
 
+* **Famiko-Style Windows Launcher, Embedded Gameplay & Controller Input ([docs/43](docs/43_windows_launcher_and_controller_input.md)):**
+  * Redesigned the Windows graphical frontend (`bin/oceanblast.exe`) to match the `Famiko` Windows launcher (`1024×768` resizable window, dark ocean-navy start screen with embedded `assets/oceanblast-logo.png` and `assets/oceanblast-symbol.png` taskbar icon, `Datei` | `Einstellungen` menu bar, `Strg+O` and Drag-and-Drop ROM loading, and single-window embedded gameplay via `--parent-hwnd`).
+  * Added full **XInput**, **DirectInput8**, and **Google Stadia Controller** support (`src/display/input_mapping.h`, `src/display/windows_input.h`), mapping D-Pad (POV hat + left analog stick), A/B/C, L/R shoulders, Start/Stop, Select/Play-Pause, and L2/R2 media rewind/fast-forward.
+  * Added the `850×595` **`OceanBlast — Einstellungen`** dialog (`Ordner & System`, `Steuerung`, `Sound`, `Video`, `Timing & Diagnose`, `Kurztasten & Hilfe`) featuring a live 25-ms GDI+ controller schematic, one-click controller presets (`Stadia / Xbox`, `PlayStation`, `digiBLAST / USB`), interactive click-to-learn button/key assignment, and INI persistence (`%APPDATA%\OceanBlast\windows.ini`).
 * **Handheld 12-bpp LCD Mode via `GPH8 = 1` Across Cartridges ([docs/42](docs/42_wade_gph8_lcd_mode.md)):**
   * Modeled S3C2410 GPIO pin **`GPH8`** (`0x56000074` bit 8) as a pulled-high input when `GPHCON` bits `[17:16] == 00`, so `s3c2410fb_probe` boots in native handheld 12-bpp `'LCD'` mode (`use_tvout = 0`, `LCDCON1 = 0x14c9`, `LCDSADDR3 = 0xb4` = `360` bytes/row) instead of PAL 16-bpp TV-Out mode.
   * In *Wade Hixton's Counter Punch*, eliminating the 16-bpp shadow surface removes `BlitNtoN` completely (`51.33% -> 0.00%`, replaced by `FB_LCD444Update` at `10.08%`) and cuts active-fight CPU work by **50.0%** (`4.50M -> 2.25M` step calls/frame; `144M` step calls per 64-frame counter unit, fitting within a 180 MHz ARM920T cycle budget).
