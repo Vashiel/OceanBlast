@@ -89,4 +89,4 @@ These measurements do not support ongoing lost Timer 4 ticks or a framebuffer io
 
 ## Remaining Discriminating Experiment
 
-A ratio sweep should retain modeled input times by scaling instruction-indexed events relative to ratio 4. Compare active-fight counter changes, guest time and drawing work at ratios 4, 8 and 16. Fixed modeled timestamps alone may select different scenes or an already completed fight at higher ratios; inspect the reached scenes before comparing counters. No original-console counter rate or game frame rate has yet been established.
+A ratio sweep should retain modeled input times by scaling instruction-indexed events relative to ratio 4. Fixed modeled timestamps alone may select different scenes or an already completed fight at higher ratios; inspect the reached scenes before comparing counters. The subsequent [SDL format and work-scaling investigation](40_wade_sdl_formats_and_work_scaling.md) compares an aligned active-fight counter interval at ratios 4, 6, 8 and 16 and identifies the dominant drawing functions. No original-console counter rate or game frame rate has yet been established.

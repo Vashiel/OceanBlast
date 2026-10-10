@@ -1,0 +1,354 @@
+{
+  "start_modeled_second": 430,
+  "end_modeled_second": 450,
+  "elf_sha256": "8bbd10588364917697ac2070ee767f59df34803cac72a048e658d0486e9fdb93",
+  "base": "0x400f8000",
+  "ttb": "0x30fa4000",
+  "total_samples": 1585728,
+  "attributed_samples": 1420757,
+  "functions": [
+    {
+      "name": "BlitNtoN",
+      "address": "0x401151e0",
+      "size": 4724,
+      "code_sha256": "61e8bf14ea7a45444dc95dd8707e517b8567da6900b24fc3da594ca06244ca95",
+      "capture_comparison": "identical",
+      "samples": 813957,
+      "sample_percent": 51.33017768494975
+    },
+    {
+      "name": "BlitNtoNKey",
+      "address": "0x40117bf8",
+      "size": 3360,
+      "code_sha256": "0125739cc047dcdcffed723c59e5196de4da50ff18280dc9f6163830cd810366",
+      "capture_comparison": "identical",
+      "samples": 495879,
+      "sample_percent": 31.271378193485894
+    },
+    {
+      "name": "Blit2to2Key",
+      "address": "0x40117a80",
+      "size": 376,
+      "code_sha256": "4a0708b1cbe13b84415cfbe76ad60f4e7c405a85ffd44b94b83fbc0ee77d8467",
+      "capture_comparison": "identical",
+      "samples": 102194,
+      "sample_percent": 6.44461092949106
+    },
+    {
+      "name": "SDL_MixAudio",
+      "address": "0x401034c4",
+      "size": 636,
+      "code_sha256": "1fa91acad5480265b63b0be896f4489589ed5aab004c71388f21424c177a4a4f",
+      "capture_comparison": "identical",
+      "samples": 5179,
+      "sample_percent": 0.3266007789482181
+    },
+    {
+      "name": "SDL_UpperBlit",
+      "address": "0x4011e320",
+      "size": 516,
+      "code_sha256": "4f124f24d2eda695a6d3a3c89d6f3a4589b53b7e094f7642ea2a914c58bb9fa3",
+      "capture_comparison": "identical",
+      "samples": 1218,
+      "sample_percent": 0.07681014650684102
+    },
+    {
+      "name": "SDL_SoftBlit",
+      "address": "0x4010a3dc",
+      "size": 456,
+      "code_sha256": "046d2900a558227f7a6076a5b65e9ce62571958989c7a55f6d5352d6690adb32",
+      "capture_comparison": "identical",
+      "samples": 1086,
+      "sample_percent": 0.06848589417605037
+    },
+    {
+      "name": "SDL_BlitCopy",
+      "address": "0x4010a5a4",
+      "size": 100,
+      "code_sha256": "5a25c4d2bf017352112bc26fd621644a320f7b36be9b429f3b8ae64514c9ab41",
+      "capture_comparison": "identical",
+      "samples": 480,
+      "sample_percent": 0.030270008475602374
+    },
+    {
+      "name": "SDL_LowerBlit",
+      "address": "0x4011e200",
+      "size": 288,
+      "code_sha256": "ad77fa7deaf4dd34c7e00c91eecea586677ef0850d79a308e0313277ed502662",
+      "capture_comparison": "identical",
+      "samples": 351,
+      "sample_percent": 0.022134943697784234
+    },
+    {
+      "name": "FB_PumpEvents",
+      "address": "0x40125cfc",
+      "size": 360,
+      "code_sha256": "8b000709ccdc8bcfc18c96081c28a3ed292b9ffb25d4ecfef265540dec28c200",
+      "capture_comparison": "identical",
+      "samples": 65,
+      "sample_percent": 0.004099063647737822
+    },
+    {
+      "name": "SDL_LockSurface",
+      "address": "0x4011e9ac",
+      "size": 168,
+      "code_sha256": "33919aa9c284a595e47282743788bf837ee34f2ff84f51e862f818618dd16ca7",
+      "capture_comparison": "identical",
+      "samples": 52,
+      "sample_percent": 0.003279250918190257
+    },
+    {
+      "name": "SDL_UnlockSurface",
+      "address": "0x4011ea54",
+      "size": 136,
+      "code_sha256": "1a75b1d648a5d502967a5e0f5a182607a31a00d9ef425a9e3025b357a0857b7f",
+      "capture_comparison": "identical",
+      "samples": 47,
+      "sample_percent": 0.0029639383299027325
+    },
+    {
+      "name": "SDL_AllocFormat",
+      "address": "0x4011cb74",
+      "size": 1120,
+      "code_sha256": "4d067983af619532c36c5ccfc66a28b348c17ef23beb2a3aea7faeb88cb30665",
+      "capture_comparison": "identical",
+      "samples": 31,
+      "sample_percent": 0.001954938047382653
+    },
+    {
+      "name": "SDL_GetTicks",
+      "address": "0x4012d588",
+      "size": 108,
+      "code_sha256": "ac41a48b31704002fe6ca8c47167d5cb7a72cd617b0b470ace39c13638cc043d",
+      "capture_comparison": "identical",
+      "samples": 27,
+      "sample_percent": 0.0017026879767526335
+    },
+    {
+      "name": "SDL_RunAudio",
+      "address": "0x40100350",
+      "size": 428,
+      "code_sha256": "1f5d1f109c0da8b5d02c6a25875f2363b67b4a331b94eebea2cff85708bea447",
+      "capture_comparison": "identical",
+      "samples": 27,
+      "sample_percent": 0.0017026879767526335
+    },
+    {
+      "name": "SDL_UpdateRects",
+      "address": "0x40120554",
+      "size": 636,
+      "code_sha256": "4a68216e285368c2b587b7e7ae6d3158235e73097c1242f1ac65805aee37ee3a",
+      "capture_comparison": "identical",
+      "samples": 24,
+      "sample_percent": 0.0015135004237801187
+    },
+    {
+      "name": "SDL_mutexV",
+      "address": "0x4012ca40",
+      "size": 96,
+      "code_sha256": "7b1680c74933e85d9769404af6098f1007703daed54d8b15d0fc4b70ffd99e2a",
+      "capture_comparison": "identical",
+      "samples": 15,
+      "sample_percent": 0.0009459377648625742
+    },
+    {
+      "name": "SDL_CreateRGBSurface",
+      "address": "0x4011da9c",
+      "size": 612,
+      "code_sha256": "678c2d2e39f606a653ea46ba671fcc7812dd42e395b00cd565e3b001de5c9fc7",
+      "capture_comparison": "identical",
+      "samples": 11,
+      "sample_percent": 0.0006936876942325544
+    },
+    {
+      "name": "SDL_CalculateBlit",
+      "address": "0x4010a6b8",
+      "size": 920,
+      "code_sha256": "ad4b5e5753f8c4b5227c5d15b4d79488b6910d24ada12063504f97635eb480df",
+      "capture_comparison": "identical",
+      "samples": 10,
+      "sample_percent": 0.0006306251765750494
+    },
+    {
+      "name": "SDL_FreeSurface",
+      "address": "0x4011edbc",
+      "size": 304,
+      "code_sha256": "5a9a664f118ac22639156d4da72128309c5f8de93a4a8d9cf032869ee3f3d266",
+      "capture_comparison": "identical",
+      "samples": 10,
+      "sample_percent": 0.0006306251765750494
+    },
+    {
+      "name": "SDL_SetColorKey",
+      "address": "0x4011dd84",
+      "size": 272,
+      "code_sha256": "de1d570765025a3e973e61437ebc1f2b8540ffebe8801cf78b6c9f23fe7461a5",
+      "capture_comparison": "identical",
+      "samples": 9,
+      "sample_percent": 0.0005675626589175445
+    },
+    {
+      "name": "SDL_PumpEvents",
+      "address": "0x4012a0dc",
+      "size": 88,
+      "code_sha256": "91e6e9c2902f2fbd3f2c7d73905333cb1a04437c896874476d8a2e41de4753f0",
+      "capture_comparison": "identical",
+      "samples": 9,
+      "sample_percent": 0.0005675626589175445
+    },
+    {
+      "name": "FB_LockHWSurface",
+      "address": "0x40129180",
+      "size": 176,
+      "code_sha256": "b7bc3fb54e6926621807a205691883bde4b9324f216cf1830db75881ae981b03",
+      "capture_comparison": "identical",
+      "samples": 9,
+      "sample_percent": 0.0005675626589175445
+    },
+    {
+      "name": "SDL_InvalidateMap",
+      "address": "0x4011d8b8",
+      "size": 64,
+      "code_sha256": "f7cfa03130f1d3f52ccfea420f48ead5843dc58421025dc9d3316881903b48f9",
+      "capture_comparison": "identical",
+      "samples": 8,
+      "sample_percent": 0.0005045001412600395
+    },
+    {
+      "name": "DSP_PlayAudio",
+      "address": "0x4010479c",
+      "size": 80,
+      "code_sha256": "17335a5a629fd6e9124a67ade05c9e3d34243debd2a35828986a54733393d733",
+      "capture_comparison": "identical",
+      "samples": 8,
+      "sample_percent": 0.0005045001412600395
+    },
+    {
+      "name": "SDL_CalculateBlitN",
+      "address": "0x4011a168",
+      "size": 644,
+      "code_sha256": "3947a199db54cd4bfc0a976d1dfda296461b989a43dfcf22d24386403864ae9c",
+      "capture_comparison": "identical",
+      "samples": 7,
+      "sample_percent": 0.0004414376236025346
+    },
+    {
+      "name": "SDL_mutexP",
+      "address": "0x4012c9e0",
+      "size": 96,
+      "code_sha256": "657a9188b4a073d2524b1bd97e47739fa8674650f98552494e2febc7573c080e",
+      "capture_comparison": "identical",
+      "samples": 7,
+      "sample_percent": 0.0004414376236025346
+    },
+    {
+      "name": "SDL_GetKeyState",
+      "address": "0x4012b6d4",
+      "size": 52,
+      "code_sha256": "0490f37727ee038f7745058037c729f0e14c0051aa036d0fd513d29d416e37d5",
+      "capture_comparison": "identical",
+      "samples": 7,
+      "sample_percent": 0.0004414376236025346
+    },
+    {
+      "name": "SDL_UpdateRect",
+      "address": "0x401204c8",
+      "size": 140,
+      "code_sha256": "04fecc99d17ab8d696578de830ef9a7ae5f1b0a5e643361d69dc6ba98ea408aa",
+      "capture_comparison": "identical",
+      "samples": 6,
+      "sample_percent": 0.0003783751059450297
+    },
+    {
+      "name": "SDL_SetClipRect",
+      "address": "0x4011e0e8",
+      "size": 248,
+      "code_sha256": "de2b94a7392961ec291ddfb60071275ddbf0ce8b164022f3909435bfb87e376e",
+      "capture_comparison": "identical",
+      "samples": 4,
+      "sample_percent": 0.00025225007063001977
+    },
+    {
+      "name": "SDL_CheckKeyRepeat",
+      "address": "0x4012ba6c",
+      "size": 180,
+      "code_sha256": "2eb8b40e4b6865f070adad750e89f88ccad506baad9d807e3c6424d3f3d4f3ba",
+      "capture_comparison": "identical",
+      "samples": 3,
+      "sample_percent": 0.00018918755297251484
+    },
+    {
+      "name": "FB_UnlockHWSurface",
+      "address": "0x40129230",
+      "size": 24,
+      "code_sha256": "f1a1bfb8d302bbae3a9e4e83241ed0f48badf7dbbd3a9da7263750b29216e883",
+      "capture_comparison": "identical",
+      "samples": 3,
+      "sample_percent": 0.00018918755297251484
+    },
+    {
+      "name": "DSP_GetAudioBuf",
+      "address": "0x401047ec",
+      "size": 12,
+      "code_sha256": "5c298731b6c8a1cba4cc66e7c707a44553ccff5190e4ef0e65537f2a9df400ee",
+      "capture_comparison": "identical",
+      "samples": 3,
+      "sample_percent": 0.00018918755297251484
+    },
+    {
+      "name": "SDL_AllocBlitMap",
+      "address": "0x4011d828",
+      "size": 144,
+      "code_sha256": "190d4ffb1521047df38e99801fc5ca54a68f50235441e41621e55159079cd887",
+      "capture_comparison": "identical",
+      "samples": 2,
+      "sample_percent": 0.00012612503531500988
+    },
+    {
+      "name": "DSP_WaitAudio",
+      "address": "0x40104798",
+      "size": 4,
+      "code_sha256": "53e0e462c3596c356c24ed2681045d6370ad0eb32693996aee8fb72f5beb3c17",
+      "capture_comparison": "identical",
+      "samples": 2,
+      "sample_percent": 0.00012612503531500988
+    },
+    {
+      "name": "SDL_CalculatePitch",
+      "address": "0x4011d12c",
+      "size": 76,
+      "code_sha256": "e0b28efe35a9b2ba68121b38c326c128b564482deb074013e06eb328836373b2",
+      "capture_comparison": "identical",
+      "samples": 2,
+      "sample_percent": 0.00012612503531500988
+    },
+    {
+      "name": "SDL_MapSurface",
+      "address": "0x4011d8f8",
+      "size": 364,
+      "code_sha256": "90ef740b853adf0cacd4b20c37c33557c1ee774b2c4a19b3835f46f4ff2d6083",
+      "capture_comparison": "identical",
+      "samples": 2,
+      "sample_percent": 0.00012612503531500988
+    },
+    {
+      "name": "SDL_FreeBlitMap",
+      "address": "0x4011da64",
+      "size": 56,
+      "code_sha256": "1359d64af9d179d824f09a3fc656d548a11ffd613c6aaf726f6f6701f6996d40",
+      "capture_comparison": "identical",
+      "samples": 2,
+      "sample_percent": 0.00012612503531500988
+    },
+    {
+      "name": "FB_DirectUpdate",
+      "address": "0x4012932c",
+      "size": 4,
+      "code_sha256": "53e0e462c3596c356c24ed2681045d6370ad0eb32693996aee8fb72f5beb3c17",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 6.306251765750494e-05
+    }
+  ],
+  "byte_verified_samples": 1420757
+}

@@ -42,19 +42,28 @@ def summarize(directory, start, end):
     for row in rows(directory, 'syscalls.csv'):
         if row['number'] == '54' and lower < int(row['ticks']) <= upper:
             ioctls[row['r1']] += 1
+    syscall_counts = collections.Counter()
+    counts_available = (directory / 'syscall_counts.csv').is_file()
+    if counts_available:
+        for row in rows(directory, 'syscall_counts.csv'):
+            if lower < int(row['ticks']) <= upper:
+                syscall_counts[row['number']] += int(row['calls'])
+    framebuffer_changes = sum(int(r['framebuffer_changes']) for r in intervals)
     return dict(start_modeled_second=start, end_modeled_second=end,
                 host_elapsed_seconds=float(last['host_seconds'])-float(first['host_seconds']),
                 counter_deltas=delta, jiffies_intervals=len(jiffies),
                 jiffies_delta_min=min(jiffies) if jiffies else None,
                 jiffies_delta_max=max(jiffies) if jiffies else None,
-                framebuffer_changes=sum(int(r['framebuffer_changes']) for r in intervals),
+                framebuffer_changes=framebuffer_changes,
+                step_calls_per_framebuffer_change=delta['steps']/framebuffer_changes if framebuffer_changes else None,
                 total_pc_samples=observations,
                 user_pc_samples=sum(int(r['user_samples']) for r in intervals),
                 top_pcs=[dict(ttb=key[0], pc=key[1], samples=count,
                               sample_percent=100*count/observations if observations else None)
                          for key, count in pcs.most_common(10)],
                 mmio={key: dict(reads=value[0], writes=value[1]) for key, value in sorted(mmio.items())},
-                ioctl_commands=dict(sorted(ioctls.items())))
+                ioctl_commands=dict(sorted(ioctls.items())),
+                syscall_counts=dict(sorted(syscall_counts.items(), key=lambda item: int(item[0]))) if counts_available else None)
 
 
 def main():
