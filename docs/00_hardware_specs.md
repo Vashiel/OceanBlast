@@ -18,7 +18,7 @@ The **digiBLAST** is a 32-bit handheld multimedia console released in Europe in 
 | **Display** | 2.7-inch Color TFT LCD (4096 colors / 16-bit color mode) |
 | **Display Resolution** | 160x120 / 320x240 pixels |
 | **Audio** | Integrated Stereo DAC, IIS / PWM sound output, built-in speaker, 3.5mm headphone jack |
-| **Cartridge Media** | Proprietary NAND-Flash memory cartridges (8 MB to 64 MB NAND chips) |
+| **Cartridge Media** | Proprietary removable memory cartridges; tested small-page NAND dumps and photographed Samsung 128 MiB large-page NAND; other photographed memory parts remain unidentified |
 | **Software Platform** | Embedded Linux kernel (`vmlinux`) loaded from cartridge NAND |
 | **Add-On Modules** | 1.3 MP Digital Camera module, 256 MB MP3 Music Player module, TV-Out cable |
 | **Power** | 4x AA Batteries or 6V DC AC Adapter |
@@ -38,7 +38,7 @@ The **digiBLAST** is a 32-bit handheld multimedia console released in Europe in 
 
 ## 3. Cartridge NAND-Flash Subsystem
 
-Unlike traditional ROM consoles (such as the Game Boy Advance or SNES), the digiBLAST uses **NAND Flash memory** inside its cartridges:
+Tested cartridge dumps use **NAND Flash memory**. [Cartridge photographs](39_photographed_cartridge_hardware.md) additionally establish Samsung large-page NAND and boards with other, incompletely identified memory parts:
 * Cartridge signals are interfaced through the Samsung S3C/OCEAN NAND flash controller.
 * Standard NAND commands (`0x00` Read, `0x90` Read ID, `0x30` Read Confirm).
 * The cartridge contains a master boot record (MBR) and a compressed Linux kernel/filesystem image that boots into RAM on startup.

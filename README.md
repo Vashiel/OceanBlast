@@ -25,7 +25,7 @@ The Nikko digiBLAST hardware is structured around the Samsung S3C2410A applicati
 | **System Memory** | 32 MB SDRAM (`0x30000000 - 0x31FFFFFF`, with alias at `0x32000000`) |
 | **Boot SRAM** | 4 KB internal Steppingstone SRAM (`0x00000000 - 0x00000FFF`) |
 | **Cartridge Bus** | S3C2410 NAND Flash controller (`0x4E000000`) interfacing 8-bit NAND chips (Toshiba TC58 / Samsung K9 / KM29 series) |
-| **NAND Format** | 528 bytes per page (512 data bytes + 16 spare/OOB bytes) |
+| **NAND Format** | Tested small-page dumps: 512 data + 16 OOB bytes; photographed Samsung large-page cartridge: 2,048 + 64 bytes, not modeled natively; see [cartridge hardware](docs/39_photographed_cartridge_hardware.md) |
 | **Operating System** | Embedded Das U-Boot 1.1.2 bootloader loading Linux 2.4/2.6 kernel and SquashFS root filesystem |
 | **Display** | 2.7" TFT LCD (S3C2410 LCD controller at `0x4D000000`, 4096 colors / 16-bit RGB) |
 | **Audio** | S3C2410 IIS bus (`0x55000000`) with DMA playback (nominal 22.05 kHz stereo, register-derived source rates and dynamic resampling) |
