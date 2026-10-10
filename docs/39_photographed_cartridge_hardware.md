@@ -2,13 +2,13 @@
 
 ## Evidence and Identification
 
-Three supplied photographs show cartridge boards; a fourth shows the right-hand portion of an opened console. The reported cartridge group contains a SpongeBob/Atari combination, Gormiti, and an MP3-player module. The USB-equipped board is provisionally associated with the MP3-player module. The two other boards are the reported game cartridges, but their individual assignments and original publication links are not established. Board appearance alone is insufficient to assign a game title, language, or storage capacity to a particular dump.
+Three supplied photographs show cartridge boards; a fourth shows the right-hand portion of an opened console. The reported cartridge group contains a SpongeBob/Atari combination, Gormiti, and an MP3-player module. The supplied description and reported original image order provisionally associate A with the MP3-player module, B with Gormiti, and C with SpongeBob plus five Atari games. These assignments are not independently confirmed by paired cartridge labels; original publication links are unavailable. Board appearance alone is insufficient to assign a language or storage capacity to a particular dump.
 
 | Photograph | Direct observations | Identification limits |
 | --- | --- | --- |
-| A | U1 marked `SAMSUNG`, `K9F1G08U0M`, `PCB0`; `0003.38-3L-PCB1` board marking; Grey Innovation branding; populated J2 USB connector; U2 footprint unpopulated on the visible side | USB connector suggests a writable/storage accessory, but does not establish a particular MP3-player model or advertised capacity |
-| B | Same readable board-family marking; Hawkeye Global branding; U1 marked `Mask Memory`; populated eight-pin U2 with a marking consistent with `24C08AN`; J2 connector footprint unpopulated | Exact U1 ordering code and cartridge title are not reliably readable |
-| C | Same readable board-family marking; Grey Innovation branding; U1 marked `Mask Memory`; populated eight-pin U2; J2 connector footprint unpopulated | Exact U1/U2 ordering codes and cartridge title remain unconfirmed |
+| A | U1 marked `SAMSUNG`, `K9F1G08U0M`, `PCB0`; `0003.38-3L-PCB1` board marking; Grey Innovation branding; populated J2 USB connector; U2 footprint unpopulated on the visible side | Provisionally MP3-player module; exact model and advertised capacity unconfirmed |
+| B | Same readable board-family marking; Hawkeye Global branding; U1 marked `Mask Memory`; populated eight-pin U2 with a marking consistent with `24C08AN`; J2 connector footprint unpopulated | Provisionally Gormiti; exact U1 ordering code unreadable |
+| C | Same readable board-family marking; Grey Innovation branding; U1 marked `Mask Memory`; populated eight-pin U2; J2 connector footprint unpopulated | Provisionally SpongeBob plus five Atari games; exact U1/U2 ordering codes unconfirmed |
 | D | Partial console board with display, button assembly, wire harness, inductors, diodes and capacitors; eight-pin IC near U4 marked `34063`; a coil appears detached or damaged | Consistent with a power-converter region; insufficient view to identify the CPU, RAM, audio codec, clock routing or complete circuit |
 
 The populated and unpopulated footprints establish board assembly differences. An absent component on the photographed side does not establish the absence of equivalent storage elsewhere in the cartridge or console. Branding and printed numbers are observations, not a complete revision chronology.
