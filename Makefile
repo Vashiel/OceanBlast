@@ -11,18 +11,42 @@ SRCS = src/main.cpp \
        src/display/display_win32.cpp \
        src/audio/audio_win32.cpp
 
-OBJS = $(SRCS:.cpp=.o)
+OBJS = build/main.o \
+       build/bus.o \
+       build/arm920t.o \
+       build/cart_parser.o \
+       build/display_win32.o \
+       build/audio_win32.o
 RES_OBJ = build/oceanblast_res.o
 LDFLAGS = -lgdi32 -luser32 -lwinmm -lcomdlg32 -lcomctl32 -lshell32 -lole32 -ldinput8 -ldxguid -ld3d11 -ldxgi -ld3dcompiler -lgdiplus
 
 all: $(TARGET)
 
-src/main.o: src/core/guest_symbols.h src/display/frame_latch.h src/cpu/arm920t.h src/display/display.h src/display/launcher.h src/display/windows_input.h src/display/input_mapping.h src/core/input_script.h src/audio/audio.h src/audio/resampler.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
-src/audio/audio_win32.o: src/audio/audio.h src/audio/resampler.h
-src/cpu/arm920t.o: src/cpu/arm920t.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/core/types.h
-src/memory/bus.o: src/display/frame_latch.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
-src/display/display_win32.o: src/display/display.h src/display/framebuffer.h src/display/presenter_win32.h src/display/console_skin_win32.h src/display/windows_input.h src/display/input_mapping.h
-src/main.o build/framebuffer.exe: src/display/display_profile.h
+build/main.o: src/main.cpp src/core/guest_symbols.h src/display/frame_latch.h src/cpu/arm920t.h src/display/display.h src/display/launcher.h src/display/windows_input.h src/display/input_mapping.h src/core/input_script.h src/audio/audio.h src/audio/resampler.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/display/display_profile.h src/memory/clock_tree.h src/core/emulation_clock.h src/core/execution_batch.h src/core/host_pacer.h src/core/cartridge_settings.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+build/bus.o: src/memory/bus.cpp src/display/frame_latch.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/memory/clock_tree.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+build/arm920t.o: src/cpu/arm920t.cpp src/cpu/arm920t.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/core/types.h src/memory/clock_tree.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+build/cart_parser.o: src/cartridge/cart_parser.cpp src/cartridge/cart_parser.h src/core/types.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+build/display_win32.o: src/display/display_win32.cpp src/display/display.h src/display/framebuffer.h src/display/presenter_win32.h src/display/console_skin_win32.h src/display/windows_input.h src/display/input_mapping.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+build/audio_win32.o: src/audio/audio_win32.cpp src/audio/audio.h src/audio/resampler.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+build/framebuffer.exe: src/display/display_profile.h
 
 $(RES_OBJ): src/display/oceanblast.rc assets/oceanblast-logo.png assets/oceanblast-symbol.png
 	@mkdir -p build
@@ -31,9 +55,6 @@ $(RES_OBJ): src/display/oceanblast.rc assets/oceanblast-logo.png assets/oceanbla
 $(TARGET): $(OBJS) $(RES_OBJ)
 	@mkdir -p bin
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp %.o,$^) $(LDFLAGS)
-
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 test: build/frame_latch.exe build/emulation_timing.exe build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
 	./build/cartridge_settings.exe
@@ -107,7 +128,7 @@ build/codec_probe.exe: tools/codec_probe.cpp src/cpu/arm920t.cpp src/memory/bus.
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
 
-src/main.o src/cpu/arm920t.o src/memory/bus.o build/cpu_regression.exe build/input_test.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe build/runtime_probe.exe build/capture_audio.exe: src/memory/clock_tree.h
+build/cpu_regression.exe build/input_test.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe build/runtime_probe.exe build/capture_audio.exe: src/memory/clock_tree.h
 build/emulation_timing.exe: tools/kernel_jiffies.h tools/guest_ram.h
 
 build/runtime_probe.exe: tools/runtime_probe.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cpu/arm920t.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h
@@ -123,9 +144,7 @@ build/dma_audio_stream.exe: tests/dma_audio_stream.cpp src/memory/bus.cpp src/me
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
 
 # Register-clock execution and bounded CPU idle advancement.
-src/main.o build/emulation_timing.exe: src/core/emulation_clock.h
-src/main.o build/emulation_timing.exe: src/core/execution_batch.h
-src/main.o: src/core/host_pacer.h
+build/emulation_timing.exe: src/core/emulation_clock.h src/core/execution_batch.h
 build/cpu_regression.exe build/input_test.exe: src/cpu/arm920t.h
 build/emulation_timing.exe: tests/emulation_timing.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cpu/arm920t.h src/memory/bus.h src/memory/clock_tree.h src/memory/timer4.h src/memory/i2c_eeprom.h
 	@mkdir -p build
@@ -153,7 +172,6 @@ test-windows: build/display_height_win32.exe build/console_skin_win32.exe build/
 
 .PHONY: test-windows
 
-src/main.o: src/core/cartridge_settings.h
 build/cartridge_settings.exe: tests/cartridge_settings.cpp src/core/cartridge_settings.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $<
