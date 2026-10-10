@@ -43,7 +43,7 @@ SPI controller resides at `0x59000000`; SD/MMC interface resides at `0x5A000000`
 1. **Autonomous Steppingstone Boot (4 KB SRAM):**
    * The hardware autonomous copy reads the first 8 pages (512 data bytes each = 4096 bytes) into internal Steppingstone SRAM (`0x00000000 - 0x00000FFF`).
 2. **NAND Cartridge Geometry & OOB Handling:**
-   * Commercial cartridges use 528-byte pages (512 data bytes + 16 spare/OOB bytes).
+   * Tested small-page cartridge dumps use 528-byte pages (512 data bytes + 16 spare/OOB bytes). This is not a universal hardware geometry: [photographed Samsung cartridge NAND](39_photographed_cartridge_hardware.md) uses 2,048 data bytes plus 64 spare bytes, which is not currently modeled natively.
    * For dumps preserving authentic OOB data, the raw OOB bytes must be passed through directly.
    * For dumps with blanked OOB (`0xFF`), standard Linux MTD 256-byte 1-bit Hamming ECC is dynamically calculated to satisfy U-Boot's verification checks.
 3. **Hardware Device Modeling vs. Driver Stubs:**
