@@ -515,81 +515,217 @@ static void drawController(HDC dc) {
     using namespace Gdiplus;
     const auto* info = input.selected();
     Graphics g(dc);
-    g.SetSmoothingMode(SmoothingModeAntiAlias);
-    g.TranslateTransform(350, 138);
+    g.SetSmoothingMode(SmoothingModeHighQuality);
+    g.SetTextRenderingHint(TextRenderingHintClearTypeGridFit);
 
+    // Exact coordinate space from Google_Stadia.svg (viewBox 0 0 1090 707, translate(-94, -404))
+    // Uniform scale s preserves 100% of the original SVG proportions.
+    constexpr float s = 0.232f;
+    constexpr float ox = 520.0f - (640.0f * s);
+    constexpr float oy = 128.0f - (406.0f * s);
+    auto px = [&](float x) { return ox + x * s; };
+    auto py = [&](float y) { return oy + y * s; };
+    auto pr = [&](float r) { return r * s; };
+    auto addL = [&](GraphicsPath& p, float x1, float y1, float x2, float y2) {
+        p.AddLine(px(x1), py(y1), px(x2), py(y2));
+    };
+    auto addB = [&](GraphicsPath& p, float x1, float y1, float cx1, float cy1, float cx2, float cy2, float x2, float y2) {
+        p.AddBezier(px(x1), py(y1), px(cx1), py(cy1), px(cx2), py(cy2), px(x2), py(y2));
+    };
+    auto circleRect = [&](float cx, float cy, float r) {
+        return RectF(px(cx - r), py(cy - r), pr(r * 2.0f), pr(r * 2.0f));
+    };
+    auto addPill = [&](GraphicsPath& p, float cx, float cy, float hw, float hh) {
+        const float left = px(cx - hw), top = py(cy - hh);
+        const float w = pr(hw * 2.0f), h = pr(hh * 2.0f);
+        p.AddArc(left, top, h, h, 90.0f, 180.0f);
+        p.AddArc(left + w - h, top, h, h, 270.0f, 180.0f);
+        p.CloseFigure();
+    };
+
+    // 1. Left & Right shoulder bumpers (id="L", id="R")
+    GraphicsPath leftBumper, rightBumper;
+    addL(leftBumper, 425.780f, 428.510f, 425.780f, 416.437f);
+    addB(leftBumper, 425.780f, 416.437f, 425.780f, 412.277f, 422.615f, 408.835f, 418.458f, 408.666f);
+    addB(leftBumper, 418.458f, 408.666f, 394.531f, 407.695f, 317.408f, 407.521f, 268.848f, 441.714f);
+    addB(leftBumper, 268.848f, 441.714f, 266.800f, 443.157f, 265.638f, 445.530f, 265.638f, 448.036f);
+    addL(leftBumper, 265.638f, 448.036f, 265.638f, 471.266f);
+
+    addL(rightBumper, 854.890f, 428.510f, 854.890f, 416.437f);
+    addB(rightBumper, 854.890f, 416.437f, 854.890f, 412.277f, 858.055f, 408.835f, 862.212f, 408.666f);
+    addB(rightBumper, 862.212f, 408.666f, 886.140f, 407.695f, 963.262f, 407.521f, 1011.822f, 441.714f);
+    addB(rightBumper, 1011.822f, 441.714f, 1013.872f, 443.157f, 1015.032f, 445.530f, 1015.032f, 448.036f);
+    addL(rightBumper, 1015.032f, 448.036f, 1015.032f, 471.266f);
+
+    const bool lPressed = win::hostPressed(input.current, 4) || win::hostPressed(input.current, 300);
+    const bool rPressed = win::hostPressed(input.current, 5) || win::hostPressed(input.current, 301);
+
+    Pen bumperPen(lPressed ? Color(255, 16, 188, 212) : Color(210, 64, 82, 104), lPressed ? 3.2f : 2.2f);
+    Pen bumperPenR(rPressed ? Color(255, 16, 188, 212) : Color(210, 64, 82, 104), rPressed ? 3.2f : 2.2f);
+    g.DrawPath(&bumperPen, &leftBumper);
+    g.DrawPath(&bumperPenR, &rightBumper);
+
+    // 2. Controller body contour (id="body" from Google_Stadia.svg)
     GraphicsPath body;
-    body.AddBezier(20, 30, 35, 6, 65, 0, 95, 6);
-    body.AddLine(95, 6, 245, 6);
-    body.AddBezier(245, 6, 275, 0, 305, 6, 320, 30);
-    body.AddBezier(320, 30, 330, 64, 345, 128, 325, 144);
-    body.AddBezier(325, 144, 304, 162, 283, 137, 269, 112);
-    body.AddLine(269, 112, 71, 112);
-    body.AddBezier(71, 112, 57, 137, 36, 162, 15, 144);
-    body.AddBezier(15, 144, -5, 128, 10, 64, 20, 30);
+    addB(body, 1178.400f, 975.760f, 1158.030f, 821.080f, 1114.960f, 653.190f, 1076.580f, 552.920f);
+    addB(body, 1076.580f, 552.920f, 1038.990f, 451.870f, 939.530f, 431.660f, 846.330f, 431.660f);
+    addL(body, 846.330f, 431.660f, 433.590f, 431.660f);
+    addB(body, 433.590f, 431.660f, 340.391f, 431.660f, 240.930f, 451.869f, 203.330f, 552.920f);
+    addB(body, 203.330f, 552.920f, 165.738f, 653.970f, 122.662f, 821.080f, 101.520f, 975.760f);
+    addB(body, 101.520f, 975.760f, 89.773f, 1052.712f, 146.162f, 1099.350f, 196.285f, 1104.790f);
+    addB(body, 196.285f, 1104.790f, 246.409f, 1110.230f, 306.715f, 1091.570f, 336.475f, 1015.400f);
+    addB(body, 336.475f, 1015.400f, 366.236f, 940.004f, 378.767f, 875.490f, 441.425f, 875.490f);
+    addL(body, 441.425f, 875.490f, 837.715f, 875.490f);
+    addB(body, 837.715f, 875.490f, 900.369f, 875.490f, 912.900f, 940.004f, 942.665f, 1015.400f);
+    addB(body, 942.665f, 1015.400f, 972.426f, 1090.800f, 1032.736f, 1110.230f, 1082.855f, 1104.790f);
+    addB(body, 1082.855f, 1104.790f, 1132.974f, 1099.350f, 1190.155f, 1052.710f, 1178.400f, 975.760f);
     body.CloseFigure();
 
-    SolidBrush shadow(Color(35, 0, 0, 0));
-    g.TranslateTransform(3, 5);
+    SolidBrush shadow(Color(28, 8, 22, 40));
+    g.TranslateTransform(2.5f, 4.5f);
     g.FillPath(&shadow, &body);
-    g.TranslateTransform(-3, -5);
+    g.TranslateTransform(-2.5f, -4.5f);
 
-    LinearGradientBrush housing(Rect(0, 0, 340, 155), Color(255, 250, 250, 247), Color(255, 207, 211, 212), LinearGradientModeVertical);
-    Pen outline(Color(255, 138, 147, 154), 1.5f);
+    // Semi-transparent Ocean-Glass housing
+    LinearGradientBrush housing(
+        PointF(px(640.0f), py(425.0f)),
+        PointF(px(640.0f), py(1110.0f)),
+        Color(215, 240, 246, 252),
+        Color(190, 202, 216, 232));
+    Pen bodyOutline(Color(235, 96, 118, 142), 2.0f);
     g.FillPath(&housing, &body);
-    g.DrawPath(&outline, &body);
+    g.DrawPath(&bodyOutline, &body);
 
-    SolidBrush dark(Color(255, 47, 53, 60)), ring(Color(255, 105, 113, 123)), highlight(Color(255, 70, 196, 136));
+    SolidBrush dark(Color(238, 34, 46, 60));
+    SolidBrush darkSoft(Color(195, 52, 66, 84));
+    SolidBrush wellFill(Color(45, 24, 42, 66));
+    SolidBrush highlight(Color(250, 16, 188, 212));
+    SolidBrush iconLight(Color(245, 238, 244, 250));
+    Pen partOutline(Color(220, 108, 126, 146), 1.5f);
+    Pen wellOutline(Color(150, 84, 104, 126), 1.2f);
+
+    // 3. D-Pad (id="dpad" from Google_Stadia.svg)
+    GraphicsPath dpad;
+    addL(dpad, 405.610f, 582.850f, 374.392f, 582.850f);
+    addB(dpad, 374.392f, 582.850f, 372.183f, 582.850f, 370.392f, 581.059f, 370.392f, 578.850f);
+    addL(dpad, 370.392f, 578.850f, 370.392f, 547.632f);
+    addB(dpad, 370.392f, 547.632f, 370.392f, 532.763f, 357.870f, 520.241f, 343.000f, 520.241f);
+    addB(dpad, 343.000f, 520.241f, 328.131f, 520.241f, 315.609f, 532.763f, 315.609f, 547.632f);
+    addL(dpad, 315.609f, 547.632f, 315.609f, 578.850f);
+    addB(dpad, 315.609f, 578.850f, 315.609f, 581.059f, 313.818f, 582.850f, 311.609f, 582.850f);
+    addL(dpad, 311.609f, 582.850f, 280.391f, 582.850f);
+    addB(dpad, 280.391f, 582.850f, 265.521f, 582.850f, 252.999f, 595.371f, 252.999f, 610.241f);
+    addB(dpad, 252.999f, 610.241f, 252.999f, 625.110f, 265.521f, 637.632f, 280.391f, 637.632f);
+    addL(dpad, 280.391f, 637.632f, 311.609f, 637.632f);
+    addB(dpad, 311.609f, 637.632f, 313.818f, 637.632f, 315.609f, 639.423f, 315.609f, 641.632f);
+    addL(dpad, 315.609f, 641.632f, 315.609f, 672.850f);
+    addB(dpad, 315.609f, 672.850f, 315.609f, 687.719f, 328.131f, 700.241f, 343.000f, 700.241f);
+    addB(dpad, 343.000f, 700.241f, 357.870f, 700.241f, 370.392f, 687.719f, 370.392f, 672.850f);
+    addL(dpad, 370.392f, 672.850f, 370.392f, 641.632f);
+    addB(dpad, 370.392f, 641.632f, 370.392f, 639.423f, 372.183f, 637.632f, 374.392f, 637.632f);
+    addL(dpad, 374.392f, 637.632f, 405.610f, 637.632f);
+    addB(dpad, 405.610f, 637.632f, 420.480f, 637.632f, 433.002f, 625.110f, 433.002f, 610.241f);
+    addB(dpad, 433.002f, 610.241f, 433.002f, 595.371f, 421.262f, 582.850f, 405.610f, 582.850f);
+    dpad.CloseFigure();
+
+    g.FillPath(&dark, &dpad);
+    g.DrawPath(&partOutline, &dpad);
+
+    // Directional highlights on D-Pad
+    if (win::hostPressed(input.current, 200)) g.FillEllipse(&highlight, circleRect(343.0f, 552.0f, 22.0f));
+    if (win::hostPressed(input.current, 201)) g.FillEllipse(&highlight, circleRect(343.0f, 668.5f, 22.0f));
+    if (win::hostPressed(input.current, 202)) g.FillEllipse(&highlight, circleRect(285.0f, 610.24f, 22.0f));
+    if (win::hostPressed(input.current, 203)) g.FillEllipse(&highlight, circleRect(401.0f, 610.24f, 22.0f));
+
+    // 4. Left & Right Analog Sticks (id="leftcircle"/"leftstick", id="rightcircle"/"rightstick")
+    const float stickCentersX[2] = {480.225f, 800.235f};
+    const float stickCenterY = 765.40f;
+    for (int i = 0; i < 2; ++i) {
+        const float cx = stickCentersX[i];
+        g.FillEllipse(&wellFill, circleRect(cx, stickCenterY, 64.0f));
+        g.DrawEllipse(&wellOutline, circleRect(cx, stickCenterY, 64.0f));
+
+        const auto& axes = input.current.axes;
+        const float normX = std::clamp(axes[i * 2] / 32768.0f, -1.0f, 1.0f);
+        const float normY = std::clamp(axes[i * 2 + 1] / 32768.0f, -1.0f, 1.0f);
+        const float sx = cx + normX * 22.0f;
+        const float sy = stickCenterY + normY * 22.0f;
+        const bool stickActive = win::hostPressed(input.current, 8 + i) ||
+                                 std::abs(axes[i * 2]) > 14000 || std::abs(axes[i * 2 + 1]) > 14000;
+
+        g.FillEllipse(stickActive ? &highlight : &dark, circleRect(sx, sy, 48.0f));
+        g.DrawEllipse(&partOutline, circleRect(sx, sy, 48.0f));
+        g.FillEllipse(&darkSoft, circleRect(sx, sy, 31.0f));
+        g.DrawEllipse(&wellOutline, circleRect(sx, sy, 31.0f));
+    }
+
+    // 5. Center buttons (optionsbutton, menubutton, assistantbutton, capturebutton, stadiabutton)
+    const bool selectPressed = win::hostPressed(input.current, 6) || win::hostPressed(input.current, 10);
+    const bool startPressed = win::hostPressed(input.current, 7) || win::hostPressed(input.current, 11);
+
+    GraphicsPath optionsPill, menuPill;
+    addPill(optionsPill, 518.0f, 532.58f, 34.0f, 20.0f);
+    addPill(menuPill, 761.88f, 532.58f, 34.0f, 20.0f);
+    g.FillPath(selectPressed ? &highlight : &dark, &optionsPill);
+    g.DrawPath(&partOutline, &optionsPill);
+    g.FillPath(startPressed ? &highlight : &dark, &menuPill);
+    g.DrawPath(&partOutline, &menuPill);
+
+    // 3 dots inside optionsbutton (506, 518, 530 at y=532.4)
+    for (float dx : {506.0f, 518.0f, 530.0f}) {
+        g.FillEllipse(&iconLight, circleRect(dx, 532.4f, 4.0f));
+    }
+    // 3 horizontal bars inside menubutton
+    for (float by : {524.2f, 531.4f, 538.6f}) {
+        g.FillRectangle(&iconLight, RectF(px(749.25f), py(by), pr(25.5f), pr(2.6f)));
+    }
+
+    // Assistant (564, 611.43, r=24) & Capture (715.37, 611.43, r=24) & Stadia Home (640, 765.4, r=36)
+    g.FillEllipse(win::hostPressed(input.current, 12) ? &highlight : &darkSoft, circleRect(564.0f, 611.43f, 24.0f));
+    g.DrawEllipse(&partOutline, circleRect(564.0f, 611.43f, 24.0f));
+    g.FillEllipse(&iconLight, circleRect(558.2f, 609.5f, 6.2f));
+    g.FillEllipse(&iconLight, circleRect(569.5f, 608.2f, 3.2f));
+    g.FillEllipse(&iconLight, circleRect(569.5f, 616.5f, 3.8f));
+    g.FillEllipse(&iconLight, circleRect(574.5f, 605.8f, 1.8f));
+
+    g.FillEllipse(win::hostPressed(input.current, 13) ? &highlight : &darkSoft, circleRect(715.37f, 611.43f, 24.0f));
+    g.DrawEllipse(&partOutline, circleRect(715.37f, 611.43f, 24.0f));
+    Pen iconPen(Color(235, 238, 244, 250), 1.4f);
+    g.DrawRectangle(&iconPen, px(706.5f), py(603.5f), pr(17.7f), pr(15.8f));
+
+    g.FillEllipse(&dark, circleRect(640.0f, 765.40f, 36.0f));
+    g.DrawEllipse(&partOutline, circleRect(640.0f, 765.40f, 36.0f));
+    g.DrawEllipse(&iconPen, circleRect(640.0f, 765.40f, 16.0f));
+
+    // 6. Face Buttons (Ybutton, Xbutton, Bbutton, Abutton — r=34 in Google_Stadia.svg)
     FontFamily family(L"Segoe UI");
-    Gdiplus::Font font(&family, 11, FontStyleBold, UnitPixel);
+    Gdiplus::Font font(&family, 11.0f, FontStyleBold, UnitPixel);
+    Gdiplus::Font smallFont(&family, 10.5f, FontStyleBold, UnitPixel);
     StringFormat centered;
     centered.SetAlignment(StringAlignmentCenter);
     centered.SetLineAlignment(StringAlignmentCenter);
-    SolidBrush light(Color(255, 245, 247, 250));
 
-    auto text = [&](const wchar_t* value, RectF area, Brush* brush) {
-        g.DrawString(value, -1, &font, area, &centered, brush);
-    };
-    auto button = [&](float x, float y, const wchar_t* name, int token) {
-        Brush* brush = win::hostPressed(input.current, token) ? &highlight : &dark;
-        g.FillEllipse(brush, RectF(x, y, 25, 25));
-        text(name, RectF(x, y, 25, 25), &light);
+    auto drawFaceButton = [&](float cx, float cy, const wchar_t* label, int token) {
+        const RectF rc = circleRect(cx, cy, 34.0f);
+        g.FillEllipse(win::hostPressed(input.current, token) ? &highlight : &dark, rc);
+        g.DrawEllipse(&partOutline, rc);
+        g.DrawString(label, -1, &font, rc, &centered, &iconLight);
     };
 
-    button(271, 28, L"Y", 3);
-    button(245, 53, L"X", 2);
-    button(297, 53, L"B", 1);
-    button(271, 78, L"A", 0);
+    const bool psSymbols = (settings.controllerPreset == 1);
+    drawFaceButton(946.75f, 541.40f, psSymbols ? L"△" : L"Y", 3);
+    drawFaceButton(879.00f, 609.32f, psSymbols ? L"□" : L"X", 2);
+    drawFaceButton(1015.00f, 609.32f, psSymbols ? L"○" : L"B", 1);
+    drawFaceButton(946.75f, 677.40f, psSymbols ? L"✕" : L"A", 0);
 
-    for (int i = 0; i < 2; ++i) {
-        float x = i ? 210.0f : 92.0f, y = 85.0f;
-        g.FillEllipse(&ring, RectF(x - 3, y - 3, 48, 48));
-        g.FillEllipse(&dark, RectF(x, y, 42, 42));
-        g.DrawEllipse(&outline, RectF(x + 6, y + 6, 30, 30));
-        const auto& axes = input.current.axes;
-        float dx = std::clamp(axes[i * 2] / 32768.0f, -1.0f, 1.0f) * 7.0f;
-        float dy = std::clamp(axes[i * 2 + 1] / 32768.0f, -1.0f, 1.0f) * 7.0f;
-        g.FillEllipse(&ring, RectF(x + 10 + dx, y + 10 + dy, 22, 22));
-    }
+    SolidBrush labelBrush(Color(255, 42, 54, 70));
+    g.DrawString(L"L / L2", -1, &smallFont, RectF(px(80.0f), py(410.0f), pr(175.0f), 18.0f), &centered, lPressed ? &highlight : &labelBrush);
+    g.DrawString(L"R / R2", -1, &smallFont, RectF(px(1025.0f), py(410.0f), pr(175.0f), 18.0f), &centered, rPressed ? &highlight : &labelBrush);
 
-    g.FillRectangle(&dark, 44, 47, 48, 16);
-    g.FillRectangle(&dark, 60, 31, 16, 48);
-    if (win::hostPressed(input.current, 200)) g.FillRectangle(&highlight, 61, 32, 14, 14);
-    if (win::hostPressed(input.current, 201)) g.FillRectangle(&highlight, 61, 64, 14, 14);
-    if (win::hostPressed(input.current, 202)) g.FillRectangle(&highlight, 45, 48, 14, 14);
-    if (win::hostPressed(input.current, 203)) g.FillRectangle(&highlight, 77, 48, 14, 14);
-
-    button(144, 43, L"…", 6);
-    button(178, 43, L"☰", 7);
-    g.FillEllipse(&dark, 161, 78, 17, 17);
-    text(L"L / L2", RectF(28, -16, 65, 18), &dark);
-    text(L"R / R2", RectF(249, -16, 65, 18), &dark);
-
-    g.ResetTransform();
-    const wchar_t* name = (info && info->stadia) ? L"Stadia Controller" : (info ? info->name.c_str() : L"Controller");
-    text(name, RectF(210, 112, 620, 22), &dark);
-    text(input.connected ? L"Verbunden · Eingaben werden hervorgehoben" : L"Kein verbundenes Eingabegerät",
-         RectF(210, 294, 620, 20), &dark);
+    const wchar_t* name = (info && info->stadia) ? L"Google Stadia Controller" : (info ? info->name.c_str() : L"Controller");
+    g.DrawString(name, -1, &font, RectF(210.0f, 103.0f, 620.0f, 20.0f), &centered, &labelBrush);
+    g.DrawString(input.connected ? L"Verbunden · Eingaben werden live hervorgehoben" : L"Kein verbundenes Eingabegerät",
+                 -1, &smallFont, RectF(210.0f, 293.0f, 620.0f, 19.0f), &centered, &labelBrush);
 }
 
 static LRESULT CALLBACK settingsProc(HWND h, UINT message, WPARAM w, LPARAM l) {
