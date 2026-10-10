@@ -1,0 +1,588 @@
+{
+  "start_modeled_second": 247,
+  "end_modeled_second": 252,
+  "elf_sha256": "e92ba4574ca73b95f2feebfea42de8b3f43dd5560750c8f9ea2d606849453e88",
+  "base": "0x0",
+  "ttb": "0x30fa4000",
+  "total_samples": 1585728,
+  "attributed_samples": 68563,
+  "byte_verified_samples": 68563,
+  "functions": [
+    {
+      "name": "_Z15decompressFramePtS_S_P11SDL_Surfacebi",
+      "address": "0x1b760",
+      "size": 5012,
+      "code_sha256": "7d22a0d0461949ab69d1ccea8a0f698bc32a5e49d1506a2d314335d380083f65",
+      "capture_comparison": "identical",
+      "samples": 54145,
+      "sample_percent": 3.414520018565605
+    },
+    {
+      "name": "_Z11vblank_waitv",
+      "address": "0x28578",
+      "size": 276,
+      "code_sha256": "581eecd7a5d6dfaebda895afcef2d4cf13c8d0428258c329070c1c335ff85f06",
+      "capture_comparison": "identical",
+      "samples": 6295,
+      "sample_percent": 0.3969785486539936
+    },
+    {
+      "name": "_Z13convertSpritePhPtii",
+      "address": "0x2868c",
+      "size": 1636,
+      "code_sha256": "c5c34e1783674d9a185bd6dcc71bebcf5820021ba8dd27b6bc1212cddbc685ff",
+      "capture_comparison": "identical",
+      "samples": 1991,
+      "sample_percent": 0.12555747265609235
+    },
+    {
+      "name": "_Z17decompressRLEDataPtS_",
+      "address": "0x1caf4",
+      "size": 108,
+      "code_sha256": "3bd703b58651b1229dae133d7777ad59c904d5b818377f45917943852332650c",
+      "capture_comparison": "identical",
+      "samples": 1347,
+      "sample_percent": 0.08494521128465916
+    },
+    {
+      "name": "_ZN12CEsDxDisplay15DrawScreenItemsEv",
+      "address": "0x29e14",
+      "size": 888,
+      "code_sha256": "f808f2e8aca6abd837c7bc1c98693a4545d8e0964e8483a28d209ae6c0e5ef71",
+      "capture_comparison": "identical",
+      "samples": 537,
+      "sample_percent": 0.033864571982080156
+    },
+    {
+      "name": "_Z15drawPowerPlayeri",
+      "address": "0x139b0",
+      "size": 260,
+      "code_sha256": "7fd044b528a52f2196111d069197bd3db821bbedc97006953d3a1c10e2016784",
+      "capture_comparison": "identical",
+      "samples": 506,
+      "sample_percent": 0.0319096339346975
+    },
+    {
+      "name": "_ZN9CEsSprite15UpdateAnimationEv",
+      "address": "0x2bc30",
+      "size": 188,
+      "code_sha256": "65bc9774cd1339083dcd86d30e9b532f7f40ca1a34fa45b6fb10ab13927d968a",
+      "capture_comparison": "identical",
+      "samples": 485,
+      "sample_percent": 0.0305853210638899
+    },
+    {
+      "name": "_Z17drawPowerOpponenti",
+      "address": "0x13bcc",
+      "size": 260,
+      "code_sha256": "58444760677bd314cbf7fca5482c2c81e22e39ccd372a92805bd10ae46afffad",
+      "capture_comparison": "identical",
+      "samples": 482,
+      "sample_percent": 0.030396133510917384
+    },
+    {
+      "name": "_Z17drawSpecialPlayeri",
+      "address": "0x13ab4",
+      "size": 280,
+      "code_sha256": "6a3dae03dd5cb3cb447e34554d7e8151090626a5fb20599a127875d42becab60",
+      "capture_comparison": "identical",
+      "samples": 419,
+      "sample_percent": 0.02642319489849457
+    },
+    {
+      "name": "_Z19drawSpecialOpponenti",
+      "address": "0x13cd0",
+      "size": 280,
+      "code_sha256": "2aa8a08de0ed9dc5c868c3ee4bdc7701991cac1e2f35dc3f09ad256b54c5078e",
+      "capture_comparison": "identical",
+      "samples": 381,
+      "sample_percent": 0.024026819227509384
+    },
+    {
+      "name": "_ZN9GBASprite6renderEP18SCREEN_ITEM_STRUCT",
+      "address": "0x28214",
+      "size": 120,
+      "code_sha256": "e94c4b72bb63d86ed670fff14f0b5fdbe026b1ca649e87eb0a4cd9f99dc57adb",
+      "capture_comparison": "identical",
+      "samples": 278,
+      "sample_percent": 0.017531379908786376
+    },
+    {
+      "name": "_Z22Font_PrintSpriteStringPKhlltm",
+      "address": "0x1e058",
+      "size": 432,
+      "code_sha256": "25ebd3631fceaa66ccb3133eec83b2a7b22524afd719cd7c879bd5e670328115",
+      "capture_comparison": "identical",
+      "samples": 257,
+      "sample_percent": 0.01620706703797877
+    },
+    {
+      "name": "_Z14drawStaminaBari",
+      "address": "0x13de8",
+      "size": 196,
+      "code_sha256": "3aa0336486d6d95d29c555cd8965ceb7c3db35f964833f6c3bcc2ed68015e53c",
+      "capture_comparison": "identical",
+      "samples": 158,
+      "sample_percent": 0.009963877789885781
+    },
+    {
+      "name": "_Z10BGPlotFuncP9CEsSpritem",
+      "address": "0x276e4",
+      "size": 1744,
+      "code_sha256": "33ce9e70747aefa07872df028ab7adc4e21002022bee57fad917e71d83a098ae",
+      "capture_comparison": "identical",
+      "samples": 152,
+      "sample_percent": 0.009585502683940752
+    },
+    {
+      "name": "_ZN8OAMTable12getNextEntryEi",
+      "address": "0x28310",
+      "size": 88,
+      "code_sha256": "b744d35868973601c6f06c98282446aa149df99d1157b269343ca301930ebd35",
+      "capture_comparison": "identical",
+      "samples": 123,
+      "sample_percent": 0.007756689671873108
+    },
+    {
+      "name": "_ZN8OAMTable5clearEv",
+      "address": "0x28294",
+      "size": 124,
+      "code_sha256": "d6dfb6137ab3269e139d905eb9407f2bdf5b7b19d04fe950d8e0dd7b5434ed2b",
+      "capture_comparison": "identical",
+      "samples": 86,
+      "sample_percent": 0.005423376518545425
+    },
+    {
+      "name": "_ZN9GBASprite6renderEv",
+      "address": "0x281ec",
+      "size": 40,
+      "code_sha256": "d350ffd64459f1ff5196b45fb2d4d41abcb301f9532ed4649e95458daabb8875",
+      "capture_comparison": "identical",
+      "samples": 73,
+      "sample_percent": 0.004603563788997861
+    },
+    {
+      "name": "_Z10_PlayRoundv",
+      "address": "0x14060",
+      "size": 7552,
+      "code_sha256": "466e09331ed0f2a18cee8a3e0892be97833d9d146834e0f63c46b8fa59bf0163",
+      "capture_comparison": "identical",
+      "samples": 67,
+      "sample_percent": 0.004225188683052831
+    },
+    {
+      "name": "_ZN9CEsSprite6UpdateEv",
+      "address": "0x2b928",
+      "size": 128,
+      "code_sha256": "0ba02c580c930cddb5169188521ec1ac705d98882e91d61aa2f3583e744aa445",
+      "capture_comparison": "identical",
+      "samples": 60,
+      "sample_percent": 0.003783751059450297
+    },
+    {
+      "name": "_Z19Font_GetStringWidthPKh",
+      "address": "0x1e38c",
+      "size": 84,
+      "code_sha256": "a887ff38665a7afa27d77ea7feb720bdb272a18c4eea269746b143c7aa499fe6",
+      "capture_comparison": "identical",
+      "samples": 55,
+      "sample_percent": 0.003468438471162772
+    },
+    {
+      "name": "_Z11_DisplayHUDv",
+      "address": "0x15de0",
+      "size": 608,
+      "code_sha256": "b2b2e296c5e2708b69e923ed6e8e3384d389763d5e31832622e08519bcb3a35c",
+      "capture_comparison": "identical",
+      "samples": 49,
+      "sample_percent": 0.0030900633652177424
+    },
+    {
+      "name": "_Unwind_SjLj_Register",
+      "address": "0x2cc00",
+      "size": 136,
+      "code_sha256": "795cbc0681d039deb92c00acf5e3be3be6445fcf075c56e6eff4762e947155f3",
+      "capture_comparison": "identical",
+      "samples": 47,
+      "sample_percent": 0.0029639383299027325
+    },
+    {
+      "name": "_ZN9CEsSprite4ShowEi",
+      "address": "0x2c694",
+      "size": 32,
+      "code_sha256": "5d0c0515c7087dd3a85a0d008ddd64095e32b082f701760b5cd33643c8157e3c",
+      "capture_comparison": "identical",
+      "samples": 43,
+      "sample_percent": 0.0027116882592727125
+    },
+    {
+      "name": "_ZN12CEsDxDisplay13AddScreenItemEP5_RECTP11SDL_SurfaceiS1_b",
+      "address": "0x29c90",
+      "size": 148,
+      "code_sha256": "1a96048df7288405c8b6bf131d977a33752fb5893c587bc23bc8e958ff2fed83",
+      "capture_comparison": "identical",
+      "samples": 40,
+      "sample_percent": 0.0025225007063001976
+    },
+    {
+      "name": "_ZN9CEsSprite6SetPosEii",
+      "address": "0x2bdc8",
+      "size": 16,
+      "code_sha256": "97c02e31c4cd5e2157fe94863b45d29d6acf5556c81364c07dc3d90c2dc1eabb",
+      "capture_comparison": "identical",
+      "samples": 37,
+      "sample_percent": 0.002333313153327683
+    },
+    {
+      "name": "_Z11updateFrameP9EIREACTORb",
+      "address": "0x1cea0",
+      "size": 660,
+      "code_sha256": "e01e1009479bd31600ddfb5e492e036dca21eb0bfd7c2501dc49f2078dfdab88",
+      "capture_comparison": "identical",
+      "samples": 36,
+      "sample_percent": 0.002270250635670178
+    },
+    {
+      "name": "_Z23_ProcessFrameInterationv",
+      "address": "0x16398",
+      "size": 1640,
+      "code_sha256": "059a19e8bc7c76c647676fcabbf6587a452cf1a8ce567f36cafb31951cf63270",
+      "capture_comparison": "identical",
+      "samples": 34,
+      "sample_percent": 0.002144125600355168
+    },
+    {
+      "name": "_Z16OpponentGameloopP9EIREACTOR",
+      "address": "0x186dc",
+      "size": 1720,
+      "code_sha256": "a44b835ea43b60ba38edf553b0271ee9d14a6d693d74b07a57021aa898640686",
+      "capture_comparison": "identical",
+      "samples": 30,
+      "sample_percent": 0.0018918755297251484
+    },
+    {
+      "name": "_Unwind_SjLj_Unregister",
+      "address": "0x2cc88",
+      "size": 100,
+      "code_sha256": "4d78f24a853e417e9e1c8f8f56d8127d1efa74784cfaf0bbfb876c1faf022c23",
+      "capture_comparison": "identical",
+      "samples": 29,
+      "sample_percent": 0.0018288130120676434
+    },
+    {
+      "name": "_Z12_DrawFightermP9EIREACTOR",
+      "address": "0x16a00",
+      "size": 768,
+      "code_sha256": "9d3e793bfceae88962a7b67405baaba8919eac7672b59e2c76818e4aa01b56de",
+      "capture_comparison": "identical",
+      "samples": 28,
+      "sample_percent": 0.0017657504944101384
+    },
+    {
+      "name": "_ZN12CEsDxDisplay14ScanSpriteListEv",
+      "address": "0x2aba4",
+      "size": 52,
+      "code_sha256": "266b3d3f09e29f940ed69e7a522c7559e123726064df09ac20c2b158eda9c357",
+      "capture_comparison": "identical",
+      "samples": 27,
+      "sample_percent": 0.0017026879767526335
+    },
+    {
+      "name": "__modsi3",
+      "address": "0x2ca04",
+      "size": 212,
+      "code_sha256": "f3e6e423966eb2cc7a98bd71acc33a05fa18cc219b26b2ad6240055f84074350",
+      "capture_comparison": "identical",
+      "samples": 25,
+      "sample_percent": 0.0015765629414376237
+    },
+    {
+      "name": "_ZN9GBASprite8setFrameEi",
+      "address": "0x281e4",
+      "size": 8,
+      "code_sha256": "dffb491f28d09d40fcea0c2f3ba60e24473615e2ceb301d61de3851b29a884f7",
+      "capture_comparison": "identical",
+      "samples": 19,
+      "sample_percent": 0.001198187835492594
+    },
+    {
+      "name": "_ZN12CEsDxDisplay16ResetScreenItemsEi",
+      "address": "0x2a18c",
+      "size": 96,
+      "code_sha256": "9f591c1cfd18854d460f34370aa4b0229c945a110280dc92973be16b4c243a38",
+      "capture_comparison": "identical",
+      "samples": 19,
+      "sample_percent": 0.001198187835492594
+    },
+    {
+      "name": "_ZN5Input6mapKeyEv",
+      "address": "0x283e8",
+      "size": 212,
+      "code_sha256": "2e1e1c6030741aac43a25449fd0cde30c7cf19d3d5c8fcada95389f5e05ea4ba",
+      "capture_comparison": "identical",
+      "samples": 15,
+      "sample_percent": 0.0009459377648625742
+    },
+    {
+      "name": "_Z14VBlankIntrWaitv",
+      "address": "0x1d200",
+      "size": 388,
+      "code_sha256": "27cbc62da3d6e34306e11ef34fb9aaad42fde98dd1cd67d285655ce2f1957ec0",
+      "capture_comparison": "identical",
+      "samples": 14,
+      "sample_percent": 0.0008828752472050692
+    },
+    {
+      "name": "_Z22EIREActor_UpdateActionP9EIREACTOR",
+      "address": "0x1d194",
+      "size": 80,
+      "code_sha256": "cc5e5d734a835f8a73bc20ee370b2ce6ed0bdd05181c715bf4fee1857121da19",
+      "capture_comparison": "identical",
+      "samples": 12,
+      "sample_percent": 0.0007567502118900594
+    },
+    {
+      "name": "_Z12_wade_AIFuncP9EIREACTOR",
+      "address": "0x26c98",
+      "size": 772,
+      "code_sha256": "1304ed7884b53fe43526faf3b11dbb36d343a2c803de4ef1b321fca8150bb9d4",
+      "capture_comparison": "identical",
+      "samples": 12,
+      "sample_percent": 0.0007567502118900594
+    },
+    {
+      "name": "_ZN9GBASprite6setPosEii",
+      "address": "0x281dc",
+      "size": 8,
+      "code_sha256": "b31f5a36d1385d7805f2c21f72b76ab4803c5ecabf8f9326652c98948fbf87c4",
+      "capture_comparison": "identical",
+      "samples": 12,
+      "sample_percent": 0.0007567502118900594
+    },
+    {
+      "name": "__udivsi3",
+      "address": "0x2c7fc",
+      "size": 152,
+      "code_sha256": "9504986adae8d5bcb757c459bdb6911cd1b05fa73e7ba4ad106f803c83d8a81d",
+      "capture_comparison": "identical",
+      "samples": 12,
+      "sample_percent": 0.0007567502118900594
+    },
+    {
+      "name": "_Z21_UpdatePaletteEntriesv",
+      "address": "0x12cb0",
+      "size": 168,
+      "code_sha256": "7e1bcef381aa92a85b5501d8398b7ff52373e5c37bb50c8bfc72fff5c95f594e",
+      "capture_comparison": "identical",
+      "samples": 11,
+      "sample_percent": 0.0006936876942325544
+    },
+    {
+      "name": "_ZN12CEsDxDisplay12UpdateScreenEb",
+      "address": "0x29d24",
+      "size": 132,
+      "code_sha256": "8a7e491f469a5ec8f5f11ab9e5693229fc9712539b0f0241a10d5d461ea362c0",
+      "capture_comparison": "identical",
+      "samples": 11,
+      "sample_percent": 0.0006936876942325544
+    },
+    {
+      "name": "_ZN9CEsSprite14UpdateMovementEv",
+      "address": "0x2b9bc",
+      "size": 32,
+      "code_sha256": "bef748f94ac5309ff6cf822e213df6f73e1f9fee5beb7b1ab8edd25bacbeb10f",
+      "capture_comparison": "identical",
+      "samples": 11,
+      "sample_percent": 0.0006936876942325544
+    },
+    {
+      "name": "_ZN2BG10setHOffsetEii",
+      "address": "0x27540",
+      "size": 16,
+      "code_sha256": "f449405fd65f2a09d81c48f4cba502c4ba72b6d37b54a973076b268bbc444f17",
+      "capture_comparison": "identical",
+      "samples": 11,
+      "sample_percent": 0.0006936876942325544
+    },
+    {
+      "name": "_Z14Camera_ProcessP6CAMERA",
+      "address": "0x1972c",
+      "size": 472,
+      "code_sha256": "2eb0d99925080f6579c32c54790c7b48a615c84199768cc6fde58ceb51b24490",
+      "capture_comparison": "identical",
+      "samples": 9,
+      "sample_percent": 0.0005675626589175445
+    },
+    {
+      "name": "_Z11_ScrollRingP6CAMERAll",
+      "address": "0x19904",
+      "size": 316,
+      "code_sha256": "b3126f57e1fbcbc39c5cfb1f1bca79b0d2a946636454e2c145689f34e4b1e90a",
+      "capture_comparison": "identical",
+      "samples": 9,
+      "sample_percent": 0.0005675626589175445
+    },
+    {
+      "name": "_Z19Camera_SetNumPointsP6CAMERAm",
+      "address": "0x19324",
+      "size": 644,
+      "code_sha256": "daa74c9a1da3b1322c79cb79b58c7193b537b2684ed4320f4961723b8d1ab351",
+      "capture_comparison": "identical",
+      "samples": 8,
+      "sample_percent": 0.0005045001412600395
+    },
+    {
+      "name": "_Z18_DisplayActorFrameP9EIREACTOR",
+      "address": "0x12d58",
+      "size": 792,
+      "code_sha256": "109ee9338ea5cf97bfef65da4d093862dcc7c6cae69877cdf1d9fa5c36cd8a85",
+      "capture_comparison": "identical",
+      "samples": 7,
+      "sample_percent": 0.0004414376236025346
+    },
+    {
+      "name": "_Z12_CheckHelperv",
+      "address": "0x1706c",
+      "size": 420,
+      "code_sha256": "ff7e37d52115aa4342e54f20c37b37de16a6c5241b0dcb94da6a00c337c92a0c",
+      "capture_comparison": "identical",
+      "samples": 6,
+      "sample_percent": 0.0003783751059450297
+    },
+    {
+      "name": "_Z13drawOAMSpriteP15EIREACTORSPRITEPtiiib",
+      "address": "0x1cb68",
+      "size": 268,
+      "code_sha256": "333b881f1a8bd44ead66cf5bc3ceb0fc618bb13fbb0daa0f30c24eef1dc51362",
+      "capture_comparison": "identical",
+      "samples": 6,
+      "sample_percent": 0.0003783751059450297
+    },
+    {
+      "name": "_Z11SPRPlotFuncP9CEsSpritem",
+      "address": "0x28104",
+      "size": 8,
+      "code_sha256": "22a14fdc31d4f43b763be108fe127141620b54b6bd10bd939d3f780ba91add4d",
+      "capture_comparison": "identical",
+      "samples": 6,
+      "sample_percent": 0.0003783751059450297
+    },
+    {
+      "name": "_ZN12CEsDxDisplay17UpdateTimeCounterEv",
+      "address": "0x29dbc",
+      "size": 80,
+      "code_sha256": "b9db0cb7695b4f17875049e229384d352d6b767e093c978b026f0fa4162641cf",
+      "capture_comparison": "identical",
+      "samples": 6,
+      "sample_percent": 0.0003783751059450297
+    },
+    {
+      "name": "_ZN2BG10setVOffsetEii",
+      "address": "0x27530",
+      "size": 16,
+      "code_sha256": "ae7a508a7a59300b1b9c7870f551dc1ba09476ba6724b6a3ed450d49e3610376",
+      "capture_comparison": "identical",
+      "samples": 5,
+      "sample_percent": 0.0003153125882875247
+    },
+    {
+      "name": "_ZN5Input7keyReadEv",
+      "address": "0x283b0",
+      "size": 56,
+      "code_sha256": "8b2f30cbc36075888d6b3f7f9cdf7277919dd85669e1b57abc25305ce4b8219a",
+      "capture_comparison": "identical",
+      "samples": 5,
+      "sample_percent": 0.0003153125882875247
+    },
+    {
+      "name": "_ZN12CEsDxDisplay19ResetRemainingTasksEv",
+      "address": "0x29da8",
+      "size": 20,
+      "code_sha256": "0787909b6a724c5f5bbc7de1843339a575abe1ae0420fff9a8369f95688f6ad0",
+      "capture_comparison": "identical",
+      "samples": 3,
+      "sample_percent": 0.00018918755297251484
+    },
+    {
+      "name": "_Z10key_updatev",
+      "address": "0x1aed4",
+      "size": 40,
+      "code_sha256": "ac40695aceb78224f067ef6cb3a0f23d31241ed2b47d2c550d8959310a187609",
+      "capture_comparison": "identical",
+      "samples": 2,
+      "sample_percent": 0.00012612503531500988
+    },
+    {
+      "name": "_ZN2BG9showLayerEi",
+      "address": "0x27550",
+      "size": 20,
+      "code_sha256": "e1653eec2900b8cbe449ce422a7da8be4946314e8be433b7553829f90c54573f",
+      "capture_comparison": "identical",
+      "samples": 2,
+      "sample_percent": 0.00012612503531500988
+    },
+    {
+      "name": "_Z19_HITPARTICLE_AIFuncP9EIREACTOR",
+      "address": "0x1e66c",
+      "size": 44,
+      "code_sha256": "c6f41946849d373fac1e8044b80e3bf097df94764bb94fb49c8035503260b503",
+      "capture_comparison": "identical",
+      "samples": 2,
+      "sample_percent": 0.00012612503531500988
+    },
+    {
+      "name": "_ZN2BG6UpdateEv",
+      "address": "0x27670",
+      "size": 88,
+      "code_sha256": "ed2f1d16b6fe32ce2210b769da8adf4652a6562b2bf1926f59d08e310268a089",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 6.306251765750494e-05
+    },
+    {
+      "name": "_Z11_ProcessHitm",
+      "address": "0x122c0",
+      "size": 2544,
+      "code_sha256": "2f8a02525ef8f3b63a7d34a7942d06dbb593eae7637b4107933c8cb72f4e447b",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 6.306251765750494e-05
+    },
+    {
+      "name": "_Z13drawOAMSpriteP14EIREACTORFRAMEPtiiib",
+      "address": "0x1cc74",
+      "size": 244,
+      "code_sha256": "4ba82f4dd705a90e9a3f98ba617bb0f488847806f5d96c096d404e6813b6aa1f",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 6.306251765750494e-05
+    },
+    {
+      "name": "_Z10OpponentAIP9EIREACTOR",
+      "address": "0x1817c",
+      "size": 1376,
+      "code_sha256": "6702c36882f7fdacdccf7615241ffc44b897d7150fb5687fe091fd85ba369492",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 6.306251765750494e-05
+    },
+    {
+      "name": "_Z8randomMTv",
+      "address": "0x23198",
+      "size": 172,
+      "code_sha256": "50a829a2e36a1e170f1df0cc4574592453c48b76b9719a34ef5ecef1055028f0",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 6.306251765750494e-05
+    },
+    {
+      "name": "_Z29Bout_AdjustTargetHealthPointsP12FIGHTERSTATSl",
+      "address": "0x1357c",
+      "size": 104,
+      "code_sha256": "ddf1ee114debce661269d79ff2102f9f3d8c4d958a9dde535c24f3f70d2b77d3",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 6.306251765750494e-05
+    }
+  ]
+}
