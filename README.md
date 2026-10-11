@@ -14,23 +14,27 @@ The goal of this project is digital preservation, architectural documentation, a
 
 ---
 
-## Interface & Console Skin Preview
+## Emulated Gameplay Preview
 
-| Interactive Console Skin (`--window-mode skin`) | Cartridge Loading Illustration Preview |
+| **Rayman 3** `[G] (M10)` | **Superstar Chefs** `[G] (EN)` |
 | :---: | :---: |
-| <img src="assets/digiblast-skin.png" alt="OceanBlast Console Skin" width="420" /> | <img src="assets/digiblast-loading.png" alt="OceanBlast Loading Illustration" width="420" /> |
-
-> **Prebuilt Windows Binaries:** Ready-to-run Windows 64-bit builds (`oceanblast.exe` + skin assets) are available on the [**GitHub Releases**](https://github.com/Vashiel/OceanBlast/releases) page.
+| <img src="assets/preview/rayman3.gif" alt="Rayman 3 Gameplay" width="380" /> | <img src="assets/preview/superstar_chefs.gif" alt="Superstar Chefs Gameplay" width="380" /> |
+| **Wade Hixton's Counter Punch** `[G] (EN)` | **Pitfall: The Lost Expedition** `[G] (EN)` |
+| <img src="assets/preview/wade_hixton.gif" alt="Wade Hixton's Counter Punch Gameplay" width="380" /> | <img src="assets/preview/pitfall.gif" alt="Pitfall: The Lost Expedition Gameplay" width="380" /> |
+| **Spider-Man: Mysterio's Menace** `[G] (EN)` | **Crazy Jack** `[G] (EN)` |
+| <img src="assets/preview/spiderman.gif" alt="Spider-Man: Mysterio's Menace Gameplay" width="380" /> | <img src="assets/preview/crazy_jack.gif" alt="Crazy Jack Gameplay" width="380" /> |
 
 ---
 
 ## Quick Start & Windows Launcher
 
+> **Prebuilt Windows Binaries:** Ready-to-run Windows 64-bit builds (`oceanblast.exe` + skin assets) are available on the [**GitHub Releases**](https://github.com/Vashiel/OceanBlast/releases) page.
+
 Double-click `bin/oceanblast.exe` (or `oceanblast.exe` from a release archive) without arguments to open the `1024×768` **OceanBlast** frontend:
 1. Press **Ctrl+O**, choose **File → Load ROM…**, or **drag and drop** a legally dumped `.bin` cartridge image directly onto the OceanBlast start screen.
 2. Open **Settings → Folders & System** to switch the interface language live between **English (Default)**, **Deutsch**, **Español**, **Italiano**, **Nederlands**, **Français**, and **Türkçe**.
 3. Open **Settings → Controls** to test your controller live (XInput, DirectInput8, Google Stadia, Xbox, PlayStation, or generic USB gamepads), apply a controller preset (**Stadia / Xbox**, **PlayStation**, **digiBLAST / USB**), or click any row in the mapping table to interactively learn a controller button or keyboard key.
-4. Adjust audio volume, aspect ratio (**3:2 Native**, **4:3**, **Stretched**), integer/smooth scaling, window appearance (**Plain Window**, **Console Skin**, or **Fullscreen** via **F11** / **Alt+Enter**), and CPU timing under **Settings** (persisted to `%APPDATA%\OceanBlast\windows.ini`).
+4. Adjust audio volume, aspect ratio (**3:2 Native**, **4:3**, **Stretched**), integer/smooth scaling, window appearance (**Plain Window**, interactive **Console Skin** via `--window-mode skin`, or **Fullscreen** via **F11** / **Alt+Enter**), and CPU timing under **Settings** (persisted to `%APPDATA%\OceanBlast\windows.ini`).
 
 Automatic per-cartridge settings are enabled by default (see [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md), [docs/43](docs/43_windows_launcher_and_controller_input.md), [docs/34](docs/34_automatic_cartridge_settings.md), and [docs/33](docs/33_console_skin_and_fullscreen.md)).
 
