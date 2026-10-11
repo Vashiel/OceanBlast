@@ -39,7 +39,7 @@ Automatic per-cartridge settings are enabled by default (see [docs/43](docs/43_w
 
 All tested cartridges boot autonomously through the 4-KB S3C2410 Steppingstone SRAM, U-Boot 1.1.2 (`nidc` NAND ID & `checkbattery` ADC checks), and the embedded Linux 2.6.11 kernel without kernel panics or guest segmentation faults. Sustained full-speed gameplay and glitch-free audio synchronization remain under active development.
 
-For the complete chronological engineering log and all 44 technical reports (`docs/00`–`docs/43`), see [**CHANGELOG.md**](CHANGELOG.md).
+For the complete chronological engineering log and all 45 technical reports (`docs/00`–`docs/44`), see [**CHANGELOG.md**](CHANGELOG.md).
 
 ### 1. Commercial Game Cartridges (11 / 11 Boot to Game Binary)
 
@@ -54,7 +54,7 @@ For the complete chronological engineering log and all 44 technical reports (`do
 | **Pitfall: The Lost Expedition** `[G] (EN)` | Yes | Intro, Title & Gameplay | Plays (slow pacing) | Native 12-bpp LCD444; auto 2× ratio ([docs/21](docs/21_pitfall_original_hardware_reference.md), [docs/34](docs/34_automatic_cartridge_settings.md)) |
 | **Rayman 3** `[G] (M10)` | Yes | Intro, Title & In-Game | Stutters under load | High CPU/blitter load ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/18](docs/18_manual_cartridge_validation.md)) |
 | **Spider-Man: Mysterio's Menace** `[G] (EN)` | Yes | Main Menu, Story & In-Game | Plays (metallic/crackling) | ~17.5 FPS sampled changes at 1× ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/18](docs/18_manual_cartridge_validation.md)) |
-| **Superstar Chefs** `[G] (EN)` | Yes | Menus & Interactive Gameplay | Improved at 4× ([docs/37](docs/37_cpu_fetch_and_interpreter_execution.md)) | Native 12-bpp LCD444 (`GPH8 = 1`); auto 2× ratio ([docs/24](docs/24_automatic_timing_and_chefs_load.md), [docs/42](docs/42_wade_gph8_lcd_mode.md)) |
+| **Superstar Chefs** `[G] (EN)` | Yes | Menus & Playable Level (~20 FPS) | Smooth at Auto 4× ([docs/44](docs/44_superstar_chefs_analysis_and_fix.md)) | Auto 4× ratio eliminates `AddChannel` + `480×320` collapse (`2.4 -> 19.8 FPS`) & cuts `NWFPE` loading (`23 -> 13 s`) ([docs/44](docs/44_superstar_chefs_analysis_and_fix.md)) |
 | **Wade Hixton's Counter Punch** `[G] (EN)` | Yes | Intro, Menus & First Fight | Improved (`-50%` frame work) | `GPH8 = 1` removes 16-bpp shadow blit (`4.5M -> 2.25M` steps/frame) ([docs/41](docs/41_wade_binary_and_s3c2410fb_analysis.md), [docs/42](docs/42_wade_gph8_lcd_mode.md)) |
 
 ### 2. Video & Combined Game+Video Cartridges

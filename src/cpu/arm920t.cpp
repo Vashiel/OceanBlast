@@ -244,30 +244,25 @@ void ARM920T::step(size_t peripheralTicks) {
 }
 
 bool ARM920T::evaluateCondition(u32 cond) const {
-    bool N = (cpsr & FLAG_N) != 0;
-    bool Z = (cpsr & FLAG_Z) != 0;
-    bool C = (cpsr & FLAG_C) != 0;
-    bool V = (cpsr & FLAG_V) != 0;
-
-    switch (cond) {
-        case 0x0: return Z;                      // EQ
-        case 0x1: return !Z;                     // NE
-        case 0x2: return C;                      // CS / HS
-        case 0x3: return !C;                     // CC / LO
-        case 0x4: return N;                      // MI
-        case 0x5: return !N;                     // PL
-        case 0x6: return V;                      // VS
-        case 0x7: return !V;                     // VC
-        case 0x8: return C && !Z;                // HI
-        case 0x9: return !C || Z;                // LS
-        case 0xA: return N == V;                 // GE
-        case 0xB: return N != V;                 // LT
-        case 0xC: return !Z && (N == V);         // GT
-        case 0xD: return Z || (N != V);          // LE
-        case 0xE: return true;                   // AL (Always)
-        case 0xF: return true;                   // NV / Reserved
-        default:  return false;
-    }
+    static constexpr u16 kConditionMask[16] = {
+        0xF0F0, // 0x0 EQ: Z == 1
+        0x0F0F, // 0x1 NE: Z == 0
+        0xCCCC, // 0x2 CS / HS: C == 1
+        0x3333, // 0x3 CC / LO: C == 0
+        0xFF00, // 0x4 MI: N == 1
+        0x00FF, // 0x5 PL: N == 0
+        0xAAAA, // 0x6 VS: V == 1
+        0x5555, // 0x7 VC: V == 0
+        0x0C0C, // 0x8 HI: C == 1 && Z == 0
+        0xF3F3, // 0x9 LS: C == 0 || Z == 1
+        0xAA55, // 0xA GE: N == V
+        0x55AA, // 0xB LT: N != V
+        0x0A05, // 0xC GT: Z == 0 && N == V
+        0xF5FA, // 0xD LE: Z == 1 || N != V
+        0xFFFF, // 0xE AL: Always
+        0xFFFF, // 0xF NV: Reserved
+    };
+    return cond < 16 && ((kConditionMask[cond] >> (cpsr >> 28)) & 1u) != 0;
 }
 
 void ARM920T::setNZFlags(u32 result) {
@@ -505,21 +500,29 @@ void ARM920T::stepARM(u32 instr) {
     u32 cond = instr >> 28;
     if (cond < 0xE && !evaluateCondition(cond)) return;
 
-    if (simpleAluExecution && executeSimpleDataProcessing(instr)) return;
-
     // Select the major instruction class before examining overlapping
     // encodings. Loads and branches avoid the control/multiply comparisons.
     switch ((instr >> 25) & 7) {
         case 0:
-            if ((instr & 0x0FFFFFF0) == 0x012FFF10 || (instr & 0x0FFFFFF0) == 0x012FFF30) executeBX(instr);
-            else if ((instr & 0x0FBF0FFF) == 0x010F0000) executeMRS(instr);
-            else if ((instr & 0x0FB0F000) == 0x0120F000) executeMSR(instr);
-            else if ((instr & 0x0FB00FF0) == 0x01000090) executeSwap(instr);
-            else if ((instr & 0x0F000090) == 0x00000090 && !(instr & 0x60)) executeMultiply(instr);
-            else if ((instr & 0x0E000090) == 0x00000090 && (instr & 0x60)) executeHalfwordTransfer(instr);
-            else executeDataProcessing(instr);
+            if ((instr & 0x90) == 0x90) {
+                if (instr & 0x60) executeHalfwordTransfer(instr);
+                else if (!(instr & (1u << 24))) executeMultiply(instr);
+                else if ((instr & 0x0FB00FF0) == 0x01000090) executeSwap(instr);
+                else executeDataProcessing(instr);
+                return;
+            }
+            if (simpleAluExecution && executeSimpleDataProcessing(instr)) return;
+            if ((instr & 0x01900000) == 0x01000000) {
+                if ((instr & 0x0FFFFFF0) == 0x012FFF10 || (instr & 0x0FFFFFF0) == 0x012FFF30) executeBX(instr);
+                else if ((instr & 0x0FBF0FFF) == 0x010F0000) executeMRS(instr);
+                else if ((instr & 0x0FB0F000) == 0x0120F000) executeMSR(instr);
+                else executeDataProcessing(instr);
+            } else {
+                executeDataProcessing(instr);
+            }
             return;
         case 1:
+            if (simpleAluExecution && executeSimpleDataProcessing(instr)) return;
             if ((instr & 0x0FB0F000) == 0x0320F000) executeMSR(instr);
             else executeDataProcessing(instr);
             return;
@@ -887,8 +890,7 @@ void ARM920T::executeBlockDataTransfer(u32 instr) {
     u32 regList = instr & 0xFFFF;
 
     u32 baseVal = (rn == 15) ? (r[15] + 4) : r[rn];
-    int count = 0;
-    for (int i = 0; i < 16; ++i) if (regList & (1 << i)) count++;
+    int count = __builtin_popcount(regList);
     lastCycles = std::max(count, 2) + ((isLoad && (regList & 0x8000)) ? 4 : 0);
 
     u32 startAddr = baseVal;
@@ -898,46 +900,45 @@ void ARM920T::executeBlockDataTransfer(u32 instr) {
     bool userBank = sBit && !(regList & (1 << 15));
 
     u32 currAddr = startAddr;
-    for (int i = 0; i < 16; ++i) {
-        if (regList & (1 << i)) {
-            if (isLoad) {
-                u32 val = bus.read32(currAddr);
-                if (bus.getLastFault() != Bus::MmuFault::NONE) {
-                    handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
-                    bus.clearLastFault();
-                    return;
-                }
-                if (userBank && i == 13) {
-                    r13_usr = val;
-                } else if (userBank && i == 14) {
-                    r14_usr = val;
-                } else {
-                    r[i] = val;
-                }
-                if (i == 15) {
-                    r[15] &= ~3;
-                    if (sBit) {
-                        u32 newCpsr = spsr;
-                        if ((newCpsr & 0x1F) != (cpsr & 0x1F)) {
-                            switchMode(newCpsr & 0x1F);
-                        }
-                        cpsr = newCpsr;
-                    }
-                }
+    for (u32 list = regList; list != 0; list &= list - 1) {
+        const int i = __builtin_ctz(list);
+        if (isLoad) {
+            u32 val = bus.read32(currAddr);
+            if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                bus.clearLastFault();
+                return;
+            }
+            if (userBank && i == 13) {
+                r13_usr = val;
+            } else if (userBank && i == 14) {
+                r14_usr = val;
             } else {
-                u32 val = 0;
-                if (userBank && i == 13) val = r13_usr;
-                else if (userBank && i == 14) val = r14_usr;
-                else val = (i == 15) ? (r[15] + 4) : r[i];
-                bus.write32(currAddr, val);
-                if (bus.getLastFault() != Bus::MmuFault::NONE) {
-                    handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
-                    bus.clearLastFault();
-                    return;
+                r[i] = val;
+            }
+            if (i == 15) {
+                r[15] &= ~3;
+                if (sBit) {
+                    u32 newCpsr = spsr;
+                    if ((newCpsr & 0x1F) != (cpsr & 0x1F)) {
+                        switchMode(newCpsr & 0x1F);
+                    }
+                    cpsr = newCpsr;
                 }
             }
-            currAddr += 4;
+        } else {
+            u32 val = 0;
+            if (userBank && i == 13) val = r13_usr;
+            else if (userBank && i == 14) val = r14_usr;
+            else val = (i == 15) ? (r[15] + 4) : r[i];
+            bus.write32(currAddr, val);
+            if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                bus.clearLastFault();
+                return;
+            }
         }
+        currAddr += 4;
     }
 
     if (writeback && (!isLoad || !(regList & (1 << rn)))) {
@@ -1509,20 +1510,16 @@ void ARM920T::stepThumb(u16 instr) {
 
     // Format 14: Push/Pop registers
     if ((instr & 0xFE00) == 0xB400) { // PUSH
-        unsigned cycleCount = 0; for (unsigned i = 0; i < 9; ++i) cycleCount += (instr >> i) & 1;
-        lastCycles = std::max(cycleCount, 2u);
+        const u32 count = __builtin_popcount(instr & 0x1FFu);
+        lastCycles = std::max(count, 2u);
         bool rBit = (instr & (1 << 8)) != 0; // LR
-        u32 count = 0;
-        for (int i = 0; i < 8; ++i) if (instr & (1 << i)) count++;
-        if (rBit) count++;
         u32 addr = r[13] - count * 4;
         r[13] = addr;
-        for (int i = 0; i < 8; ++i) {
-            if (instr & (1 << i)) {
-                bus.write32(addr, r[i]);
-                if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
-                addr += 4;
-            }
+        for (u32 list = instr & 0xFFu; list != 0; list &= list - 1) {
+            const int i = __builtin_ctz(list);
+            bus.write32(addr, r[i]);
+            if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+            addr += 4;
         }
         if (rBit) {
             bus.write32(addr, r[14]);
@@ -1531,16 +1528,15 @@ void ARM920T::stepThumb(u16 instr) {
         return;
     }
     if ((instr & 0xFE00) == 0xBC00) { // POP
-        unsigned count = 0; for (unsigned i = 0; i < 9; ++i) count += (instr >> i) & 1;
+        const unsigned count = __builtin_popcount(instr & 0x1FFu);
         lastCycles = std::max(count, 2u) + ((instr & 0x100) ? 4 : 0);
         bool rBit = (instr & (1 << 8)) != 0; // PC
         u32 addr = r[13];
-        for (int i = 0; i < 8; ++i) {
-            if (instr & (1 << i)) {
-                r[i] = bus.read32(addr);
-                if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
-                addr += 4;
-            }
+        for (u32 list = instr & 0xFFu; list != 0; list &= list - 1) {
+            const int i = __builtin_ctz(list);
+            r[i] = bus.read32(addr);
+            if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+            addr += 4;
         }
         if (rBit) {
             u32 target = bus.read32(addr);
@@ -1560,22 +1556,21 @@ void ARM920T::stepThumb(u16 instr) {
 
     // Format 15: Multiple load/store
     if ((instr & 0xF000) == 0xC000) {
-        unsigned count = 0; for (unsigned i = 0; i < 8; ++i) count += (instr >> i) & 1;
+        const unsigned count = __builtin_popcount(instr & 0xFFu);
         lastCycles = std::max(count, 2u);
         bool load = (instr & (1 << 11)) != 0;
         u32 rb = (instr >> 8) & 7;
         u32 addr = r[rb];
-        for (int i = 0; i < 8; ++i) {
-            if (instr & (1 << i)) {
-                if (load) {
-                    r[i] = bus.read32(addr);
-                    if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
-                } else {
-                    bus.write32(addr, r[i]);
-                    if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
-                }
-                addr += 4;
+        for (u32 list = instr & 0xFFu; list != 0; list &= list - 1) {
+            const int i = __builtin_ctz(list);
+            if (load) {
+                r[i] = bus.read32(addr);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
+            } else {
+                bus.write32(addr, r[i]);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) { handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault()); bus.clearLastFault(); return; }
             }
+            addr += 4;
         }
         if (!load || !(instr & (1 << rb))) {
             r[rb] = addr;

@@ -27,10 +27,13 @@ if ($Unity) {
     ($sources | ForEach-Object { '#include "../../' + $_ + '"' }) | Set-Content -LiteralPath $unitySource -Encoding utf8
     $sources = @($outputRelative + '/unity.cpp')
 }
-$common = @('-std=c++17','-Wall','-Wextra',('-' + $Optimization),'-Isrc') + $sources + @('-lgdi32','-luser32','-lwinmm','-lcomdlg32','-ld3d11','-ldxgi','-ld3dcompiler','-lgdiplus','-o',($outputRelative + '/oceanblast_profiled.exe'))
+$resObj = $outputRelative + '/oceanblast_res.o'
+$common = @('-std=c++17','-Wall','-Wextra',('-' + $Optimization),'-Isrc') + $sources + @($resObj,'-lgdi32','-luser32','-lwinmm','-lcomdlg32','-lcomctl32','-lshell32','-lole32','-ldinput8','-ldxguid','-ld3d11','-ldxgi','-ld3dcompiler','-lgdiplus','-o',($outputRelative + '/oceanblast_profiled.exe'))
 $profileOption = $profileRoot.Replace('\','/')
 Push-Location $projectRoot
 try {
+    & windres src/display/oceanblast.rc -O coff -o $resObj
+    if ($LASTEXITCODE) { throw 'Resource compilation failed.' }
     & $Compiler @common ('-fprofile-generate=' + $profileOption)
     if ($LASTEXITCODE) { throw 'Instrumented compilation failed.' }
 } finally { Pop-Location }

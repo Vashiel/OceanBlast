@@ -1,6 +1,6 @@
 CXX ?= g++
 WINDRES ?= windres
-CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -g -Isrc
+CXXFLAGS = -std=c++17 -Wall -Wextra -O3 -g -Isrc
 
 TARGET = bin/oceanblast.exe
 
@@ -11,38 +11,42 @@ SRCS = src/main.cpp \
        src/display/display_win32.cpp \
        src/audio/audio_win32.cpp
 
-OBJS = build/main.o \
-       build/bus.o \
-       build/arm920t.o \
-       build/cart_parser.o \
-       build/display_win32.o \
-       build/audio_win32.o
+HEADERS = src/core/types.h \
+          src/core/guest_symbols.h \
+          src/core/input_script.h \
+          src/core/emulation_clock.h \
+          src/core/execution_batch.h \
+          src/core/host_pacer.h \
+          src/core/cartridge_settings.h \
+          src/cpu/arm920t.h \
+          src/memory/bus.h \
+          src/memory/i2c_eeprom.h \
+          src/memory/timer4.h \
+          src/memory/clock_tree.h \
+          src/cartridge/cart_parser.h \
+          src/display/display.h \
+          src/display/framebuffer.h \
+          src/display/frame_latch.h \
+          src/display/display_profile.h \
+          src/display/presenter_win32.h \
+          src/display/console_skin_win32.h \
+          src/display/launcher.h \
+          src/display/windows_input.h \
+          src/display/input_mapping.h \
+          src/audio/audio.h \
+          src/audio/resampler.h
+
+OBJS = build/unity.o
 RES_OBJ = build/oceanblast_res.o
 LDFLAGS = -lgdi32 -luser32 -lwinmm -lcomdlg32 -lcomctl32 -lshell32 -lole32 -ldinput8 -ldxguid -ld3d11 -ldxgi -ld3dcompiler -lgdiplus
 
 all: $(TARGET)
 
-build/main.o: src/main.cpp src/core/guest_symbols.h src/display/frame_latch.h src/cpu/arm920t.h src/display/display.h src/display/launcher.h src/display/windows_input.h src/display/input_mapping.h src/core/input_script.h src/audio/audio.h src/audio/resampler.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/display/display_profile.h src/memory/clock_tree.h src/core/emulation_clock.h src/core/execution_batch.h src/core/host_pacer.h src/core/cartridge_settings.h
+build/unity.cpp: Makefile
 	@mkdir -p build
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	@printf '#include "../src/main.cpp"\n#include "../src/cpu/arm920t.cpp"\n#include "../src/memory/bus.cpp"\n#include "../src/cartridge/cart_parser.cpp"\n#include "../src/display/display_win32.cpp"\n#include "../src/audio/audio_win32.cpp"\n' > $@
 
-build/bus.o: src/memory/bus.cpp src/display/frame_latch.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/memory/clock_tree.h
-	@mkdir -p build
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-build/arm920t.o: src/cpu/arm920t.cpp src/cpu/arm920t.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/core/types.h src/memory/clock_tree.h
-	@mkdir -p build
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-build/cart_parser.o: src/cartridge/cart_parser.cpp src/cartridge/cart_parser.h src/core/types.h
-	@mkdir -p build
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-build/display_win32.o: src/display/display_win32.cpp src/display/display.h src/display/framebuffer.h src/display/presenter_win32.h src/display/console_skin_win32.h src/display/windows_input.h src/display/input_mapping.h
-	@mkdir -p build
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-build/audio_win32.o: src/audio/audio_win32.cpp src/audio/audio.h src/audio/resampler.h
+build/unity.o: build/unity.cpp $(SRCS) $(HEADERS)
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
@@ -54,7 +58,7 @@ $(RES_OBJ): src/display/oceanblast.rc assets/oceanblast-logo.png assets/oceanbla
 
 $(TARGET): $(OBJS) $(RES_OBJ)
 	@mkdir -p bin
-	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp %.o,$^) $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(RES_OBJ) $(LDFLAGS)
 
 test: build/frame_latch.exe build/emulation_timing.exe build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
 	./build/cartridge_settings.exe
@@ -106,7 +110,7 @@ clean:
 	rm -f build/emulation_timing.exe
 	rm -f build/runtime_probe.exe
 	rm -f build/capture_audio.exe
-	rm -f $(OBJS) $(RES_OBJ) $(TARGET) build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe
+	rm -f build/unity.cpp $(OBJS) $(RES_OBJ) $(TARGET) build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe
 	rm -f build/i2c_eeprom.exe
 	rm -f build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
 

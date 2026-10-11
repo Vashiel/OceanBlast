@@ -1,0 +1,966 @@
+{
+  "start_modeled_second": 31,
+  "end_modeled_second": 37,
+  "elf_sha256": "97c780c297e09f80b9552a5df76b7f178e4ea2eedd69246c81890baa65b477ad",
+  "base": "0x0",
+  "ttb": "0x30f14000",
+  "total_samples": 237859,
+  "attributed_samples": 150569,
+  "byte_verified_samples": 150569,
+  "functions": [
+    {
+      "name": "_Z8UpdateFSv",
+      "address": "0xb838",
+      "size": 648,
+      "code_sha256": "ffcff99b2c4a73513242f5323066ffbd6843c3a8b88bb6a68c33d779ef704960",
+      "capture_comparison": "identical",
+      "samples": 67248,
+      "sample_percent": 28.272211688437267
+    },
+    {
+      "name": "AddChannel",
+      "address": "0x5d74c",
+      "size": 2348,
+      "code_sha256": "9a44f9ecf0446f0c6d23bbe0cb89a17c5cf99a4b8eeb9436fa60435e4238889d",
+      "capture_comparison": "identical",
+      "samples": 41410,
+      "sample_percent": 17.409473679785084
+    },
+    {
+      "name": "_Z7CKBlittiiP7SURFACEiiii",
+      "address": "0x11998",
+      "size": 376,
+      "code_sha256": "abc21d24686c8065bdfe6d5e51ceed015c57b3b9faef45d5541c011bba2736ea",
+      "capture_comparison": "identical",
+      "samples": 26327,
+      "sample_percent": 11.068321989077562
+    },
+    {
+      "name": "Mix32To16_Normal",
+      "address": "0x5d33c",
+      "size": 260,
+      "code_sha256": "e00cdcdd697b5c4a164b9d6ed91d84eae4e75ce5ea863dd7611f65a9ea4d7c89",
+      "capture_comparison": "identical",
+      "samples": 3662,
+      "sample_percent": 1.5395675589319724
+    },
+    {
+      "name": "_Z5BlittiiP7SURFACEiiii",
+      "address": "0x1183c",
+      "size": 348,
+      "code_sha256": "a29ce17f24ab271050b1377bddf81971eaa0b189e2bc8258b33e25434bc0c971",
+      "capture_comparison": "identical",
+      "samples": 2742,
+      "sample_percent": 1.1527837920785002
+    },
+    {
+      "name": "_Z27InterpolateCatmullRomSpline5fixedS_S_S_S_",
+      "address": "0x16934",
+      "size": 652,
+      "code_sha256": "e3b81c65647b092b858ce9ad042357bf1c9e2ddc64675f929e869c2a57260bd9",
+      "capture_comparison": "identical",
+      "samples": 1439,
+      "sample_percent": 0.6049802614153763
+    },
+    {
+      "name": "_Z12UpdateActorsv",
+      "address": "0x1b80c",
+      "size": 348,
+      "code_sha256": "f3ea3efb24c59cdeafdab4efb7e067d74e11eda900aeba1f51792cb63997876c",
+      "capture_comparison": "identical",
+      "samples": 596,
+      "sample_percent": 0.2505686141789884
+    },
+    {
+      "name": "_Z4ChefP5ACTORi",
+      "address": "0x23590",
+      "size": 6704,
+      "code_sha256": "d7309e51b7773a9f0c15937f6816854f93f59746a615d609bcf9f2cb7dc8a896",
+      "capture_comparison": "identical",
+      "samples": 542,
+      "sample_percent": 0.22786608873324113
+    },
+    {
+      "name": "VC2_WriteSamples",
+      "address": "0x5b900",
+      "size": 1104,
+      "code_sha256": "fae19f77a6c4a593e0c427b74b0ef8dd6477584913d62f2ef19d5620a1de464e",
+      "capture_comparison": "identical",
+      "samples": 518,
+      "sample_percent": 0.2177760774240201
+    },
+    {
+      "name": "_Z10_DrawTilesP5LAYER5fixedS1_",
+      "address": "0x1714c",
+      "size": 600,
+      "code_sha256": "ae031a797b667aee038f68bcd9449c1d37166c6cb136d4ca8d31e152d7291ec7",
+      "capture_comparison": "identical",
+      "samples": 463,
+      "sample_percent": 0.19465313484038863
+    },
+    {
+      "name": "__divdi3",
+      "address": "0x5e8f8",
+      "size": 1404,
+      "code_sha256": "59ee8c34e010dfb38ce49f04ca697b22f7a3f2cbde3a9b863010cd12f7106e05",
+      "capture_comparison": "identical",
+      "samples": 409,
+      "sample_percent": 0.17195060939464135
+    },
+    {
+      "name": "_Z9CKBlittX2iiP7SURFACEiiii",
+      "address": "0x11b10",
+      "size": 440,
+      "code_sha256": "918b163222e1ae8ef31328b58200722672a6b981a8926120609875ac5debafa8",
+      "capture_comparison": "identical",
+      "samples": 359,
+      "sample_percent": 0.15092975250043092
+    },
+    {
+      "name": "_Z7GetTile5fixedS_",
+      "address": "0x1ad80",
+      "size": 152,
+      "code_sha256": "c988a7e43031506240a7853cdb05370a02e349c40957c876fba41e0e49d107d9",
+      "capture_comparison": "identical",
+      "samples": 358,
+      "sample_percent": 0.1505093353625467
+    },
+    {
+      "name": "_Z16SplineAlongNodesP5ACTOR5fixed",
+      "address": "0x1a5f4",
+      "size": 264,
+      "code_sha256": "4ee31342277864922c910b6f6fc1687783149e462e8131f7c7c6fe7f9bd3b07f",
+      "capture_comparison": "identical",
+      "samples": 344,
+      "sample_percent": 0.1446234954321678
+    },
+    {
+      "name": "mix_channels",
+      "address": "0x2f4e4",
+      "size": 1036,
+      "code_sha256": "d444c6e3a557bc97f2c26ba22b832ac520a5b4b9096c5d70038d5e3a4fa29bf2",
+      "capture_comparison": "identical",
+      "samples": 285,
+      "sample_percent": 0.11981888429699948
+    },
+    {
+      "name": "_Z18TestEnemyCollisionP5ACTORi",
+      "address": "0x192e0",
+      "size": 268,
+      "code_sha256": "4fa73dcc9837f25327bd44aa1e19d80583cfd6c06d0ac7d3da3f66e07b9e5036",
+      "capture_comparison": "identical",
+      "samples": 283,
+      "sample_percent": 0.11897805002123106
+    },
+    {
+      "name": "pt_UpdateVoices",
+      "address": "0x37b90",
+      "size": 3180,
+      "code_sha256": "b9d949895cefcceb0314f57bb23b11552abe6fd3d88733e04c7929d9a5faa8d6",
+      "capture_comparison": "identical",
+      "samples": 243,
+      "sample_percent": 0.10216136450586272
+    },
+    {
+      "name": "_Z9LinkActorP5ACTOR",
+      "address": "0x1b2f8",
+      "size": 632,
+      "code_sha256": "36c2b482ce293316deee1224199ef06bbd3f88e02ebeb6aa3f9a301035bc29cf",
+      "capture_comparison": "identical",
+      "samples": 241,
+      "sample_percent": 0.1013205302300943
+    },
+    {
+      "name": "_Z10UpdateAnimP5ACTOR5fixedS1_S1_",
+      "address": "0x1d124",
+      "size": 84,
+      "code_sha256": "0ae0480bf8fc4ca2d6a32cfd546222f8ef7e3c14d4a02914377b9b90fb86ddef",
+      "capture_comparison": "identical",
+      "samples": 228,
+      "sample_percent": 0.09585510743759959
+    },
+    {
+      "name": "_Z11GAME_Updatev",
+      "address": "0x2e9c4",
+      "size": 1636,
+      "code_sha256": "cac6b3a89bd148b5d866c4540a719590adb7c57c803f1950b40ba52365062a21",
+      "capture_comparison": "identical",
+      "samples": 193,
+      "sample_percent": 0.08114050761165228
+    },
+    {
+      "name": "_Z9TestFloorP5ACTORii",
+      "address": "0x1a048",
+      "size": 1260,
+      "code_sha256": "e37a3097f1dbb1b79b992e97fa680f7168e1719e0a26887d1890c5df09be7077",
+      "capture_comparison": "identical",
+      "samples": 171,
+      "sample_percent": 0.07189133057819969
+    },
+    {
+      "name": "_Z15UpdateEnemyAnimP5ACTOR5fixed",
+      "address": "0x25158",
+      "size": 104,
+      "code_sha256": "cdbc64ca3adc45275413de046a25f4127515a171405a178f1ef62a08f3685bfe",
+      "capture_comparison": "identical",
+      "samples": 169,
+      "sample_percent": 0.07105049630243128
+    },
+    {
+      "name": "pt_EffectsPass1",
+      "address": "0x38dd4",
+      "size": 492,
+      "code_sha256": "48e47edf14f305e46796f8144c3a531a04aacdd5ccca8f5af8fcfc96b351be0c",
+      "capture_comparison": "identical",
+      "samples": 169,
+      "sample_percent": 0.07105049630243128
+    },
+    {
+      "name": "_Z11FlyingEnemyP5ACTORi5fixed",
+      "address": "0x24fc0",
+      "size": 224,
+      "code_sha256": "04197bd83e84977a316cc00da636f5a611ac52a0d1de46523e8b86e11476be1a",
+      "capture_comparison": "identical",
+      "samples": 130,
+      "sample_percent": 0.05465422792494713
+    },
+    {
+      "name": "UniGetByte",
+      "address": "0x3d70c",
+      "size": 60,
+      "code_sha256": "271694b82884002e2314c7bf7634fd6959a2b4510faaf04e569ad3c229c1a82b",
+      "capture_comparison": "identical",
+      "samples": 105,
+      "sample_percent": 0.044143799477841916
+    },
+    {
+      "name": "_Z13TestRightWallP5ACTORi",
+      "address": "0x1996c",
+      "size": 900,
+      "code_sha256": "2ac28eb5872689e395f87b02c5ef7d6005b599a5c1115a726640125ba31feae2",
+      "capture_comparison": "identical",
+      "samples": 99,
+      "sample_percent": 0.04162129665053666
+    },
+    {
+      "name": "_Z19TestPlayerCollisionP5ACTORi",
+      "address": "0x190c8",
+      "size": 268,
+      "code_sha256": "eca5fcd67f7c4c344b9ce957c0058bbcb73e9188fe0e3e860293c51796a1734d",
+      "capture_comparison": "identical",
+      "samples": 97,
+      "sample_percent": 0.04078046237476825
+    },
+    {
+      "name": "_Z12SetMapOffset5fixedS_i",
+      "address": "0x1d2f0",
+      "size": 280,
+      "code_sha256": "d01033fa254332dde7e3f73f63554215051a6bb9d978219b56c9cdf4bd5dea34",
+      "capture_comparison": "identical",
+      "samples": 92,
+      "sample_percent": 0.0386783766853472
+    },
+    {
+      "name": "_Z12TestLeftWallP5ACTORi",
+      "address": "0x19604",
+      "size": 872,
+      "code_sha256": "2277d513f217d555c5254f20ac75bf8239e1c01fbcdc44825449381a063ad07f",
+      "capture_comparison": "identical",
+      "samples": 87,
+      "sample_percent": 0.03657629099592616
+    },
+    {
+      "name": "Player_HandleTick",
+      "address": "0x392dc",
+      "size": 1192,
+      "code_sha256": "7adb7a6795a1163938ddf456391b486586e80d38498a72322a7c230dbe51ebe8",
+      "capture_comparison": "identical",
+      "samples": 76,
+      "sample_percent": 0.03195170247919986
+    },
+    {
+      "name": "_Z11TestCeilingP5ACTORi",
+      "address": "0x19cf0",
+      "size": 856,
+      "code_sha256": "c5e12e7f695764118c97a937f6dcedcd5c3a7b2d76297b3a5172045da7b1511c",
+      "capture_comparison": "identical",
+      "samples": 74,
+      "sample_percent": 0.031110868203431445
+    },
+    {
+      "name": "UniSetRow",
+      "address": "0x3d6cc",
+      "size": 64,
+      "code_sha256": "c1daf8b76f264a9abaa3ce38cc459d41041c98243a90add0894e7f34423cfbe5",
+      "capture_comparison": "identical",
+      "samples": 73,
+      "sample_percent": 0.030690451065547235
+    },
+    {
+      "name": "_Z5SnailP5ACTORi",
+      "address": "0x2561c",
+      "size": 124,
+      "code_sha256": "ede337a44528effff01e550ab886dfdcb638afbbf0b2c21774bc5fc958de903e",
+      "capture_comparison": "identical",
+      "samples": 69,
+      "sample_percent": 0.0290087825140104
+    },
+    {
+      "name": "_Z9SuperPillP5ACTORi",
+      "address": "0x26bc0",
+      "size": 304,
+      "code_sha256": "30d2ef67afe22a06ffc8aee68ed44a4fdd2872ca596b811f2a71c0a7ed89096b",
+      "capture_comparison": "identical",
+      "samples": 66,
+      "sample_percent": 0.027747531100357777
+    },
+    {
+      "name": "pt_SetupVoices",
+      "address": "0x391ac",
+      "size": 304,
+      "code_sha256": "e3b79039bcdd7cad24e5366439281d63f41513a4fce2e3886f07167702283206",
+      "capture_comparison": "identical",
+      "samples": 66,
+      "sample_percent": 0.027747531100357777
+    },
+    {
+      "name": "_Z5TeddyP5ACTORi",
+      "address": "0x25698",
+      "size": 124,
+      "code_sha256": "9d97c0b72205891e3a5bfbc67f3a36adc778045a5f6ff74b8237aff67fe41b5f",
+      "capture_comparison": "identical",
+      "samples": 65,
+      "sample_percent": 0.027327113962473566
+    },
+    {
+      "name": "_Z9UpdateMapv",
+      "address": "0x1d52c",
+      "size": 1832,
+      "code_sha256": "21ebada705d0c76245fe4f5b797e90e8c87475679d7f52c56af77f8bd6676a2e",
+      "capture_comparison": "identical",
+      "samples": 62,
+      "sample_percent": 0.02606586254882094
+    },
+    {
+      "name": "_Z12WalkingEnemyP5ACTORi5fixed",
+      "address": "0x250a0",
+      "size": 184,
+      "code_sha256": "5fffd74345bfccab8563c23ebe4ad6a3b4a0b20a26b3a0d15b10c10de6c05bf8",
+      "capture_comparison": "identical",
+      "samples": 61,
+      "sample_percent": 0.025645445410936732
+    },
+    {
+      "name": "UniFindRow",
+      "address": "0x3d844",
+      "size": 84,
+      "code_sha256": "d6bab139e83383354138fbef1c8f4c4c3b83ecd825b82745efc865fc04d13efb",
+      "capture_comparison": "identical",
+      "samples": 60,
+      "sample_percent": 0.02522502827305252
+    },
+    {
+      "name": "_Z14WalkAlongNodesP5ACTOR5fixed",
+      "address": "0x1a740",
+      "size": 236,
+      "code_sha256": "3dde045f874863047b74f979f981a044f545fc205c8286112b435bfef737fa48",
+      "capture_comparison": "identical",
+      "samples": 59,
+      "sample_percent": 0.024804611135168315
+    },
+    {
+      "name": "_Z4FishP5ACTORi",
+      "address": "0x254a8",
+      "size": 124,
+      "code_sha256": "be8a5ca4cfc36fc7005a6669eb3892a214f21590253d813c25dc81c7f8315dee",
+      "capture_comparison": "identical",
+      "samples": 57,
+      "sample_percent": 0.023963776859399898
+    },
+    {
+      "name": "_Z11SetPriorityP5ACTORi",
+      "address": "0x1b780",
+      "size": 140,
+      "code_sha256": "fc4f8f1c10a029aedd025d80f92b5f9609732c8d25299b514bbc22b632327132",
+      "capture_comparison": "identical",
+      "samples": 44,
+      "sample_percent": 0.018498354066905184
+    },
+    {
+      "name": "UniSkipOpcode",
+      "address": "0x3d7b4",
+      "size": 144,
+      "code_sha256": "f3d603941e16effe0dcbb3177efc5dbd0a66553912bfb5248e0e30bb55201d42",
+      "capture_comparison": "identical",
+      "samples": 41,
+      "sample_percent": 0.017237102653252557
+    },
+    {
+      "name": "_Z10DrawActorsv",
+      "address": "0x1c34c",
+      "size": 840,
+      "code_sha256": "d4708052304602ba5d5753cf5761b15754623d82fd1c6f164658f7611dc7e8db",
+      "capture_comparison": "identical",
+      "samples": 40,
+      "sample_percent": 0.01681668551536835
+    },
+    {
+      "name": "music_mixer",
+      "address": "0x310e8",
+      "size": 828,
+      "code_sha256": "face1076d00a33738f5e1b9d9affa53165e4f86a443d0324b4659196f9bf8133",
+      "capture_comparison": "identical",
+      "samples": 37,
+      "sample_percent": 0.015555434101715723
+    },
+    {
+      "name": "_Z8AnimTileP5IMAGEtttt",
+      "address": "0x1ac28",
+      "size": 136,
+      "code_sha256": "e1bf9ea3653a76382a8439d91d6bc16a4c18b1be85bfcbdf7154e309e8491d93",
+      "capture_comparison": "identical",
+      "samples": 35,
+      "sample_percent": 0.014714599825947305
+    },
+    {
+      "name": "_Z9DrawShape5fixedS_P5IMAGEiS_S_ii",
+      "address": "0x1beb0",
+      "size": 500,
+      "code_sha256": "a254a4395eceb8b9d70f74e92cf8c4254ab80e3aa2948449c194d0e3366108a5",
+      "capture_comparison": "identical",
+      "samples": 33,
+      "sample_percent": 0.013873765550178888
+    },
+    {
+      "name": "Voice_SetVolume_internal",
+      "address": "0x33fec",
+      "size": 192,
+      "code_sha256": "ab8fe4fdd4f5d2c2061e266b58436ab5cb743fea085999cae13751c0f1fe89ec",
+      "capture_comparison": "identical",
+      "samples": 33,
+      "sample_percent": 0.013873765550178888
+    },
+    {
+      "name": "pt_Notes",
+      "address": "0x387fc",
+      "size": 1496,
+      "code_sha256": "627a8321d3ddc44bdf8d979aee851708574497a89f5ee082ace9ec09dc344700",
+      "capture_comparison": "identical",
+      "samples": 33,
+      "sample_percent": 0.013873765550178888
+    },
+    {
+      "name": "Voice_SetPanning_internal",
+      "address": "0x34368",
+      "size": 156,
+      "code_sha256": "7c41ece52297d7d93f2757d350d7e86ae319ce7ca8ceea0cf8adfb7b18ceaec5",
+      "capture_comparison": "identical",
+      "samples": 27,
+      "sample_percent": 0.011351262722873635
+    },
+    {
+      "name": "_Z13UpdateWindowsv",
+      "address": "0xefbc",
+      "size": 312,
+      "code_sha256": "9cfeda17c6e27de67c4ee188b4be317cee619f92867458fb80e35b32bddb20ce",
+      "capture_comparison": "identical",
+      "samples": 26,
+      "sample_percent": 0.010930845584989426
+    },
+    {
+      "name": "Player_Active",
+      "address": "0x3a094",
+      "size": 84,
+      "code_sha256": "8c39da44289ab66204154384f378f30371f71f7c0f8b56fa7621b823705cb7b1",
+      "capture_comparison": "identical",
+      "samples": 26,
+      "sample_percent": 0.010930845584989426
+    },
+    {
+      "name": "ProcessEnvelope",
+      "address": "0x3a748",
+      "size": 452,
+      "code_sha256": "c27e4b7f10b86f0cc8c04f0ed8f644838c9a7636d90bb33e06f970870835ae48",
+      "capture_comparison": "identical",
+      "samples": 26,
+      "sample_percent": 0.010930845584989426
+    },
+    {
+      "name": "_Z17HandleFragileTile5fixedS_",
+      "address": "0x23438",
+      "size": 344,
+      "code_sha256": "82a2f6504259fb08a055cf1da85a7505a524e8db6a2b33fec24109f1d0c68129",
+      "capture_comparison": "identical",
+      "samples": 24,
+      "sample_percent": 0.01009001130922101
+    },
+    {
+      "name": "_Z11SetAnimTileP5IMAGEtt",
+      "address": "0x1acb0",
+      "size": 56,
+      "code_sha256": "ca37d2f79966a1925907249332af95117072939892a197206ff4ecb997be3f69",
+      "capture_comparison": "identical",
+      "samples": 22,
+      "sample_percent": 0.009249177033452592
+    },
+    {
+      "name": "_Z16UpdateIngameMenuv",
+      "address": "0x2983c",
+      "size": 448,
+      "code_sha256": "66fb90de6c07c2e01275a2cd926eed5c9037cb1eb0d8e8dbd0e90fc126738c5f",
+      "capture_comparison": "identical",
+      "samples": 21,
+      "sample_percent": 0.008828759895568384
+    },
+    {
+      "name": "Voice_SetFrequency_internal",
+      "address": "0x341f0",
+      "size": 124,
+      "code_sha256": "d86437fb51270521ff7ed01b98336e647f7c1a3a9f1542bec50a148f0b8058a3",
+      "capture_comparison": "identical",
+      "samples": 19,
+      "sample_percent": 0.007987925619799965
+    },
+    {
+      "name": "Mix_DoEffects",
+      "address": "0x2f420",
+      "size": 196,
+      "code_sha256": "911f889fe2ebf16b577e6b4555832b0d8e4ddb6295bc7c7c4ff3dd45a618e232",
+      "capture_comparison": "identical",
+      "samples": 18,
+      "sample_percent": 0.007567508481915757
+    },
+    {
+      "name": "VC2_WriteBytes",
+      "address": "0x5c568",
+      "size": 168,
+      "code_sha256": "15068e529122ec45da49ba5ba318039dd9f643e915ee742faed4a579668c3761",
+      "capture_comparison": "identical",
+      "samples": 17,
+      "sample_percent": 0.007147091344031548
+    },
+    {
+      "name": "music_internal_playing",
+      "address": "0x31f94",
+      "size": 104,
+      "code_sha256": "376372d63fd2c426b03385b29ef952fb2a92c2500f2a97c3fefe13bdd7baad02",
+      "capture_comparison": "identical",
+      "samples": 16,
+      "sample_percent": 0.006726674206147339
+    },
+    {
+      "name": "_Z10TestKeyHiti",
+      "address": "0x12614",
+      "size": 316,
+      "code_sha256": "6166166d9cbda0bf79453a026b4e357dc3b8191d9e6896f512e353f0115f5a55",
+      "capture_comparison": "identical",
+      "samples": 15,
+      "sample_percent": 0.00630625706826313
+    },
+    {
+      "name": "DoArpeggio",
+      "address": "0x3cdd4",
+      "size": 568,
+      "code_sha256": "2810e9a6fbfbd39a848858965255ec4c80cde6b41b0cc5f86cb05e5d4a4669c2",
+      "capture_comparison": "identical",
+      "samples": 15,
+      "sample_percent": 0.00630625706826313
+    },
+    {
+      "name": "VC2_VoiceSetVolume",
+      "address": "0x5c7ec",
+      "size": 72,
+      "code_sha256": "59f2a8b08e817c78fcc6ac1196f581e392dde21f0c3feeb6f92d3f9ee87322e6",
+      "capture_comparison": "identical",
+      "samples": 15,
+      "sample_percent": 0.00630625706826313
+    },
+    {
+      "name": "_Z14UpdateGameOverv",
+      "address": "0x293c4",
+      "size": 372,
+      "code_sha256": "90286746de1383480874f359bc3dce7e201084d0be69b3e87efa11babbd4fd68",
+      "capture_comparison": "identical",
+      "samples": 12,
+      "sample_percent": 0.005045005654610505
+    },
+    {
+      "name": "_Z12UpdateFadeInv",
+      "address": "0x2c148",
+      "size": 64,
+      "code_sha256": "e0ffb6db49da0cb7d5c62ef8e7a2a1d0832f663704ea9efc512387f4eb8b0113",
+      "capture_comparison": "identical",
+      "samples": 12,
+      "sample_percent": 0.005045005654610505
+    },
+    {
+      "name": "VC2_VoiceSetPanning",
+      "address": "0x5c834",
+      "size": 64,
+      "code_sha256": "0bbfcb3d811c03537261bfb9e7648c07a78f17807f3bbac11a8a4e384b0e5ec6",
+      "capture_comparison": "identical",
+      "samples": 12,
+      "sample_percent": 0.005045005654610505
+    },
+    {
+      "name": "_Z13ProcessInput1v",
+      "address": "0xe6c4",
+      "size": 252,
+      "code_sha256": "89a001b4aa01a6768caaea7ad4d6111782ce913396ce66e06cb05bb21b70bbda",
+      "capture_comparison": "identical",
+      "samples": 11,
+      "sample_percent": 0.004624588516726296
+    },
+    {
+      "name": "_Z11WrapCKBlittiiP7SURFACEiiiii",
+      "address": "0x12128",
+      "size": 456,
+      "code_sha256": "f250a31e2348acb112ea042c72a1a84255662e2d6faf0fb019f8b3654bf181b5",
+      "capture_comparison": "identical",
+      "samples": 9,
+      "sample_percent": 0.0037837542409578785
+    },
+    {
+      "name": "_Z11UpdateAudiov",
+      "address": "0x22b14",
+      "size": 124,
+      "code_sha256": "d5606a309e0738e5d8480189bf161d7ebb5e476c8bdcedb6338cec4190728126",
+      "capture_comparison": "identical",
+      "samples": 9,
+      "sample_percent": 0.0037837542409578785
+    },
+    {
+      "name": "_Z10TestKeyHitv",
+      "address": "0x125c8",
+      "size": 36,
+      "code_sha256": "ebd58c88785aa08a763f7ac34ae7cfeb6e564e7f6c4aba836d44a536f4d463bb",
+      "capture_comparison": "identical",
+      "samples": 8,
+      "sample_percent": 0.0033633371030736695
+    },
+    {
+      "name": "VC_VoiceSetVolume",
+      "address": "0x3f0dc",
+      "size": 36,
+      "code_sha256": "bc11ce751004660ff4becd37882a90a24ec846f4983688317f409e04388641c4",
+      "capture_comparison": "identical",
+      "samples": 8,
+      "sample_percent": 0.0033633371030736695
+    },
+    {
+      "name": "_Z16UpdateCheatCodesv",
+      "address": "0x2d60c",
+      "size": 488,
+      "code_sha256": "3e2c009db13160fe8b34a97f58cbc8c5ba16247a252fca3f8ff6f6852dcce4d8",
+      "capture_comparison": "identical",
+      "samples": 8,
+      "sample_percent": 0.0033633371030736695
+    },
+    {
+      "name": "_Z9DrawTilesP5LAYER",
+      "address": "0x173a4",
+      "size": 416,
+      "code_sha256": "1a3418dd55bbdb0624a46c7e91cec3f254aace04e8ab88aa9c6b4ec67a102f8f",
+      "capture_comparison": "identical",
+      "samples": 7,
+      "sample_percent": 0.002942919965189461
+    },
+    {
+      "name": "_Z20UpdateLevelCompletedv",
+      "address": "0x2c7f4",
+      "size": 432,
+      "code_sha256": "832036d03a33142f888931a69ef506cf2ba0a9e833660a380d81810df19e2dca",
+      "capture_comparison": "identical",
+      "samples": 7,
+      "sample_percent": 0.002942919965189461
+    },
+    {
+      "name": "_Z8LockKeysv",
+      "address": "0x12598",
+      "size": 20,
+      "code_sha256": "aba84f5c00202f2fb7b8633fdf43ed1c913406f5101ab5cfa6f83ba5f424eca5",
+      "capture_comparison": "identical",
+      "samples": 6,
+      "sample_percent": 0.0025225028273052523
+    },
+    {
+      "name": "_Z11TestKeyHoldi",
+      "address": "0x12750",
+      "size": 84,
+      "code_sha256": "0aa497e99f413379c7e7d4361b0899aad1d3aacf5649ba128ec2ab82b8108410",
+      "capture_comparison": "identical",
+      "samples": 6,
+      "sample_percent": 0.0025225028273052523
+    },
+    {
+      "name": "VC_VoiceSetPanning",
+      "address": "0x3f15c",
+      "size": 28,
+      "code_sha256": "9e5b8a60f52d5dcfe8449dc272c453b179d2a3c1b213d473984d4463537b9571",
+      "capture_comparison": "identical",
+      "samples": 5,
+      "sample_percent": 0.0021020856894210438
+    },
+    {
+      "name": "DoPTEffect0",
+      "address": "0x3a90c",
+      "size": 108,
+      "code_sha256": "dbd46c5015b485cc7b85d33e6bed88e58c4c1b8e849e9cdda01cc9fa14f6f62c",
+      "capture_comparison": "identical",
+      "samples": 5,
+      "sample_percent": 0.0021020856894210438
+    },
+    {
+      "name": "DoNothing",
+      "address": "0x3c9d8",
+      "size": 16,
+      "code_sha256": "24bca035935f144db029d2e42fa4d67dd30d4ac26445e3f2715cf70b68d37bd1",
+      "capture_comparison": "identical",
+      "samples": 5,
+      "sample_percent": 0.0021020856894210438
+    },
+    {
+      "name": "_Z13UpdateFadeOutv",
+      "address": "0x2c2f0",
+      "size": 144,
+      "code_sha256": "4504664f74507156f3e9a529fd4e8a12e2babb696b778a403e6bb5c1ae67e530",
+      "capture_comparison": "identical",
+      "samples": 4,
+      "sample_percent": 0.0016816685515368347
+    },
+    {
+      "name": "_Z12DrawOverlaysv",
+      "address": "0x2c4b4",
+      "size": 756,
+      "code_sha256": "c27c150213d39680242f123988f047ed291472f986f0b674110be25140d53257",
+      "capture_comparison": "identical",
+      "samples": 4,
+      "sample_percent": 0.0016816685515368347
+    },
+    {
+      "name": "VC_VoiceSetFrequency",
+      "address": "0x3f124",
+      "size": 28,
+      "code_sha256": "7c5be9ddc45f684f334a167cf474215f2fcb4661154e36ee6097d6767e0f4d3d",
+      "capture_comparison": "identical",
+      "samples": 4,
+      "sample_percent": 0.0016816685515368347
+    },
+    {
+      "name": "DoPTEffectC",
+      "address": "0x3b090",
+      "size": 68,
+      "code_sha256": "6f9ae9ce92534b0baaa6a2473a8b08e1f14cbead11738a42a497080bbc3da648",
+      "capture_comparison": "identical",
+      "samples": 4,
+      "sample_percent": 0.0016816685515368347
+    },
+    {
+      "name": "_ZN7CWINDOW9LockMouseEv",
+      "address": "0xef64",
+      "size": 20,
+      "code_sha256": "427376439a2fdc1885e300bacade2d88da10cf41e30dca2550dc8e78e8cc00cf",
+      "capture_comparison": "identical",
+      "samples": 3,
+      "sample_percent": 0.0012612514136526262
+    },
+    {
+      "name": "_Z9SetOffsetP5LAYER5fixedS1_i",
+      "address": "0x170bc",
+      "size": 144,
+      "code_sha256": "85f87f66579fe78f5bbe83d917c87325692afce7f57798fa4031f4a452022e05",
+      "capture_comparison": "identical",
+      "samples": 3,
+      "sample_percent": 0.0012612514136526262
+    },
+    {
+      "name": "_Z10DrawTextX2Pc5fixedS0_P5IMAGEii",
+      "address": "0x188fc",
+      "size": 216,
+      "code_sha256": "ec4abe45fb6f6ed13e2f81f74e8b69c10b111835de5938f0a5eb2cae551c70a3",
+      "capture_comparison": "identical",
+      "samples": 3,
+      "sample_percent": 0.0012612514136526262
+    },
+    {
+      "name": "VC_WriteBytes",
+      "address": "0x3f0ac",
+      "size": 24,
+      "code_sha256": "fd91e5fa16c8095b947d5973398e90a3dad54d2680d1de814016a8f295d14063",
+      "capture_comparison": "identical",
+      "samples": 3,
+      "sample_percent": 0.0012612514136526262
+    },
+    {
+      "name": "_Z5StartPt",
+      "address": "0x12ec0",
+      "size": 356,
+      "code_sha256": "94439d566a7013e7b1978dc28548e48282f6fcb43735b936fc1335962d8136b6",
+      "capture_comparison": "identical",
+      "samples": 3,
+      "sample_percent": 0.0012612514136526262
+    },
+    {
+      "name": "_Z12GetTextWidthPcP5IMAGEii",
+      "address": "0x187c4",
+      "size": 96,
+      "code_sha256": "1c7f698c0961b81476b0b38b9b5e694c79cf62e85f1efbf32f6ab55856024a6d",
+      "capture_comparison": "identical",
+      "samples": 3,
+      "sample_percent": 0.0012612514136526262
+    },
+    {
+      "name": "_Z9GAME_Drawv",
+      "address": "0x2f06c",
+      "size": 328,
+      "code_sha256": "ebf9f8993ea4f9ccd86f2f6aef0fbe4a83a14ac393cf39756c47de624a9d05fe",
+      "capture_comparison": "identical",
+      "samples": 3,
+      "sample_percent": 0.0012612514136526262
+    },
+    {
+      "name": "_Z13GetEventStatev",
+      "address": "0xb144",
+      "size": 788,
+      "code_sha256": "b2b95aa27e5eeab4185bd6d9df186027ccc534928768da57072311783574c1e5",
+      "capture_comparison": "identical",
+      "samples": 2,
+      "sample_percent": 0.0008408342757684174
+    },
+    {
+      "name": "_Z11DrawFadeOutv",
+      "address": "0x2c380",
+      "size": 308,
+      "code_sha256": "7e78dc44fa694c2de953b4e5a01bfd35a4979c1e08932a10a053c2723103c202",
+      "capture_comparison": "identical",
+      "samples": 2,
+      "sample_percent": 0.0008408342757684174
+    },
+    {
+      "name": "VC_VoicePlay",
+      "address": "0x3f194",
+      "size": 68,
+      "code_sha256": "6d7790c49f79cb018d3a822f706615e438409b76f88a579f0b545f01999d806d",
+      "capture_comparison": "identical",
+      "samples": 2,
+      "sample_percent": 0.0008408342757684174
+    },
+    {
+      "name": "VC2_VoiceSetFrequency",
+      "address": "0x5c6c8",
+      "size": 36,
+      "code_sha256": "29b0bd376861ed98e3f3ba9529487d660851e40023ab4bee128aa95221ac730c",
+      "capture_comparison": "identical",
+      "samples": 2,
+      "sample_percent": 0.0008408342757684174
+    },
+    {
+      "name": "_Z12UpdateTimersv",
+      "address": "0x1d4b8",
+      "size": 116,
+      "code_sha256": "14bc388711c3b18fce7e54813c065195e734685de4ce61acceb3a64a1198cacf",
+      "capture_comparison": "identical",
+      "samples": 2,
+      "sample_percent": 0.0008408342757684174
+    },
+    {
+      "name": "_Z18DrawOverlayShapeX2iiP5IMAGEi",
+      "address": "0x1c0a4",
+      "size": 100,
+      "code_sha256": "b562dafb978b4cd7a60aa2154b0224474f2359e089c0dad378fb6a61ad88b2cd",
+      "capture_comparison": "identical",
+      "samples": 2,
+      "sample_percent": 0.0008408342757684174
+    },
+    {
+      "name": "_Z10SortActorsv",
+      "address": "0x1b968",
+      "size": 332,
+      "code_sha256": "aea4e3f17b3b5823da1d464cf8920b4ddf64e1f701595816264a02d798a2b7f8",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 0.0004204171378842087
+    },
+    {
+      "name": "_Z18DrawLevelCompletedv",
+      "address": "0x2c9a4",
+      "size": 3088,
+      "code_sha256": "403a7286957db6bc19b36ba94d08c2ca13eb3862950543c68113946150cc7d8e",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 0.0004204171378842087
+    },
+    {
+      "name": "_ZN7CWINDOW11UnlockMouseEv",
+      "address": "0xef78",
+      "size": 20,
+      "code_sha256": "ec318e9a2d6b13c7526ed3bf2923209738f8ec9392e1c267fe1113390fa5a10f",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 0.0004204171378842087
+    },
+    {
+      "name": "_Z4RndFv",
+      "address": "0x12ac0",
+      "size": 48,
+      "code_sha256": "78319ca589b838da7f8d03713f451fb068e37cc4e34109088a140889f4bf2736",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 0.0004204171378842087
+    },
+    {
+      "name": "_Z12DrawGameOverv",
+      "address": "0x29538",
+      "size": 772,
+      "code_sha256": "32682eb46ea0a1952dbad0893b02831ccaf8c5ce6ae64d57f76e0a938b595892",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 0.0004204171378842087
+    },
+    {
+      "name": "Voice_Stop_internal",
+      "address": "0x34688",
+      "size": 104,
+      "code_sha256": "1f69bb67faa2e8d0ad40830cbf567d85bceb843faf81e062cd18889deb63dc93",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 0.0004204171378842087
+    },
+    {
+      "name": "DoKeyFade",
+      "address": "0x3b9e4",
+      "size": 84,
+      "code_sha256": "779a4e180a079aca2fb74cf1a2309f8b1a840129b4ee05c8c0083a79d88b33d0",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 0.0004204171378842087
+    },
+    {
+      "name": "_Z18SetDefaultClippingv",
+      "address": "0x10fd0",
+      "size": 88,
+      "code_sha256": "d10f303a9f5f6eefda6a8f2baff4832127c93067f779b6c585c0f420f0444d72",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 0.0004204171378842087
+    },
+    {
+      "name": "_Z4Mainv",
+      "address": "0x1e194",
+      "size": 200,
+      "code_sha256": "9a7e8d13e2dc91fcbb9fb1a5a19e15bb5d338b16bde2a38ce60a8dc7d4ee676f",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 0.0004204171378842087
+    },
+    {
+      "name": "VC2_VoicePlay",
+      "address": "0x5c710",
+      "size": 84,
+      "code_sha256": "7d065c813280eb3c594d2874b1d3ba88df7b98ce60711cea29f9ff8f77a2e83f",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 0.0004204171378842087
+    }
+  ]
+}

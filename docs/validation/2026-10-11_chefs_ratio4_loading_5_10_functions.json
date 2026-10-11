@@ -1,0 +1,201 @@
+{
+  "start_modeled_second": 5,
+  "end_modeled_second": 10,
+  "elf_sha256": "97c780c297e09f80b9552a5df76b7f178e4ea2eedd69246c81890baa65b477ad",
+  "base": "0x0",
+  "ttb": "0x30f14000",
+  "total_samples": 396432,
+  "attributed_samples": 12138,
+  "byte_verified_samples": 1791,
+  "functions": [
+    {
+      "name": "_Z11AddSineTonePsi5fixedS0_S0_S0_S0_",
+      "address": "0x1f74c",
+      "size": 512,
+      "code_sha256": "69dd3ef1606c2824a6966ea48ffc065d907471b89f4fa836859e40c77511ea62",
+      "capture_comparison": "unmapped_in_final_capture",
+      "samples": 5277,
+      "sample_percent": 1.3311236227146144
+    },
+    {
+      "name": "_Z10AddSawTonePsi5fixedS0_S0_S0_S0_",
+      "address": "0x1f94c",
+      "size": 380,
+      "code_sha256": "7187fe861fcebed3ab626c5f3089bf4692f161a34537cb793d9b426bcf3a75b8",
+      "capture_comparison": "unmapped_in_final_capture",
+      "samples": 3345,
+      "sample_percent": 0.8437764862574162
+    },
+    {
+      "name": "_Z4EchoPsii",
+      "address": "0x2004c",
+      "size": 228,
+      "code_sha256": "07614e13fcaaca63ae38bb01f89ea130144d0472167ddcea4f844d7f7c912b7f",
+      "capture_comparison": "identical",
+      "samples": 1121,
+      "sample_percent": 0.28277232917625217
+    },
+    {
+      "name": "_Z13AddSquareTonePsi5fixedS0_S0_S0_S0_S0_S0_",
+      "address": "0x1fc70",
+      "size": 404,
+      "code_sha256": "8aa32a1ba0d20c3253a99a0156faaaded008f3045d6abf3de7161ed06890f8c8",
+      "capture_comparison": "unmapped_in_final_capture",
+      "samples": 648,
+      "sample_percent": 0.16345804576825282
+    },
+    {
+      "name": "_Z9NormalizePsi",
+      "address": "0x1fe3c",
+      "size": 152,
+      "code_sha256": "75583338baaae7771624d74e266d357e1f27ed99106cad1ff73f13b065cdd63e",
+      "capture_comparison": "unmapped_in_final_capture",
+      "samples": 563,
+      "sample_percent": 0.14201678976470114
+    },
+    {
+      "name": "_Z10RampVolumePsi5fixed",
+      "address": "0x20130",
+      "size": 140,
+      "code_sha256": "2cae4a0442d4df4023a693af96d8d2adb19c320f052fa72eedae683c8eb62142",
+      "capture_comparison": "identical",
+      "samples": 347,
+      "sample_percent": 0.08753077450861686
+    },
+    {
+      "name": "_Z5ClearPsi",
+      "address": "0x1f658",
+      "size": 56,
+      "code_sha256": "ed299ef1b35e7d3d666aec065de68fef5910726d28f01442bd358af9cea3e680",
+      "capture_comparison": "unmapped_in_final_capture",
+      "samples": 259,
+      "sample_percent": 0.06533276829317512
+    },
+    {
+      "name": "mix_channels",
+      "address": "0x2f4e4",
+      "size": 1036,
+      "code_sha256": "d444c6e3a557bc97f2c26ba22b832ac520a5b4b9096c5d70038d5e3a4fa29bf2",
+      "capture_comparison": "identical",
+      "samples": 225,
+      "sample_percent": 0.05675626589175445
+    },
+    {
+      "name": "_Z8AddNoisePsi5fixed",
+      "address": "0x1f690",
+      "size": 188,
+      "code_sha256": "949a7b6524a9849e64fb14d223548d33b2718f629a64d4fda9d73c91fad8c7dc",
+      "capture_comparison": "unmapped_in_final_capture",
+      "samples": 198,
+      "sample_percent": 0.049945513984743915
+    },
+    {
+      "name": "_Z4RndFv",
+      "address": "0x12ac0",
+      "size": 48,
+      "code_sha256": "78319ca589b838da7f8d03713f451fb068e37cc4e34109088a140889f4bf2736",
+      "capture_comparison": "identical",
+      "samples": 63,
+      "sample_percent": 0.015891754449691247
+    },
+    {
+      "name": "_Z7AmplifyPsi5fixed",
+      "address": "0x1fe04",
+      "size": 56,
+      "code_sha256": "fa968c55b478a0d4027c45492aae4005a876584c3fce0951f8c24e1e6946d209",
+      "capture_comparison": "unmapped_in_final_capture",
+      "samples": 52,
+      "sample_percent": 0.013117003672761028
+    },
+    {
+      "name": "Mix_DoEffects",
+      "address": "0x2f420",
+      "size": 196,
+      "code_sha256": "911f889fe2ebf16b577e6b4555832b0d8e4ddb6295bc7c7c4ff3dd45a618e232",
+      "capture_comparison": "identical",
+      "samples": 21,
+      "sample_percent": 0.005297251483230415
+    },
+    {
+      "name": "music_mixer",
+      "address": "0x310e8",
+      "size": 828,
+      "code_sha256": "face1076d00a33738f5e1b9d9affa53165e4f86a443d0324b4659196f9bf8133",
+      "capture_comparison": "identical",
+      "samples": 6,
+      "sample_percent": 0.0015135004237801187
+    },
+    {
+      "name": "Mix_LoadWAV_RW",
+      "address": "0x2fbf4",
+      "size": 640,
+      "code_sha256": "062ebeb997cdb7023bb2bb8b845b060c7825b1f54163c2a6c6be67a891ae5ea3",
+      "capture_comparison": "identical",
+      "samples": 4,
+      "sample_percent": 0.001009000282520079
+    },
+    {
+      "name": "_Z20CreateSuperPillEndFXv",
+      "address": "0x20ba8",
+      "size": 624,
+      "code_sha256": "c1e75ec6cada753c6c2b0a613f1a39fd1d709fb8a8aac6278bfe372f63f57176",
+      "capture_comparison": "identical",
+      "samples": 2,
+      "sample_percent": 0.0005045001412600395
+    },
+    {
+      "name": "_Z21CreateElevatorCloseFXv",
+      "address": "0x21328",
+      "size": 736,
+      "code_sha256": "c308110d67a761480db79c0ea1bfb476276c1824a94a2537f3dec2a6b4b881b5",
+      "capture_comparison": "unmapped_in_final_capture",
+      "samples": 2,
+      "sample_percent": 0.0005045001412600395
+    },
+    {
+      "name": "_Z16CreateStompBadFXv",
+      "address": "0x20670",
+      "size": 344,
+      "code_sha256": "208a71ad900be9a07be15a99d44bec1685a1dde89b79cdffc7bbfe9f0a74be7c",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 0.00025225007063001977
+    },
+    {
+      "name": "_Z15CreateFruitX2FXv",
+      "address": "0x20eb0",
+      "size": 408,
+      "code_sha256": "64b0b375c08b94f31e59819b17e6c49bd4444a4b0ccd5b0d02b52138e15e177e",
+      "capture_comparison": "unmapped_in_final_capture",
+      "samples": 1,
+      "sample_percent": 0.00025225007063001977
+    },
+    {
+      "name": "FSOUND_Sample_Lock",
+      "address": "0xbe70",
+      "size": 136,
+      "code_sha256": "f80f3da17c1186e83f1b93b02ee79d6386051fa0186c0f18c9c20227dea69d54",
+      "capture_comparison": "identical",
+      "samples": 1,
+      "sample_percent": 0.00025225007063001977
+    },
+    {
+      "name": "_Z11GetNoteFreqPc",
+      "address": "0x1f5a4",
+      "size": 148,
+      "code_sha256": "596883bd34a7310fd8e9d119d66c85078f58f4bf4ccb5239e56b7efc1ea383f5",
+      "capture_comparison": "unmapped_in_final_capture",
+      "samples": 1,
+      "sample_percent": 0.00025225007063001977
+    },
+    {
+      "name": "_Z17CreateEnterNameFXv",
+      "address": "0x21bb4",
+      "size": 708,
+      "code_sha256": "a5f21f11d7556b6bf39a611baf9881dc5c4fe627124f28f708089b465341595c",
+      "capture_comparison": "unmapped_in_final_capture",
+      "samples": 1,
+      "sample_percent": 0.00025225007063001977
+    }
+  ]
+}

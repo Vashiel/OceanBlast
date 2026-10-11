@@ -1,6 +1,16 @@
 # Changelog & Technical Investigation History
 
-This changelog records the chronological development, hardware reverse-engineering milestones, and empirical validation reports (`docs/00`–`docs/43`) for **OceanBlast**.
+This changelog records the chronological development, hardware reverse-engineering milestones, and empirical validation reports (`docs/00`–`docs/44`) for **OceanBlast**.
+
+---
+
+## 2026-10-11 — Superstar Chefs Disassembly, Performance Collapse Analysis & Interpreter Optimization
+
+* **Superstar Chefs Performance Collapse Analysis & Automatic `4×` Preset ([docs/44](docs/44_superstar_chefs_analysis_and_fix.md)):**
+  * Extracted and disassembled the unstripped `SuperstarChefs.elf` (`1,278,883` bytes, `3,467` symbols) from the cartridge's SquashFS archive and ran 60-modeled-second full-system probes across `Ratio 2` (`40M` steps/s) and `Ratio 4` (`80M` steps/s).
+  * **Frozen Loading Screen (`_Z9InitAudiov` & `NWFPE`):** Proved that `_Z13UpdateLoadingv` (`0x02a2a8`) calls `_Z9InitAudiov` (`0x022278`) on loading frame 5 to procedurally synthesize 14 sound effects in software using per-sample ARM FPA11 floating-point instructions (`AddSineTone`, `AddSawTone`, `AddTriangleTone`, `AddSquareTone`, `Tremolo`), trapping via `0xFFFF0004` into the guest Linux kernel's `NWFPE` software float emulator for **`65.33%` of all CPU instructions** during the 14-second loading freeze at `Ratio 2`.
+  * **Sudden Mid-Level Collapse (`SetDouble(1)`, `_Z8UpdateFSv`, `AddChannel`, `_Z12UpdateTimersv`):** Proved that entering Level 1 calls `_Z9SetDoublei(1)` (`0x00bac0`), switching internal rendering to `480×320` (`4×` pixel count) followed by software 2×2 box-filter downsampling in `_Z8UpdateFSv` (`0x00b838`, `1.38M` instructions/frame). When the full multi-channel `.XM` arrangement kicks in at modeled second 38, `libmikmod`'s 64-bit `AddChannel` mixer (`0x05d74c`, `FRACBITS = 28`) surges from `6.9M` to **`25.2M` instructions/s (`63.49%` of the `40M` budget at `Ratio 2`)**, starving the main thread into `_Z12UpdateTimersv`'s `frameTicks > 32` catch-up spiral (`2.4 FPS`).
+  * **Measured Resolution (`Ratio 4` + Interpreter/Build Optimization):** Raised the automatic preset for *Superstar Chefs* (`CRC32 0x93209877`) in `src/core/cartridge_settings.h` from `2` to `4`, cutting loading freeze time from `14 s` to `5 s` (`23 s -> 13 s` to Title) and eliminating the mid-level collapse (**`2.41 -> 19.83 FPS`**, an **`8.23×` increase** in late-level frame rate). Optimized `ARM920T::evaluateCondition`, `stepARM` instruction dispatch, and `LDM`/`STM` bit iteration in `src/cpu/arm920t.cpp`, and configured `-O3` unity compilation in `Makefile` (`+80.8%` standard build throughput).
 
 ---
 
