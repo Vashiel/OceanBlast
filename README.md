@@ -31,31 +31,31 @@ Double-click `bin/oceanblast.exe` (or `oceanblast.exe` from a release archive) w
 2. Open **Einstellungen → Steuerung** to test your controller live (XInput, DirectInput8, Google Stadia, Xbox, PlayStation, or generic USB gamepads), apply a controller preset (**Stadia / Xbox**, **PlayStation**, **digiBLAST / USB**), or click any row in the mapping table to interactively learn a controller button or keyboard key.
 3. Adjust audio volume, aspect ratio (**3:2 Native**, **4:3**, **Stretched**), integer/smooth scaling, window appearance (**Plain Window**, **Console Skin**, or **Fullscreen** via **F11** / **Alt+Enter**), and CPU timing under **Einstellungen** (persisted to `%APPDATA%\OceanBlast\windows.ini`).
 
-Automatic per-cartridge settings are enabled by default (see [docs/43](docs/43_windows_launcher_and_controller_input.md), [docs/34](docs/34_automatic_cartridge_settings.md), and [docs/33](docs/33_console_skin_and_fullscreen.md)).
+Automatic per-cartridge settings are enabled by default (see [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md), [docs/43](docs/43_windows_launcher_and_controller_input.md), [docs/34](docs/34_automatic_cartridge_settings.md), and [docs/33](docs/33_console_skin_and_fullscreen.md)).
 
 ---
 
 ## Cartridge Compatibility Overview (2026-10-11)
 
-All tested cartridges boot autonomously through the 4-KB S3C2410 Steppingstone SRAM, U-Boot 1.1.2 (`nidc` NAND ID & `checkbattery` ADC checks), and the embedded Linux 2.6.11 kernel without kernel panics or guest segmentation faults. Sustained full-speed gameplay and glitch-free audio synchronization remain under active development.
+All tested cartridges boot autonomously through the 4-KB S3C2410 Steppingstone SRAM, U-Boot 1.1.2 (`nidc` NAND ID & `checkbattery` ADC checks), and the embedded Linux 2.6.11 kernel without kernel panics or guest segmentation faults. Automatic per-cartridge CPU ratio presets (`2×` / `3×`) and the PGO unity build enable full-speed execution across the commercial game library.
 
-For the complete chronological engineering log and all 45 technical reports (`docs/00`–`docs/44`), see [**CHANGELOG.md**](CHANGELOG.md).
+For the complete chronological engineering log and all 46 technical reports (`docs/00`–`docs/45`), see [**CHANGELOG.md**](CHANGELOG.md).
 
 ### 1. Commercial Game Cartridges (11 / 11 Boot to Game Binary)
 
 | Cartridge Title | Boots (U-Boot + Linux) | Menus / In-Game Status | Audio Status | Display / Technical Notes & Docs |
 | :--- | :---: | :---: | :---: | :--- |
-| **Crazy Jack** `[G] (EN)` | Yes | Title, Level Select & In-Game | Plays (underruns) | Native 12-bpp LCD444 via `GPH8 = 1` ([docs/16](docs/16_i2c_eeprom_and_player_startup.md), [docs/25](docs/25_automatic_display_selection.md), [docs/42](docs/42_wade_gph8_lcd_mode.md)) |
-| **Cuccioli Cerca Amici** `[G] (IT)` | Yes | Main Menu & Save-Slot Select | Plays (unverified) | 64 MB NAND (`0x98, 0x76`) ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/28](docs/28_cartridge_register_audit.md)) |
-| **DigiQUAD** `[G] (EN)` | Yes | Main Menu & Racing Scene | Improved ([docs/20](docs/20_pcm_capture_and_dma_sample_lifetime.md)) | Native 12-bpp LCD444 (`GPH8 = 1`); DMA fix ([docs/18](docs/18_manual_cartridge_validation.md), [docs/42](docs/42_wade_gph8_lcd_mode.md)) |
-| **Gormiti: Agguato nella Valle** `[G] (IT)` | Yes | Title, Character Select & Bracket | Plays (unverified) | Scene transition sensitive to input timing ([docs/17](docs/17_timer_and_runtime_validation.md), [docs/28](docs/28_cartridge_register_audit.md)) |
-| **Gormiti: Lotta Oscura** `[G] (IT)` | Yes | Intro & Title / Start Screen | Plays (unverified) | 32 MB NAND ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/28](docs/28_cartridge_register_audit.md)) |
-| **Gormiti: Masters of the Gorm Island** `[G] (IT)` | Yes | Main Menu & In-Game Level/HUD | Plays (unverified) | 32 MB NAND ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/28](docs/28_cartridge_register_audit.md)) |
-| **Pitfall: The Lost Expedition** `[G] (EN)` | Yes | Intro, Title & Gameplay | Plays (slow pacing) | Native 12-bpp LCD444; auto 2× ratio ([docs/21](docs/21_pitfall_original_hardware_reference.md), [docs/34](docs/34_automatic_cartridge_settings.md)) |
-| **Rayman 3** `[G] (M10)` | Yes | Intro, Title & In-Game | Stutters under load | High CPU/blitter load ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/18](docs/18_manual_cartridge_validation.md)) |
-| **Spider-Man: Mysterio's Menace** `[G] (EN)` | Yes | Main Menu, Story & In-Game | Plays (metallic/crackling) | ~17.5 FPS sampled changes at 1× ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/18](docs/18_manual_cartridge_validation.md)) |
-| **Superstar Chefs** `[G] (EN)` | Yes | Menus & Playable Level (~16–22 FPS) | Smooth at Auto 3× ([docs/44](docs/44_superstar_chefs_analysis_and_fix.md)) | Hardware FPA11 (`cp1`/`cp2`) + Auto 3× cuts `InitAudio` loading (`14 -> 3 s`) & prevents `480×320` + `AddChannel` collapse at `100%` speed ([docs/44](docs/44_superstar_chefs_analysis_and_fix.md)) |
-| **Wade Hixton's Counter Punch** `[G] (EN)` | Yes | Intro, Menus & First Fight | Improved (`-50%` frame work) | `GPH8 = 1` removes 16-bpp shadow blit (`4.5M -> 2.25M` steps/frame) ([docs/41](docs/41_wade_binary_and_s3c2410fb_analysis.md), [docs/42](docs/42_wade_gph8_lcd_mode.md)) |
+| **Crazy Jack** `[G] (EN)` | Yes | Title, Level Select & In-Game | Plays (Auto 2×) | Native 12-bpp LCD444 via `GPH8 = 1`; Auto 2× preset ([docs/16](docs/16_i2c_eeprom_and_player_startup.md), [docs/25](docs/25_automatic_display_selection.md), [docs/42](docs/42_wade_gph8_lcd_mode.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
+| **Cuccioli Cerca Amici** `[G] (IT)` | Yes | Main Menu & Save-Slot Select | Plays (Auto 3×) | 64 MB NAND (`0x98, 0x76`); Auto 3× preset ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/28](docs/28_cartridge_register_audit.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
+| **DigiQUAD** `[G] (EN)` | Yes | Main Menu & Racing Scene | Plays (Auto 2×) | Native 12-bpp LCD444 (`GPH8 = 1`); Auto 2× preset & `KEY_2` (`GPF5`) input ([docs/18](docs/18_manual_cartridge_validation.md), [docs/20](docs/20_pcm_capture_and_dma_sample_lifetime.md), [docs/42](docs/42_wade_gph8_lcd_mode.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
+| **Gormiti: Agguato nella Valle** `[G] (IT)` | Yes | Title, Character Select & Bracket | Plays (Auto 3×) | 32 MB NAND; Auto 3× preset ([docs/17](docs/17_timer_and_runtime_validation.md), [docs/28](docs/28_cartridge_register_audit.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
+| **Gormiti: Lotta Oscura** `[G] (IT)` | Yes | Intro & Title / Start Screen | Plays (Auto 3×) | 32 MB NAND; Auto 3× preset ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/28](docs/28_cartridge_register_audit.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
+| **Gormiti: Masters of the Gorm Island** `[G] (IT)` | Yes | Main Menu & In-Game Level/HUD | Plays (Auto 3×) | 16 MB NAND; Auto 3× preset ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/28](docs/28_cartridge_register_audit.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
+| **Pitfall: The Lost Expedition** `[G] (EN)` | Yes | Intro, Title & Gameplay | Smooth at Auto 3× | Native 12-bpp LCD444; Auto 3× preset & GBA `KEY_1/2/4/5/CTRL` input ([docs/21](docs/21_pitfall_original_hardware_reference.md), [docs/34](docs/34_automatic_cartridge_settings.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
+| **Rayman 3** `[G] (M10)` | Yes | Intro, Title (20–28 FPS) & In-Game | Smooth at Auto 3× ([docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) | Auto 3× (`60 MIPS`) + PGO unity build achieves `100%` real-time speed & zero post-boot audio underruns ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
+| **Spider-Man: Mysterio's Menace** `[G] (EN)` | Yes | Main Menu, Story & In-Game | Plays (Auto 3×) | Auto 3× preset & full GBA `KEY_1/2/4/5/CTRL` input ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/18](docs/18_manual_cartridge_validation.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
+| **Superstar Chefs** `[G] (EN)` | Yes | Menus (31–40 FPS) & Level (~16–22 FPS) | Smooth at Auto 3× ([docs/44](docs/44_superstar_chefs_analysis_and_fix.md)) | Hardware FPA11 (`cp1`/`cp2`) + Auto 3× cuts `InitAudio` loading (`14 -> 3 s`) & prevents `480×320` + `AddChannel` collapse at `100%` speed ([docs/44](docs/44_superstar_chefs_analysis_and_fix.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
+| **Wade Hixton's Counter Punch** `[G] (EN)` | Yes | Intro, Menus & First Fight | Smooth at Auto 3× | `GPH8 = 1` removes 16-bpp shadow blit (`-50%` frame work); Auto 3× preset & `KEY_2` (`GPF5`) fix ([docs/41](docs/41_wade_binary_and_s3c2410fb_analysis.md), [docs/42](docs/42_wade_gph8_lcd_mode.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
 
 ### 2. Video & Combined Game+Video Cartridges
 
@@ -74,13 +74,13 @@ The Nikko digiBLAST hardware is built around the Samsung S3C2410A / OCEAN-L-20 p
 
 | Subsystem | Hardware Specification | Emulation Status |
 | :--- | :--- | :--- |
-| **CPU Core, FPA11 & MMU** | ARM920T (ARMv4T, 32-bit ARM + 16-bit Thumb, CP15, MMU, 16 KB I/D-Cache) | Interpreter with fast page-cache, direct FPA11 (`cp1`/`cp2`) execution, AP faults (Linux COW), and bounded batches ([docs/05](docs/05_black_screen_investigation.md), [docs/37](docs/37_cpu_fetch_and_interpreter_execution.md), [docs/44](docs/44_superstar_chefs_analysis_and_fix.md)) |
+| **CPU Core, FPA11 & MMU** | ARM920T (ARMv4T, 32-bit ARM + 16-bit Thumb, CP15, MMU, 16 KB I/D-Cache) | Interpreter with fast page-cache, direct FPA11 (`cp1`/`cp2`) execution, $O(1)$ single-MVA TLB invalidation, AP faults (Linux COW), and bounded batches ([docs/05](docs/05_black_screen_investigation.md), [docs/37](docs/37_cpu_fetch_and_interpreter_execution.md), [docs/44](docs/44_superstar_chefs_analysis_and_fix.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
 | **Memory & Boot** | 4 KB Steppingstone SRAM (`0x00000000`), 32 MB SDRAM (`0x30000000`) | Autonomous 4 KB NAND boot copy, SDRAM mirroring (`0x32000000`), and MMIO bus ([docs/01](docs/01_memory_map.md)) |
 | **NAND Flash** | S3C2410 NAND (`0x4E000000`), Toshiba TC58 / Samsung K9 (16–128 MB) | Read ID (`0x90` for `nidc`), 512+16 raw OOB passthrough, and 1-bit Hamming ECC synthesis ([docs/03](docs/03_boot_progress.md), [docs/39](docs/39_photographed_cartridge_hardware.md)) |
 | **Clocks & Timer 4** | PLL (`MPLLCON`, `CLKDIVN`) & PWM Timer 4 (`0x51000000`, `HZ=200`) | Register-derived FCLK/HCLK/PCLK, 200-Hz IRQ 14, and 1-µs `TCNTO4` interpolation ([docs/17](docs/17_timer_and_runtime_validation.md), [docs/23](docs/23_register_clocks_and_iis_pause.md), [docs/41](docs/41_wade_binary_and_s3c2410fb_analysis.md)) |
 | **Display (`s3c2410fb`)** | 2.7" TFT LCD (`0x4D000000`, 240×160 / 240×240, 12-bpp LCD444 & 16-bpp RGB565) | DXGI VSync presenter, coherent frame latch, `GPH8` handheld LCD strap, 12-bpp & 16-bpp decoding ([docs/10](docs/10_color_depth_and_rgb565_support.md), [docs/32](docs/32_coherent_video_and_vsync.md), [docs/42](docs/42_wade_gph8_lcd_mode.md)) |
 | **Audio (DMA2 + IIS)** | S3C2410 IIS (`0x55000000`), DMA Ch. 2 (`0x4B000080`), CS43L43 DAC | Consumed-sample DMA capture, dynamic IIS rate detection & Win32 `waveOut` resampler ([docs/20](docs/20_pcm_capture_and_dma_sample_lifetime.md), [docs/23](docs/23_register_clocks_and_iis_pause.md)) |
-| **Input (`greykbd`)** | GPIO Ports F & G (`0x56000050`), External IRQs `EINT0..23` | D-Pad, A/B/C, L/R, Start/Select, media keys (`KEY_P/S/B/N`), and XInput / DirectInput8 / Stadia controller remapping ([docs/33](docs/33_console_skin_and_fullscreen.md), [docs/43](docs/43_windows_launcher_and_controller_input.md)) |
+| **Input (`greykbd`)** | GPIO Ports F & G (`0x56000050`), External IRQs `EINT0..23` | D-Pad, A/B/C (`KEY_1/2/3/5`), L/R (`KEY_4/5` + `CTRL`), Start/Select, media keys (`KEY_P/S/B/N`), and XInput / DirectInput8 / Stadia controller remapping ([docs/33](docs/33_console_skin_and_fullscreen.md), [docs/43](docs/43_windows_launcher_and_controller_input.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
 | **I2C EEPROM & ADC** | 2-KB I2C EEPROM (`0x54000000`), Battery ADC (`0x58000000`) | Persistent/volatile 2-KB EEPROM state and `checkbattery` ADC conversion ([docs/03](docs/03_boot_progress.md), [docs/16](docs/16_i2c_eeprom_and_player_startup.md)) |
 
 ---
@@ -95,19 +95,9 @@ The Nikko digiBLAST hardware is built around the Samsung S3C2410A / OCEAN-L-20 p
 ```bash
 make
 ```
-Or compile directly with `windres` and `g++`:
-```bash
-windres src/display/oceanblast.rc -O coff -o build/oceanblast_res.o
-g++ -std=c++17 -Wall -Wextra -O2 -Isrc \
-    src/main.cpp \
-    src/memory/bus.cpp \
-    src/cpu/arm920t.cpp \
-    src/cartridge/cart_parser.cpp \
-    src/display/display_win32.cpp \
-    src/audio/audio_win32.cpp \
-    build/oceanblast_res.o \
-    -lgdi32 -luser32 -lwinmm -lcomdlg32 -lcomctl32 -lshell32 -lole32 -ldinput8 -ldxguid -ld3d11 -ldxgi -ld3dcompiler -lgdiplus \
-    -o bin/oceanblast.exe
+Or build a Profile-Guided Optimization (PGO) unity binary:
+```powershell
+& .\tools\build_profiled.ps1 -Roms @("path\to\cartridge.bin") -Steps 2100000000 -CpuStepsPerTick 3 -Optimization O3 -Unity
 ```
 
 ### Running ROM-Free Regression Suites
@@ -125,10 +115,10 @@ bin/oceanblast.exe <path_to_cartridge_dump.bin> [--steps <N>] [--gui] [--window-
 | Console Button | Hardware Line | Default Controller Binding | Host Keyboard Key |
 | :--- | :--- | :--- | :--- |
 | **D-Pad** | `GPF2` / `GPF7` / `GPF3` / `GPF6` | `D-Pad (POV Hat)` or `Left Stick` | `Arrow Keys` |
-| **Button A / B / C** | `GPF0` / `GPF1` / `GPF4` | `B1 (A/Cross)` / `B2 (B/Circle)` / `B3 (X/Square)` (`B4` in Stadia/Xbox preset) | `Z` (`K`) / `X` (`J`) / `C` |
-| **L / R Shoulder** | `GPG11` / `GPG8` | `B5 (LB/L1)` / `B6 (RB/R1)` | `A` (`Q`) / `S` (`W`) |
-| **Start / Stop** | `GPG10` (`EINT18`) | `B8 (Start/Options)` (`B12` on Stadia DInput) | `Enter` or `F9` |
-| **Select / Play-Pause** | `GPG9` (`EINT17`) | `B7 (Back/Select)` (`B11` on Stadia DInput) | `Space` or `F10` |
+| **Button A / B / C** | `GPF0` (`KEY_1`) / `GPF5` (`KEY_2`) / `GPG12`+`GPF4` (`KEY_3`+`KEY_5`) | `B1 (A/Cross)` / `B2 (B/Circle)` / `B3 (X/Square)` (`B4` in Stadia/Xbox preset) | `Z` (`K`) / `X` (`J`) / `C` |
+| **L / R Shoulder** | `GPG11`+`GPF1` / `GPG8`+`GPF4` | `B5 (LB/L1)` / `B6 (RB/R1)` | `A` (`Q`) / `S` (`W`) |
+| **Start / Stop** | `GPG10`+`GPG8` (`EINT18`+`EINT16`) | `B8 (Start/Options)` (`B12` on Stadia DInput) | `Enter` or `F9` |
+| **Select / Play-Pause** | `GPG9`+`GPG11` (`EINT17`+`EINT19`) | `B7 (Back/Select)` (`B11` on Stadia DInput) | `Space` or `F10` |
 | **Rewind / Forward** | `GPG0` / `GPG13` | `LT (L2)` / `RT (R2)` or `B9` / `B10` | `F8` / `F12` |
 | **Open ROM / Fullscreen / Stop** | — | — | `Ctrl+O` / `F11` (`Alt+Enter`) / `Escape` |
 

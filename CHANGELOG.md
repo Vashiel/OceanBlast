@@ -1,11 +1,16 @@
 # Changelog & Technical Investigation History
 
-This changelog records the chronological development, hardware reverse-engineering milestones, and empirical validation reports (`docs/00`–`docs/44`) for **OceanBlast**.
+This changelog records the chronological development, hardware reverse-engineering milestones, and empirical validation reports (`docs/00`–`docs/45`) for **OceanBlast**.
 
 ---
 
-## 2026-10-11 — Superstar Chefs Disassembly, FPA11 Hardware Coprocessor Execution & Host Throughput Optimization
+## 2026-10-11 — Commercial Cartridge Presets, GPIO Input Mapping, CP15 TLB Invalidation & FPA11 Coprocessor Execution
 
+* **Commercial Cartridge CPU Ratio Presets, Complete `greykbd` GPIO Mapping & CP15 TLB Invalidation ([docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)):**
+  * Added automatic CPU ratio presets across all 11 commercial game cartridges in `src/core/cartridge_settings.h` (*Rayman 3*, *Superstar Chefs*, *Pitfall: The Lost Expedition*, *Spider-Man: Mysterio's Menace*, *Wade Hixton's Counter Punch*, *Gormiti* ×3, and *Cuccioli Cerca Amici* at `3×` / `60.0 MIPS`; *Crazy Jack* and *DigiQUAD* at `2×` / `40.0 MIPS`).
+  * Verified *Rayman 3* (`CRC32 0xe3e1953e`) in live `--gui --scale 3 --sound --profile` execution: sustains **`100.0%` real-time speed (`59.0–69.5 MIPS`)**, **`20.0–28.0 FPS`** on the animated title screen, and **zero audio queue underruns** after boot.
+  * Disassembled user-space SDL key tables across all 11 games and completed S3C2410 `GPFDAT`/`GPGDAT`/`EINTPEND` wiring in `src/memory/bus.cpp`: mapped `BTN_B` to `GPF5` (`EINT5` / `KEY_2`), `BTN_C` to `GPG12` (`EINT20` / `KEY_3`) + `GPF4` (`EINT4` / `KEY_5`), `BTN_L` to `GPG11` (`KEY_LEFTCTRL`) + `GPF1` (`KEY_4`), `BTN_R` to `GPG8` (`KEY_RIGHTCTRL`) + `GPF4` (`KEY_5`), `BTN_START` to `GPG10` (`KEY_S`) + `GPG8` (`KEY_RIGHTCTRL`), and `BTN_SELECT` to `GPG9` (`KEY_P`) + `GPG11` (`KEY_LEFTCTRL`).
+  * Optimized ARM920T CP15 `c8` TLB invalidations (`src/memory/bus.h`, `src/memory/bus.cpp`, `src/cpu/arm920t.cpp`): added $O(1)$ single-entry MVA invalidation (`Bus::flushTlbEntry` for `Opcode_2 == 1`) and `tlbEmpty` short-circuiting for back-to-back full TLB flushes (`setTtb` + `c8, c7, 0` and `c8, c6, 0` + `c8, c5, 0`).
 * **Superstar Chefs Performance Collapse Analysis, Direct FPA11 Execution & Automatic `3×` Preset ([docs/44](docs/44_superstar_chefs_analysis_and_fix.md)):**
   * Extracted and disassembled the unstripped `SuperstarChefs.elf` (`1,278,883` bytes, `3,467` symbols) from the cartridge's SquashFS archive and ran 60-modeled-second full-system probes across `Ratio 2` (`40M` steps/s), `Ratio 3` (`60M` steps/s), and `Ratio 4` (`80M` steps/s).
   * **Frozen Loading Screen (`_Z9InitAudiov` & `NWFPE`):** Proved that `_Z13UpdateLoadingv` (`0x02a2a8`) calls `_Z9InitAudiov` (`0x022278`) on loading frame 5 to procedurally synthesize 14 sound effects in software using per-sample ARM FPA11 floating-point instructions (`AddSineTone`, `AddSawTone`, `AddTriangleTone`, `AddSquareTone`, `Tremolo`), trapping via `0xFFFF0004` into the guest Linux kernel's `NWFPE` software float emulator for **`65.33%` (`362M` instructions)** of the 14-second loading freeze at `Ratio 2`.
