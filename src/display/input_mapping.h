@@ -20,10 +20,24 @@ constexpr std::array<uint32_t, 12> digiBlastBits{
 };
 
 constexpr std::array<const wchar_t*, 12> actionNames{
-    L"Oben", L"Unten", L"Links", L"Rechts",
+    L"Up", L"Down", L"Left", L"Right",
     L"A", L"B", L"C (X)", L"C (Y)",
     L"L", L"R", L"Select", L"Start"
 };
+
+inline const wchar_t* actionName(unsigned index, unsigned lang = 0) {
+    static constexpr const wchar_t* kDirs[7][4]{
+        {L"Up",     L"Down",   L"Left",     L"Right"},    // 0: English
+        {L"Oben",   L"Unten",  L"Links",    L"Rechts"},   // 1: Deutsch
+        {L"Arriba", L"Abajo",  L"Izq.",     L"Der."},     // 2: Español
+        {L"Su",     L"Giù",    L"Sinistra", L"Destra"},   // 3: Italiano
+        {L"Omhoog", L"Omlaag", L"Links",    L"Rechts"},   // 4: Nederlands
+        {L"Haut",   L"Bas",    L"Gauche",   L"Droite"},   // 5: Français
+        {L"Yukarı", L"Aşağı",  L"Sol",      L"Sağ"}       // 6: Türkçe
+    };
+    if (index < 4) return kDirs[lang < 7 ? lang : 0][index];
+    return index < 12 ? actionNames[index] : L"";
+}
 
 using PadMap = std::array<int, 12>;
 constexpr PadMap standardMap{200, 201, 202, 203, 0, 1, 2, 3, 4, 5, 6, 7};

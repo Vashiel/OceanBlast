@@ -103,3 +103,20 @@ To eliminate this overhead while keeping `Bus::TlbEntry` compact at 12 bytes (`2
   - Reaches the animated title screen at `10.0 s` and sustains **`100.0%` real-time speed (`60.0 MIPS`)** with **`31.0–40.0 FPS`** (`changed_fps`) and `3,072–5,120` queued audio frames.
 * **Rayman 3 (`3x` automatic preset, live `--gui --scale 3 --sound --profile`):**
   - Sustains **`100.0%` real-time speed (`59.0–69.5 MIPS`)** continuously across `Seconds 12.3..34.5`, presenting **`14.0–24.0 FPS`** during the intro and **`20.0–28.0 FPS`** on the animated title screen with **`0` audio queue underruns** after boot (`6,144–7,168` queued stereo frames).
+
+---
+
+## 5. Multi-Language Windows Launcher and Settings UI (7 Languages)
+
+The Windows frontend (`src/display/launcher.h`, `src/display/windows_input.h`, `src/display/input_mapping.h`) now supports 7 user-selectable interface languages under `Settings -> Folders & System`:
+
+1. `0`: **English (Default)**
+2. `1`: **Deutsch**
+3. `2`: **Español**
+4. `3`: **Italiano**
+5. `4`: **Nederlands**
+6. `5`: **Français**
+7. `6`: **Türkçe**
+
+Selecting a language immediately updates the main menu bar (`File` | `Settings`), start screen prompt, window titles, controller/keyboard binding labels, and all 6 Settings pages without requiring an application restart, and persists `[system] language=<0..6>` in `%APPDATA%\OceanBlast\windows.ini`.
+

@@ -27,9 +27,10 @@ The goal of this project is digital preservation, architectural documentation, a
 ## Quick Start & Windows Launcher
 
 Double-click `bin/oceanblast.exe` (or `oceanblast.exe` from a release archive) without arguments to open the `1024×768` **OceanBlast** frontend:
-1. Press **Strg+O**, choose **Datei → ROM laden…**, or **drag and drop** a legally dumped `.bin` cartridge image directly onto the OceanBlast start screen.
-2. Open **Einstellungen → Steuerung** to test your controller live (XInput, DirectInput8, Google Stadia, Xbox, PlayStation, or generic USB gamepads), apply a controller preset (**Stadia / Xbox**, **PlayStation**, **digiBLAST / USB**), or click any row in the mapping table to interactively learn a controller button or keyboard key.
-3. Adjust audio volume, aspect ratio (**3:2 Native**, **4:3**, **Stretched**), integer/smooth scaling, window appearance (**Plain Window**, **Console Skin**, or **Fullscreen** via **F11** / **Alt+Enter**), and CPU timing under **Einstellungen** (persisted to `%APPDATA%\OceanBlast\windows.ini`).
+1. Press **Ctrl+O**, choose **File → Load ROM…**, or **drag and drop** a legally dumped `.bin` cartridge image directly onto the OceanBlast start screen.
+2. Open **Settings → Folders & System** to switch the interface language live between **English (Default)**, **Deutsch**, **Español**, **Italiano**, **Nederlands**, **Français**, and **Türkçe**.
+3. Open **Settings → Controls** to test your controller live (XInput, DirectInput8, Google Stadia, Xbox, PlayStation, or generic USB gamepads), apply a controller preset (**Stadia / Xbox**, **PlayStation**, **digiBLAST / USB**), or click any row in the mapping table to interactively learn a controller button or keyboard key.
+4. Adjust audio volume, aspect ratio (**3:2 Native**, **4:3**, **Stretched**), integer/smooth scaling, window appearance (**Plain Window**, **Console Skin**, or **Fullscreen** via **F11** / **Alt+Enter**), and CPU timing under **Settings** (persisted to `%APPDATA%\OceanBlast\windows.ini`).
 
 Automatic per-cartridge settings are enabled by default (see [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md), [docs/43](docs/43_windows_launcher_and_controller_input.md), [docs/34](docs/34_automatic_cartridge_settings.md), and [docs/33](docs/33_console_skin_and_fullscreen.md)).
 

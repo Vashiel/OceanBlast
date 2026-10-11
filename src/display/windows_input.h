@@ -110,7 +110,7 @@ public:
 
     void refresh() {
         controllers.clear();
-        controllers.push_back({L"Nur Tastatur", L"keyboard", {}, -1, false});
+        controllers.push_back({L"Keyboard Only", L"keyboard", {}, -1, false});
         if (direct_) direct_->EnumDevices(DI8DEVCLASS_ALL, enumerate, this, DIEDFL_ATTACHEDONLY);
         if (xget_) {
             for (unsigned slot = 0; slot < 4; ++slot) {
@@ -225,23 +225,43 @@ public:
     }
 };
 
-inline std::wstring controlLabel(int token) {
-    if (token >= 0 && token < 128) return L"Taste " + std::to_wstring(token + 1);
+inline std::wstring controlLabel(int token, unsigned lang = 0) {
+    const unsigned l = lang < 7 ? lang : 0;
+    static constexpr const wchar_t* kBtn[7]{
+        L"Button ", L"Taste ", L"Botón ", L"Tasto ", L"Knop ", L"Bouton ", L"Tuş "
+    };
+    static constexpr const wchar_t* kAxis[7]{
+        L"Axis ", L"Achse ", L"Eje ", L"Asse ", L"As ", L"Axe ", L"Eksen "
+    };
+    static constexpr const wchar_t* kDpad[7][4]{
+        {L"D-Pad Up",     L"D-Pad Down",   L"D-Pad Left",     L"D-Pad Right"},
+        {L"D-Pad oben",   L"D-Pad unten",  L"D-Pad links",    L"D-Pad rechts"},
+        {L"D-Pad arriba", L"D-Pad abajo",  L"D-Pad izq.",     L"D-Pad der."},
+        {L"D-Pad su",     L"D-Pad giù",    L"D-Pad sinistra", L"D-Pad destra"},
+        {L"D-Pad omhoog", L"D-Pad omlaag", L"D-Pad links",    L"D-Pad rechts"},
+        {L"D-Pad haut",   L"D-Pad bas",    L"D-Pad gauche",   L"D-Pad droite"},
+        {L"D-Pad yukarı", L"D-Pad aşağı",  L"D-Pad sol",      L"D-Pad sağ"}
+    };
+    static constexpr const wchar_t* kUnbound[7]{
+        L"Unbound", L"Nicht belegt", L"Sin asignar", L"Non assegnato",
+        L"Niet toegewezen", L"Non attribué", L"Atanmamış"
+    };
+    if (token >= 0 && token < 128) return std::wstring(kBtn[l]) + std::to_wstring(token + 1);
     if (token >= 128 && token < 140)
-        return L"Achse " + std::to_wstring((token - 128) / 2 + 1) + (token & 1 ? L" +" : L" -");
-    if (token == 200) return L"D-Pad oben";
-    if (token == 201) return L"D-Pad unten";
-    if (token == 202) return L"D-Pad links";
-    if (token == 203) return L"D-Pad rechts";
-    return L"Nicht belegt";
+        return std::wstring(kAxis[l]) + std::to_wstring((token - 128) / 2 + 1) + (token & 1 ? L" +" : L" -");
+    if (token >= 200 && token <= 203) return kDpad[l][token - 200];
+    return kUnbound[l];
 }
 
-inline std::wstring keyboardLabel(unsigned key) {
+inline std::wstring keyboardLabel(unsigned key, unsigned lang = 0) {
     wchar_t text[64]{};
     auto scan = MapVirtualKeyW(key, MAPVK_VK_TO_VSC);
     if (key >= VK_PRIOR && key <= VK_DOWN) scan |= 0x100;
     if (GetKeyNameTextW(static_cast<LONG>(scan << 16), text, 64)) return text;
-    return L"Taste " + std::to_wstring(key);
+    static constexpr const wchar_t* kKey[7]{
+        L"Key ", L"Taste ", L"Tecla ", L"Tasto ", L"Toets ", L"Touche ", L"Tuş "
+    };
+    return std::wstring(kKey[lang < 7 ? lang : 0]) + std::to_wstring(key);
 }
 
 inline std::wstring settingsPath() {
@@ -262,6 +282,7 @@ struct FrontendSettings {
     std::wstring romFolder;
     std::wstring lastRom;
     std::wstring savedController;
+    unsigned language = 0;         // 0: EN (default), 1: DE, 2: ES, 3: IT, 4: NL, 5: FR, 6: TR
     unsigned controllerPreset = 0;
     PadMap padMap = standardMap;
     std::array<unsigned, 12> keyboardKeys{
@@ -303,6 +324,7 @@ struct FrontendSettings {
         romFolder = get(L"folders", L"rom_folder");
         lastRom = get(L"folders", L"last_rom");
         savedController = get(L"input", L"device");
+        language = std::min(6u, GetPrivateProfileIntW(L"system", L"language", 0, path.c_str()));
         soundEnabled = GetPrivateProfileIntW(L"audio", L"enabled", 1, path.c_str()) != 0;
         soundVolume = std::min(100u, GetPrivateProfileIntW(L"audio", L"volume", 100, path.c_str()));
         scaleIndex = std::min(2u, GetPrivateProfileIntW(L"video", L"scale", 1, path.c_str()));
@@ -338,6 +360,7 @@ struct FrontendSettings {
         put(L"video", L"integer", std::to_wstring(integerScale ? 1 : 0));
         put(L"video", L"smooth", std::to_wstring(smoothVideo ? 1 : 0));
         put(L"video", L"decoder", std::to_wstring(displayFormat));
+        put(L"system", L"language", std::to_wstring(language));
         put(L"system", L"timing", std::to_wstring(timingMode));
         put(L"system", L"nvram", std::to_wstring(keepNvram ? 1 : 0));
         put(L"system", L"fps_log", std::to_wstring(fpsLog ? 1 : 0));

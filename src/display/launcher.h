@@ -57,14 +57,584 @@ enum {
     SettingsBase = 200
 };
 
-static const wchar_t* categories[]{
-    L"Ordner & System",
-    L"Steuerung",
-    L"Sound",
-    L"Video",
-    L"Timing & Diagnose",
-    L"Kurztasten & Hilfe"
+struct UiText {
+    const wchar_t* categories[6];
+    const wchar_t* menuFile;
+    const wchar_t* menuSettings;
+    const wchar_t* menuOpenRom;
+    const wchar_t* menuRestartRom;
+    const wchar_t* menuStopRom;
+    const wchar_t* menuExit;
+    const wchar_t* idleWindowTitle;
+    const wchar_t* settingsWindowTitle;
+    const wchar_t* startScreenText;
+    const wchar_t* closeBtn;
+    const wchar_t* savedLocallyNote;
+    const wchar_t* saveError;
+    const wchar_t* invalidRomWarning;
+    const wchar_t* logOpenError;
+    const wchar_t* launchError;
+    const wchar_t* chooseFolderTitle;
+    const wchar_t* romFilter;
+    // Page 0: Folders & System
+    const wchar_t* languageLabel;
+    const wchar_t* romFolderLabel;
+    const wchar_t* defaultFolderText;
+    const wchar_t* browseFolderBtn;
+    const wchar_t* selectedRomLabel;
+    const wchar_t* noRomSelectedText;
+    const wchar_t* browseFileBtn;
+    const wchar_t* startGameBtn;
+    const wchar_t* stopGameBtn;
+    const wchar_t* nvramHeader;
+    const wchar_t* nvramCheck;
+    const wchar_t* page0Tip;
+    // Page 1: Controls
+    const wchar_t* selectControllerLabel;
+    const wchar_t* keyboardOnlyItem;
+    const wchar_t* disconnectedControllerItem;
+    const wchar_t* refreshBtn;
+    const wchar_t* presetLabel;
+    const wchar_t* presets[3];
+    const wchar_t* mappingColumnHeader;
+    const wchar_t* clickToBindHint;
+    const wchar_t* pressControllerPrompt;
+    const wchar_t* pressKeyboardPrompt;
+    const wchar_t* controllerConnectedStatus;
+    const wchar_t* controllerDisconnectedStatus;
+    // Page 2: Sound
+    const wchar_t* soundHeader;
+    const wchar_t* enableAudioCheck;
+    const wchar_t* volumeLabel;
+    const wchar_t* soundInfoText;
+    // Page 3: Video
+    const wchar_t* displayModeLabel;
+    const wchar_t* windowModes[3];
+    const wchar_t* aspectRatioLabel;
+    const wchar_t* aspectRatios[3];
+    const wchar_t* integerScaleCheck;
+    const wchar_t* smoothScaleCheck;
+    const wchar_t* scaleFactorLabel;
+    const wchar_t* scaleFactors[3];
+    const wchar_t* decoderLabel;
+    const wchar_t* decoders[5];
+    // Page 4: Timing & Diagnostics
+    const wchar_t* timingHeader;
+    const wchar_t* timingModes[6];
+    const wchar_t* fpsLogCheck;
+    const wchar_t* debugLogCheck;
+    const wchar_t* timingNote;
+    // Page 5: Hotkeys & Help
+    const wchar_t* hotkeysHeader;
+    const wchar_t* hotkeysBody;
 };
+
+static constexpr const wchar_t* kLanguageNames[7]{
+    L"English (Default)",
+    L"Deutsch",
+    L"Español",
+    L"Italiano",
+    L"Nederlands",
+    L"Français",
+    L"Türkçe"
+};
+
+static constexpr UiText kUiText[7]{
+    // 0: English (Default)
+    {
+        {L"Folders & System", L"Controls", L"Sound", L"Video", L"Timing & Diagnostics", L"Hotkeys & Help"},
+        L"File", L"Settings",
+        L"Load ROM...\tCtrl+O", L"Restart Game\tCtrl+R", L"Stop Game", L"Exit",
+        L"OceanBlast — Ctrl+O: Open ROM, or drag ROM here",
+        L"OceanBlast — Settings",
+        L"Load ROM: Ctrl+O · Drag & drop a ROM into this window\nSettings: System, Controller, Sound, Video and Timing",
+        L"Close", L"Changes are saved locally.",
+        L"Could not save settings.",
+        L"Please select a valid digiBLAST ROM file (*.bin;*.rom) first.",
+        L"Could not open session log file.",
+        L"Could not start emulator process.",
+        L"Select default folder for digiBLAST ROMs",
+        L"digiBLAST ROM (*.bin;*.rom)\0*.bin;*.rom\0All Files (*.*)\0*.*\0",
+        L"Language",
+        L"ROM Folder (default directory for Ctrl+O)", L"Default directory", L"Browse...",
+        L"Selected digiBLAST ROM", L"No ROM selected yet", L"File...",
+        L"Start Game", L"Stop Game",
+        L"Persistent Device Storage (2 KB I2C EEPROM)",
+        L"Save device settings and game progress (sessions\\board.nvram)",
+        L"Tip: You can drag & drop ROM files (*.bin; *.rom) directly into the main window at any time or open them with Ctrl+O.",
+        L"Select Controller", L"Keyboard Only", L"Saved Controller (disconnected)", L"Refresh",
+        L"Preset",
+        {L"Stadia / Xbox — Layout", L"PlayStation — Layout", L"digiBLAST / USB — Custom"},
+        L"digiBLAST  Controller             Keyboard",
+        L"Click a binding, then press a button or key. Esc cancels.",
+        L"Press a controller button or direction now … (Esc: Cancel)",
+        L"Press a keyboard key now … (Esc: Cancel)",
+        L"Connected · Live inputs are highlighted",
+        L"No connected input device",
+        L"Sound", L"Enable audio output", L"Volume",
+        L"S3C2410 IIS + DMA2 stereo audio · 22.05 kHz standard rate with dynamic resampling.",
+        L"Display Mode",
+        {L"digiBLAST Console Skin", L"Fullscreen (F11 toggles)", L"Standard Window (LCD in main window)"},
+        L"Aspect Ratio",
+        {L"Original digiBLAST proportions (3:2)", L"4:3", L"Stretch to window"},
+        L"Integer pixel scaling (overrides aspect ratio)",
+        L"Smooth image scaling (GDI Halftone)",
+        L"Standalone scale factor (--gui)",
+        {L"2× (480 × 320)", L"3× (720 × 480, Default)", L"4× (960 × 640)"},
+        L"Display Decoder",
+        {
+            L"Automatic (Default, 12-bit LCD / 16-bit RGB565)",
+            L"RGB444, 480-byte rows (Diagnostic)",
+            L"RGB444 packed, 360-byte rows (Diagnostic)",
+            L"RGB565, 480-byte rows (Diagnostic)",
+            L"LCD registers only (Diagnostic)"
+        },
+        L"CPU & Peripheral Timing",
+        {
+            L"Automatic ROM settings (Default)",
+            L"Standard: 1× (20 MIPS base)",
+            L"Automatic register clocks (experimental)",
+            L"More CPU work: 2× (40 MIPS)",
+            L"More CPU work: 4× (80 MIPS)",
+            L"More CPU work: 8× (160 MIPS, fast combat in Wade Hixton)"
+        },
+        L"Log FPS & audio metrics to sessions\\performance.csv",
+        L"Enable extended debug logging to sessions\\session.log",
+        L"Note: Changes to timing mode or display decoder take effect the next time you start or restart (Ctrl+R) the ROM.",
+        L"Hotkeys & Controls",
+        L"• Ctrl+O: Load ROM    ·    Ctrl+R: Restart game\n"
+        L"• Drag ROM file into window: Launch game directly via drag & drop\n"
+        L"• F11 or Alt+Enter: Toggle fullscreen\n"
+        L"• Esc: Exit fullscreen / Pause\n"
+        L"• F5: Pause / Resume    ·    F6: Single CPU step    ·    F7: Save snapshot\n"
+        L"• F8 / L2: Rewind    ·    F9: Stop    ·    F10: Play/Pause    ·    F12 / R2: Fast-forward\n\n"
+        L"Under 'Controls', you can freely bind Xbox, Stadia, PlayStation and USB controllers as well as any keyboard keys."
+    },
+    // 1: Deutsch
+    {
+        {L"Ordner & System", L"Steuerung", L"Sound", L"Video", L"Timing & Diagnose", L"Kurztasten & Hilfe"},
+        L"Datei", L"Einstellungen",
+        L"ROM laden...\tStrg+O", L"Spiel neu starten\tStrg+R", L"Spiel stoppen", L"Beenden",
+        L"OceanBlast — Strg+O: ROM öffnen, ROM hierher ziehen",
+        L"OceanBlast — Einstellungen",
+        L"ROM laden: Strg+O · ROM ins Fenster ziehen\nEinstellungen: System, Controller, Sound, Video und Timing",
+        L"Schließen", L"Änderungen werden lokal gespeichert.",
+        L"Einstellungen konnten nicht gespeichert werden.",
+        L"Bitte zuerst eine gültige digiBLAST-ROM-Datei (*.bin;*.rom) auswählen.",
+        L"Session-Logdatei konnte nicht geöffnet werden.",
+        L"Emulator-Prozess konnte nicht gestartet werden.",
+        L"Standard-Ordner für digiBLAST-ROMs auswählen",
+        L"digiBLAST ROM (*.bin;*.rom)\0*.bin;*.rom\0Alle Dateien (*.*)\0*.*\0",
+        L"Sprache",
+        L"ROM-Ordner (Startverzeichnis für Strg+O)", L"Standardverzeichnis", L"Auswählen...",
+        L"Ausgewähltes digiBLAST-ROM", L"Noch kein ROM ausgewählt", L"Datei...",
+        L"Spiel starten", L"Spiel stoppen",
+        L"Persistenter Gerätespeicher (2 KB I2C-EEPROM)",
+        L"Geräteeinstellungen und Spielstände speichern (sessions\\board.nvram)",
+        L"Tipp: Du kannst ROM-Dateien (*.bin; *.rom) jederzeit direkt per Drag & Drop in das Hauptfenster ziehen oder mit Strg+O öffnen.",
+        L"Controller auswählen", L"Nur Tastatur", L"Gespeicherter Controller (nicht verbunden)", L"Aktualisieren",
+        L"Preset",
+        {L"Stadia / Xbox — Positionen", L"PlayStation — Positionen", L"digiBLAST / USB — anlernbar"},
+        L"digiBLAST  Controller             Tastatur",
+        L"Belegung anklicken, dann Taste drücken. Esc bricht ab.",
+        L"Jetzt einen Controller-Knopf oder eine Richtung drücken … (Esc: Abbrechen)",
+        L"Jetzt eine Tastaturtaste drücken … (Esc: Abbrechen)",
+        L"Verbunden · Eingaben werden live hervorgehoben",
+        L"Kein verbundenes Eingabegerät",
+        L"Sound", L"Audio-Ausgabe aktivieren", L"Lautstärke",
+        L"S3C2410 IIS + DMA2 Stereo-Audio · 22,05 kHz Standardrate mit dynamischem Resampling.",
+        L"Darstellungsmodus",
+        {L"digiBLAST-Gehäuse (Console Skin)", L"Vollbild (F11 schaltet um)", L"Standard-Fenster (LCD im Hauptfenster)"},
+        L"Bildformat",
+        {L"Originale digiBLAST-Proportionen (3:2)", L"4:3", L"Fensterfüllend (gestreckt)"},
+        L"Ganzzahlige Pixelskalierung (hat Vorrang vor Bildformat)",
+        L"Weiche Bildskalierung (GDI Halftone)",
+        L"Stand-Alone-Skalierungsfaktor (--gui)",
+        {L"2× (480 × 320)", L"3× (720 × 480, Standard)", L"4× (960 × 640)"},
+        L"Display-Decoder",
+        {
+            L"Automatisch (Standard, 12-Bit LCD / 16-Bit RGB565)",
+            L"RGB444, 480-Byte Zeilen (Diagnose)",
+            L"RGB444 gepackt, 360-Byte Zeilen (Diagnose)",
+            L"RGB565, 480-Byte Zeilen (Diagnose)",
+            L"Nur LCD-Register (Diagnose)"
+        },
+        L"CPU- & Peripherie-Timing",
+        {
+            L"Automatische ROM-Einstellungen (Standard)",
+            L"Standard: 1× (20 MIPS Basis)",
+            L"Automatische Register-Takte (experimentell)",
+            L"Mehr CPU-Arbeit: 2× (40 MIPS)",
+            L"Mehr CPU-Arbeit: 4× (80 MIPS)",
+            L"Mehr CPU-Arbeit: 8× (160 MIPS, schneller Kampf in Wade Hixton)"
+        },
+        L"FPS- & Audio-Metriken in sessions\\performance.csv protokollieren",
+        L"Erweitertes Debug-Logging in sessions\\session.log aktivieren",
+        L"Hinweis: Änderungen am Timing-Modus oder Display-Decoder werden beim nächsten Start bzw. Neustart (Strg+R) des ROMs übernommen.",
+        L"Kurztasten & Steuerung",
+        L"• Strg+O: ROM laden    ·    Strg+R: Spiel neu starten\n"
+        L"• ROM-Datei ins Fenster ziehen: Spiel direkt per Drag & Drop starten\n"
+        L"• F11 oder Alt+Eingabe: Vollbild umschalten\n"
+        L"• Esc: Vollbild verlassen / Pause\n"
+        L"• F5: Pause / Weiter    ·    F6: Einzelner CPU-Schritt    ·    F7: Snapshot speichern\n"
+        L"• F8 / L2: Rücklauf    ·    F9: Stopp    ·    F10: Play/Pause    ·    F12 / R2: Vorlauf\n\n"
+        L"Unter 'Steuerung' lassen sich Xbox-, Stadia-, PlayStation- und USB-Controller sowie alle Tastaturtasten frei anlernen."
+    },
+    // 2: Español
+    {
+        {L"Carpetas y Sistema", L"Controles", L"Sonido", L"Vídeo", L"Tiempo y Diagnóstico", L"Atajos y Ayuda"},
+        L"Archivo", L"Configuración",
+        L"Cargar ROM...\tCtrl+O", L"Reiniciar juego\tCtrl+R", L"Detener juego", L"Salir",
+        L"OceanBlast — Ctrl+O: Abrir ROM o arrastrar ROM aquí",
+        L"OceanBlast — Configuración",
+        L"Cargar ROM: Ctrl+O · Arrastra una ROM a la ventana\nConfiguración: Sistema, Mando, Sonido, Vídeo y Tiempo",
+        L"Cerrar", L"Los cambios se guardan localmente.",
+        L"No se pudo guardar la configuración.",
+        L"Selecciona primero un archivo ROM de digiBLAST válido (*.bin;*.rom).",
+        L"No se pudo abrir el archivo de registro de sesión.",
+        L"No se pudo iniciar el proceso del emulador.",
+        L"Seleccionar carpeta predeterminada para ROMs de digiBLAST",
+        L"ROM digiBLAST (*.bin;*.rom)\0*.bin;*.rom\0Todos los archivos (*.*)\0*.*\0",
+        L"Idioma",
+        L"Carpeta de ROMs (directorio inicial para Ctrl+O)", L"Directorio predeterminado", L"Elegir...",
+        L"ROM de digiBLAST seleccionada", L"Ninguna ROM seleccionada", L"Archivo...",
+        L"Iniciar juego", L"Detener juego",
+        L"Memoria persistente del dispositivo (EEPROM I2C de 2 KB)",
+        L"Guardar ajustes del dispositivo y partidas (sessions\\board.nvram)",
+        L"Consejo: Puedes arrastrar y soltar archivos ROM (*.bin; *.rom) directamente en la ventana principal o abrirlos con Ctrl+O.",
+        L"Seleccionar mando", L"Solo teclado", L"Mando guardado (desconectado)", L"Actualizar",
+        L"Perfil",
+        {L"Stadia / Xbox — Posiciones", L"PlayStation — Posiciones", L"digiBLAST / USB — Personalizado"},
+        L"digiBLAST  Mando                  Teclado",
+        L"Haz clic en una asignación y pulsa un botón o tecla. Esc cancela.",
+        L"Pulsa ahora un botón o dirección del mando … (Esc: Cancelar)",
+        L"Pulsa ahora una tecla del teclado … (Esc: Cancelar)",
+        L"Conectado · Las entradas se resaltan en vivo",
+        L"Ningún dispositivo conectado",
+        L"Sonido", L"Activar salida de audio", L"Volumen",
+        L"Audio estéreo S3C2410 IIS + DMA2 · Frecuencia estándar de 22,05 kHz con remuestreo dinámico.",
+        L"Modo de visualización",
+        {L"Carcasa digiBLAST (Console Skin)", L"Pantalla completa (F11 alterna)", L"Ventana estándar (LCD en ventana principal)"},
+        L"Relación de aspecto",
+        {L"Proporciones originales digiBLAST (3:2)", L"4:3", L"Estirar a la ventana"},
+        L"Escalado entero de píxeles (prioridad sobre relación de aspecto)",
+        L"Escalado de imagen suave (GDI Halftone)",
+        L"Factor de escala independiente (--gui)",
+        {L"2× (480 × 320)", L"3× (720 × 480, Predeterminado)", L"4× (960 × 640)"},
+        L"Decodificador de pantalla",
+        {
+            L"Automático (Predeterminado, LCD 12 bits / RGB565 16 bits)",
+            L"RGB444, filas de 480 bytes (Diagnóstico)",
+            L"RGB444 empaquetado, filas de 360 bytes (Diagnóstico)",
+            L"RGB565, filas de 480 bytes (Diagnóstico)",
+            L"Solo registros LCD (Diagnóstico)"
+        },
+        L"Sincronización de CPU y periféricos",
+        {
+            L"Ajustes automáticos de ROM (Predeterminado)",
+            L"Estándar: 1× (base 20 MIPS)",
+            L"Relojes de registro automáticos (experimental)",
+            L"Más trabajo de CPU: 2× (40 MIPS)",
+            L"Más trabajo de CPU: 4× (80 MIPS)",
+            L"Más trabajo de CPU: 8× (160 MIPS, combate rápido en Wade Hixton)"
+        },
+        L"Registrar métricas de FPS y audio en sessions\\performance.csv",
+        L"Activar registro de depuración extendido en sessions\\session.log",
+        L"Nota: Los cambios en el modo de tiempo o decodificador se aplicarán al iniciar o reiniciar (Ctrl+R) la ROM.",
+        L"Atajos y Controles",
+        L"• Ctrl+O: Cargar ROM    ·    Ctrl+R: Reiniciar juego\n"
+        L"• Arrastrar archivo ROM a la ventana: Iniciar juego directamente\n"
+        L"• F11 o Alt+Intro: Alternar pantalla completa\n"
+        L"• Esc: Salir de pantalla completa / Pausa\n"
+        L"• F5: Pausa / Continuar    ·    F6: Paso único de CPU    ·    F7: Guardar instantánea\n"
+        L"• F8 / L2: Rebobinar    ·    F9: Detener    ·    F10: Reproducir/Pausa    ·    F12 / R2: Avance rápido\n\n"
+        L"En 'Controles' puedes configurar libremente mandos de Xbox, Stadia, PlayStation y USB, así como cualquier tecla."
+    },
+    // 3: Italiano
+    {
+        {L"Cartelle e Sistema", L"Controlli", L"Audio", L"Video", L"Timing e Diagnostica", L"Scorciatoie e Aiuto"},
+        L"File", L"Impostazioni",
+        L"Carica ROM...\tCtrl+O", L"Riavvia gioco\tCtrl+R", L"Ferma gioco", L"Esci",
+        L"OceanBlast — Ctrl+O: Apri ROM o trascina ROM qui",
+        L"OceanBlast — Impostazioni",
+        L"Carica ROM: Ctrl+O · Trascina una ROM nella finestra\nImpostazioni: Sistema, Controller, Audio, Video e Timing",
+        L"Chiudi", L"Le modifiche vengono salvate localmente.",
+        L"Impossibile salvare le impostazioni.",
+        L"Seleziona prima un file ROM digiBLAST valido (*.bin;*.rom).",
+        L"Impossibile aprire il file di log della sessione.",
+        L"Impossibile avviare il processo dell'emulatore.",
+        L"Seleziona la cartella predefinita per le ROM digiBLAST",
+        L"ROM digiBLAST (*.bin;*.rom)\0*.bin;*.rom\0Tutti i file (*.*)\0*.*\0",
+        L"Lingua",
+        L"Cartella ROM (directory iniziale per Ctrl+O)", L"Directory predefinita", L"Sfoglia...",
+        L"ROM digiBLAST selezionata", L"Nessuna ROM selezionata", L"File...",
+        L"Avvia gioco", L"Ferma gioco",
+        L"Memoria persistente del dispositivo (EEPROM I2C da 2 KB)",
+        L"Salva impostazioni del dispositivo e progressi (sessions\\board.nvram)",
+        L"Suggerimento: Puoi trascinare i file ROM (*.bin; *.rom) direttamente nella finestra principale o aprirli con Ctrl+O.",
+        L"Seleziona controller", L"Solo tastiera", L"Controller salvato (scollegato)", L"Aggiorna",
+        L"Preset",
+        {L"Stadia / Xbox — Posizioni", L"PlayStation — Posizioni", L"digiBLAST / USB — Personalizzato"},
+        L"digiBLAST  Controller             Tastiera",
+        L"Fai clic su un comando, poi premi un pulsante o tasto. Esc annulla.",
+        L"Premi ora un pulsante o direzione del controller … (Esc: Annulla)",
+        L"Premi ora un tasto della tastiera … (Esc: Annulla)",
+        L"Connesso · Gli input sono evidenziati in tempo reale",
+        L"Nessun dispositivo di input connesso",
+        L"Audio", L"Attiva uscita audio", L"Volume",
+        L"Audio stereo S3C2410 IIS + DMA2 · Frequenza standard 22,05 kHz con ricampionamento dinamico.",
+        L"Modalità di visualizzazione",
+        {L"Scocca digiBLAST (Console Skin)", L"Schermo intero (F11 commuta)", L"Finestra standard (LCD nella finestra principale)"},
+        L"Proporzioni",
+        {L"Proporzioni originali digiBLAST (3:2)", L"4:3", L"Adatta alla finestra"},
+        L"Scala pixel intera (ha priorità sulle proporzioni)",
+        L"Scala immagine morbida (GDI Halftone)",
+        L"Fattore di scala autonomo (--gui)",
+        {L"2× (480 × 320)", L"3× (720 × 480, Predefinito)", L"4× (960 × 640)"},
+        L"Decoder display",
+        {
+            L"Automatico (Predefinito, LCD 12 bit / RGB565 16 bit)",
+            L"RGB444, righe da 480 byte (Diagnostica)",
+            L"RGB444 compatto, righe da 360 byte (Diagnostica)",
+            L"RGB565, righe da 480 byte (Diagnostica)",
+            L"Solo registri LCD (Diagnostica)"
+        },
+        L"Timing CPU e periferiche",
+        {
+            L"Impostazioni ROM automatiche (Predefinito)",
+            L"Standard: 1× (base 20 MIPS)",
+            L"Clock registri automatici (sperimentale)",
+            L"Più lavoro CPU: 2× (40 MIPS)",
+            L"Più lavoro CPU: 4× (80 MIPS)",
+            L"Più lavoro CPU: 8× (160 MIPS, combattimento veloce in Wade Hixton)"
+        },
+        L"Registra metriche FPS e audio in sessions\\performance.csv",
+        L"Attiva log di debug esteso in sessions\\session.log",
+        L"Nota: Le modifiche al timing o al decoder avranno effetto al prossimo avvio o riavvio (Ctrl+R) della ROM.",
+        L"Scorciatoie e Controlli",
+        L"• Ctrl+O: Carica ROM    ·    Ctrl+R: Riavvia gioco\n"
+        L"• Trascina file ROM nella finestra: Avvia direttamente con drag & drop\n"
+        L"• F11 o Alt+Invio: Schermo intero\n"
+        L"• Esc: Esci da schermo intero / Pausa\n"
+        L"• F5: Pausa / Riprendi    ·    F6: Singolo passo CPU    ·    F7: Salva snapshot\n"
+        L"• F8 / L2: Riavvolgi    ·    F9: Stop    ·    F10: Play/Pausa    ·    F12 / R2: Avanti veloce\n\n"
+        L"In 'Controlli' puoi configurare liberamente controller Xbox, Stadia, PlayStation, USB e tutti i tasti della tastiera."
+    },
+    // 4: Nederlands
+    {
+        {L"Mappen & Systeem", L"Besturing", L"Geluid", L"Video", L"Timing & Diagnose", L"Sneltoetsen & Hulp"},
+        L"Bestand", L"Instellingen",
+        L"ROM laden...\tCtrl+O", L"Spel herstarten\tCtrl+R", L"Spel stoppen", L"Afsluiten",
+        L"OceanBlast — Ctrl+O: ROM openen of sleep ROM hierheen",
+        L"OceanBlast — Instellingen",
+        L"ROM laden: Ctrl+O · Sleep een ROM naar dit venster\nInstellingen: Systeem, Controller, Geluid, Video en Timing",
+        L"Sluiten", L"Wijzigingen worden lokaal opgeslagen.",
+        L"Instellingen konden niet worden opgeslagen.",
+        L"Selecteer eerst een geldig digiBLAST-ROM-bestand (*.bin;*.rom).",
+        L"Kon sessielogbestand niet openen.",
+        L"Kon emulatorproces niet starten.",
+        L"Standaardmap voor digiBLAST-ROMs selecteren",
+        L"digiBLAST ROM (*.bin;*.rom)\0*.bin;*.rom\0Alle bestanden (*.*)\0*.*\0",
+        L"Taal",
+        L"ROM-map (startmap voor Ctrl+O)", L"Standaardmap", L"Bladeren...",
+        L"Geselecteerde digiBLAST-ROM", L"Nog geen ROM geselecteerd", L"Bestand...",
+        L"Spel starten", L"Spel stoppen",
+        L"Permanent apparaatgeheugen (2 KB I2C-EEPROM)",
+        L"Apparaatinstellingen en voortgang opslaan (sessions\\board.nvram)",
+        L"Tip: Je kunt ROM-bestanden (*.bin; *.rom) altijd direct naar het hoofdvenster slepen of openen met Ctrl+O.",
+        L"Controller selecteren", L"Alleen toetsenbord", L"Opgeslagen controller (niet verbonden)", L"Vernieuwen",
+        L"Profiel",
+        {L"Stadia / Xbox — Posities", L"PlayStation — Posities", L"digiBLAST / USB — Aangepast"},
+        L"digiBLAST  Controller             Toetsenbord",
+        L"Klik op een toewijzing en druk op een knop of toets. Esc annuleert.",
+        L"Druk nu op een controllerknop of richting … (Esc: Annuleren)",
+        L"Druk nu op een toetsenbordtoets … (Esc: Annuleren)",
+        L"Verbonden · Invoer wordt live gemarkeerd",
+        L"Geen verbonden invoerapparaat",
+        L"Geluid", L"Audio-uitvoer inschakelen", L"Volume",
+        L"S3C2410 IIS + DMA2 stereo-audio · 22,05 kHz standaardfrequentie met dynamische resampling.",
+        L"Weergavemodus",
+        {L"digiBLAST-behuizing (Console Skin)", L"Volledig scherm (F11 schakelt)", L"Standaardvenster (LCD in hoofdvenster)"},
+        L"Beeldverhouding",
+        {L"Originele digiBLAST-verhouding (3:2)", L"4:3", L"Uitrekken tot venster"},
+        L"Gehele pixelschaling (heeft voorrang op beeldverhouding)",
+        L"Vloeiende beeldschaling (GDI Halftone)",
+        L"Standalone schaalfactor (--gui)",
+        {L"2× (480 × 320)", L"3× (720 × 480, Standaard)", L"4× (960 × 640)"},
+        L"Display-decoder",
+        {
+            L"Automatisch (Standaard, 12-bit LCD / 16-bit RGB565)",
+            L"RGB444, 480-byte rijen (Diagnose)",
+            L"RGB444 gepakt, 360-byte rijen (Diagnose)",
+            L"RGB565, 480-byte rijen (Diagnose)",
+            L"Alleen LCD-registers (Diagnose)"
+        },
+        L"CPU- & randapparatuur-timing",
+        {
+            L"Automatische ROM-instellingen (Standaard)",
+            L"Standaard: 1× (20 MIPS basis)",
+            L"Automatische registerklokken (experimenteel)",
+            L"Meer CPU-werk: 2× (40 MIPS)",
+            L"Meer CPU-werk: 4× (80 MIPS)",
+            L"Meer CPU-werk: 8× (160 MIPS, snel gevecht in Wade Hixton)"
+        },
+        L"FPS- & audiogegevens loggen in sessions\\performance.csv",
+        L"Uitgebreide debug-logging inschakelen in sessions\\session.log",
+        L"Let op: Wijzigingen aan de timingmodus of display-decoder worden actief bij de volgende start of herstart (Ctrl+R).",
+        L"Sneltoetsen & Besturing",
+        L"• Ctrl+O: ROM laden    ·    Ctrl+R: Spel herstarten\n"
+        L"• Sleep ROM-bestand naar venster: Spel direct starten via drag & drop\n"
+        L"• F11 of Alt+Enter: Volledig scherm schakelen\n"
+        L"• Esc: Volledig scherm verlaten / Pauze\n"
+        L"• F5: Pauze / Hervatten    ·    F6: Enkele CPU-stap    ·    F7: Snapshot opslaan\n"
+        L"• F8 / L2: Terugspoelen    ·    F9: Stop    ·    F10: Afspelen/Pauze    ·    F12 / R2: Vooruitspoelen\n\n"
+        L"Onder 'Besturing' kun je Xbox-, Stadia-, PlayStation- en USB-controllers en alle toetsenbordtoetsen vrij instellen."
+    },
+    // 5: Français
+    {
+        {L"Dossiers & Système", L"Commandes", L"Son", L"Vidéo", L"Timing & Diagnostic", L"Raccourcis & Aide"},
+        L"Fichier", L"Paramètres",
+        L"Charger une ROM...\tCtrl+O", L"Redémarrer le jeu\tCtrl+R", L"Arrêter le jeu", L"Quitter",
+        L"OceanBlast — Ctrl+O : Ouvrir une ROM ou glisser une ROM ici",
+        L"OceanBlast — Paramètres",
+        L"Charger une ROM : Ctrl+O · Glisser-déposer une ROM dans la fenêtre\nParamètres : Système, Manette, Son, Vidéo et Timing",
+        L"Fermer", L"Les modifications sont enregistrées localement.",
+        L"Impossible d'enregistrer les paramètres.",
+        L"Veuillez d'abord sélectionner un fichier ROM digiBLAST valide (*.bin;*.rom).",
+        L"Impossible d'ouvrir le fichier journal de session.",
+        L"Impossible de démarrer le processus de l'émulateur.",
+        L"Sélectionner le dossier par défaut pour les ROMs digiBLAST",
+        L"ROM digiBLAST (*.bin;*.rom)\0*.bin;*.rom\0Tous les fichiers (*.*)\0*.*\0",
+        L"Langue",
+        L"Dossier ROM (répertoire initial pour Ctrl+O)", L"Répertoire par défaut", L"Parcourir...",
+        L"ROM digiBLAST sélectionnée", L"Aucune ROM sélectionnée", L"Fichier...",
+        L"Démarrer le jeu", L"Arrêter le jeu",
+        L"Mémoire persistante de l'appareil (EEPROM I2C de 2 Ko)",
+        L"Enregistrer les réglages et la progression (sessions\\board.nvram)",
+        L"Astuce : Vous pouvez glisser-déposer des fichiers ROM (*.bin; *.rom) directement dans la fenêtre principale ou les ouvrir avec Ctrl+O.",
+        L"Sélectionner la manette", L"Clavier uniquement", L"Manette enregistrée (déconnectée)", L"Actualiser",
+        L"Profil",
+        {L"Stadia / Xbox — Positions", L"PlayStation — Positions", L"digiBLAST / USB — Personnalisé"},
+        L"digiBLAST  Manette                Clavier",
+        L"Cliquez sur une commande puis appuyez sur un bouton ou une touche. Échap annule.",
+        L"Appuyez maintenant sur un bouton ou une direction de la manette … (Échap : Annuler)",
+        L"Appuyez maintenant sur une touche du clavier … (Échap : Annuler)",
+        L"Connecté · Les entrées sont mises en évidence en direct",
+        L"Aucun périphérique d'entrée connecté",
+        L"Son", L"Activer la sortie audio", L"Volume",
+        L"Audio stéréo S3C2410 IIS + DMA2 · Fréquence standard de 22,05 kHz avec rééchantillonnage dynamique.",
+        L"Mode d'affichage",
+        {L"Boîtier digiBLAST (Console Skin)", L"Plein écran (F11 bascule)", L"Fenêtre standard (LCD dans la fenêtre principale)"},
+        L"Format d'image",
+        {L"Proportions digiBLAST d'origine (3:2)", L"4:3", L"Étirer à la fenêtre"},
+        L"Mise à l'échelle entière des pixels (prioritaire sur le format)",
+        L"Mise à l'échelle douce de l'image (GDI Halftone)",
+        L"Facteur d'échelle autonome (--gui)",
+        {L"2× (480 × 320)", L"3× (720 × 480, Par défaut)", L"4× (960 × 640)"},
+        L"Décodeur d'affichage",
+        {
+            L"Automatique (Par défaut, LCD 12 bits / RGB565 16 bits)",
+            L"RGB444, lignes de 480 octets (Diagnostic)",
+            L"RGB444 compacté, lignes de 360 octets (Diagnostic)",
+            L"RGB565, lignes de 480 octets (Diagnostic)",
+            L"Registres LCD uniquement (Diagnostic)"
+        },
+        L"Timing CPU & périphériques",
+        {
+            L"Réglages ROM automatiques (Par défaut)",
+            L"Standard : 1× (base 20 MIPS)",
+            L"Horloges de registres automatiques (expérimental)",
+            L"Plus de travail CPU : 2× (40 MIPS)",
+            L"Plus de travail CPU : 4× (80 MIPS)",
+            L"Plus de travail CPU : 8× (160 MIPS, combat rapide dans Wade Hixton)"
+        },
+        L"Enregistrer les mesures FPS et audio dans sessions\\performance.csv",
+        L"Activer la journalisation de débogage étendue dans sessions\\session.log",
+        L"Remarque : Les modifications du mode de timing ou du décodeur prennent effet au prochain démarrage ou redémarrage (Ctrl+R) de la ROM.",
+        L"Raccourcis & Commandes",
+        L"• Ctrl+O : Charger une ROM    ·    Ctrl+R : Redémarrer le jeu\n"
+        L"• Glisser un fichier ROM dans la fenêtre : Lancer directement par glisser-déposer\n"
+        L"• F11 ou Alt+Entrée : Basculer en plein écran\n"
+        L"• Échap : Quitter le plein écran / Pause\n"
+        L"• F5 : Pause / Reprendre    ·    F6 : Pas CPU unique    ·    F7 : Enregistrer un instantané\n"
+        L"• F8 / L2 : Retour rapide    ·    F9 : Arrêt    ·    F10 : Lecture/Pause    ·    F12 / R2 : Avance rapide\n\n"
+        L"Sous « Commandes », vous pouvez configurer librement les manettes Xbox, Stadia, PlayStation, USB et toutes les touches du clavier."
+    },
+    // 6: Türkçe
+    {
+        {L"Klasörler ve Sistem", L"Kontroller", L"Ses", L"Görüntü", L"Zamanlama ve Tanılama", L"Kısayollar ve Yardım"},
+        L"Dosya", L"Ayarlar",
+        L"ROM Yükle...\tCtrl+O", L"Oyunu Yeniden Başlat\tCtrl+R", L"Oyunu Durdur", L"Çıkış",
+        L"OceanBlast — Ctrl+O: ROM aç veya ROM dosyasını buraya sürükle",
+        L"OceanBlast — Ayarlar",
+        L"ROM Yükle: Ctrl+O · ROM dosyasını pencereye sürükleyin\nAyarlar: Sistem, Kontrolcü, Ses, Görüntü ve Zamanlama",
+        L"Kapat", L"Değişiklikler yerel olarak kaydedilir.",
+        L"Ayarlar kaydedilemedi.",
+        L"Lütfen önce geçerli bir digiBLAST ROM dosyası (*.bin;*.rom) seçin.",
+        L"Oturum günlük dosyası açılamadı.",
+        L"Emülatör işlemi başlatılamadı.",
+        L"digiBLAST ROM'ları için varsayılan klasörü seçin",
+        L"digiBLAST ROM (*.bin;*.rom)\0*.bin;*.rom\0Tüm Dosyalar (*.*)\0*.*\0",
+        L"Dil",
+        L"ROM Klasörü (Ctrl+O için başlangıç dizini)", L"Varsayılan dizin", L"Seç...",
+        L"Seçilen digiBLAST ROM", L"Henüz ROM seçilmedi", L"Dosya...",
+        L"Oyunu Başlat", L"Oyunu Durdur",
+        L"Kalıcı Cihaz Belleği (2 KB I2C-EEPROM)",
+        L"Cihaz ayarlarını ve oyun kayıtlarını sakla (sessions\\board.nvram)",
+        L"İpucu: ROM dosyalarını (*.bin; *.rom) istediğiniz zaman doğrudan ana pencereye sürükleyip bırakabilir veya Ctrl+O ile açabilirsiniz.",
+        L"Kontrolcü Seçin", L"Yalnızca Klavye", L"Kayıtlı Kontrolcü (bağlı değil)", L"Yenile",
+        L"Profil",
+        {L"Stadia / Xbox — Düzeni", L"PlayStation — Düzeni", L"digiBLAST / USB — Özel"},
+        L"digiBLAST  Kontrolcü              Klavye",
+        L"Bir atamaya tıklayın, ardından bir düğmeye veya tuşa basın. Esc iptal eder.",
+        L"Şimdi bir kontrolcü düğmesine veya yönüne basın … (Esc: İptal)",
+        L"Şimdi bir klavye tuşuna basın … (Esc: İptal)",
+        L"Bağlı · Girişler canlı olarak vurgulanır",
+        L"Bağlı giriş cihazı yok",
+        L"Ses", L"Ses çıkışını etkinleştir", L"Ses Seviyesi",
+        L"S3C2410 IIS + DMA2 stereo ses · Dinamik yeniden örnekleme ile 22,05 kHz standart hız.",
+        L"Görünüm Modu",
+        {L"digiBLAST Gövdesi (Console Skin)", L"Tam Ekran (F11 geçiş yapar)", L"Standart Pencere (Ana pencerede LCD)"},
+        L"En-Boy Oranı",
+        {L"Orijinal digiBLAST oranları (3:2)", L"4:3", L"Pencereye sığdır (uzatılmış)"},
+        L"Tam sayı piksel ölçekleme (en-boy oranından önceliklidir)",
+        L"Yumuşak görüntü ölçekleme (GDI Halftone)",
+        L"Bağımsız ölçek faktörü (--gui)",
+        {L"2× (480 × 320)", L"3× (720 × 480, Varsayılan)", L"4× (960 × 640)"},
+        L"Ekran Kod Çözücü",
+        {
+            L"Otomatik (Varsayılan, 12-bit LCD / 16-bit RGB565)",
+            L"RGB444, 480 bayt satırlar (Tanılama)",
+            L"RGB444 sıkıştırılmış, 360 bayt satırlar (Tanılama)",
+            L"RGB565, 480 bayt satırlar (Tanılama)",
+            L"Yalnızca LCD yazmaçları (Tanılama)"
+        },
+        L"CPU ve Çevre Birimi Zamanlaması",
+        {
+            L"Otomatik ROM ayarları (Varsayılan)",
+            L"Standart: 1× (20 MIPS temel)",
+            L"Otomatik yazmaç saatleri (deneysel)",
+            L"Daha fazla CPU işi: 2× (40 MIPS)",
+            L"Daha fazla CPU işi: 4× (80 MIPS)",
+            L"Daha fazla CPU işi: 8× (160 MIPS, Wade Hixton'da hızlı dövüş)"
+        },
+        L"FPS ve ses metriklerini sessions\\performance.csv dosyasına kaydet",
+        L"Genişletilmiş hata ayıklama günlüğünü sessions\\session.log dosyasına kaydet",
+        L"Not: Zamanlama modu veya ekran kod çözücü değişiklikleri ROM'u bir sonraki başlatmanızda veya yeniden başlatmanızda (Ctrl+R) etkinleşir.",
+        L"Kısayollar ve Kontroller",
+        L"• Ctrl+O: ROM yükle    ·    Ctrl+R: Oyunu yeniden başlat\n"
+        L"• ROM dosyasını pencereye sürükle: Sürükle ve bırak ile doğrudan başlat\n"
+        L"• F11 veya Alt+Enter: Tam ekran geçişi\n"
+        L"• Esc: Tam ekrandan çık / Duraklat\n"
+        L"• F5: Duraklat / Devam    ·    F6: Tek CPU adımı    ·    F7: Anlık görüntü kaydet\n"
+        L"• F8 / L2: Geri sar    ·    F9: Durdur    ·    F10: Oynat/Duraklat    ·    F12 / R2: İleri sar\n\n"
+        L"'Kontroller' altında Xbox, Stadia, PlayStation ve USB kontrolcülerini ve tüm klavye tuşlarını serbestçe atayabilirsiniz."
+    }
+};
+
+static const UiText& tr() {
+    return kUiText[std::min(6u, settings.language)];
+}
 
 static HWND findEmbeddedDisplay() {
     if (!window) return nullptr;
@@ -108,14 +678,14 @@ static void notifyRunningGameSettingsChanged() {
 
 static void saveSettings() {
     if (!settings.save(input.key())) {
-        MessageBoxW(window, L"Einstellungen konnten nicht gespeichert werden.", L"OceanBlast", MB_ICONERROR);
+        MessageBoxW(window, tr().saveError, L"OceanBlast", MB_ICONERROR);
     }
     notifyRunningGameSettingsChanged();
 }
 
 static void setIdleTitle() {
     if (!window) return;
-    SetWindowTextW(window, L"OceanBlast — Strg+O: ROM öffnen, ROM hierher ziehen");
+    SetWindowTextW(window, tr().idleWindowTitle);
 }
 
 static void stop() {
@@ -179,7 +749,7 @@ static void toggleMainFullscreen() {
 static bool launchRom(const std::wstring& romFile) {
     DWORD attrs = GetFileAttributesW(romFile.c_str());
     if (attrs == INVALID_FILE_ATTRIBUTES || (attrs & FILE_ATTRIBUTE_DIRECTORY)) {
-        MessageBoxW(window, L"Bitte zuerst eine gültige digiBLAST-ROM-Datei (*.bin;*.rom) auswählen.", L"OceanBlast", MB_ICONWARNING);
+        MessageBoxW(window, tr().invalidRomWarning, L"OceanBlast", MB_ICONWARNING);
         return false;
     }
     stop();
@@ -221,7 +791,7 @@ static bool launchRom(const std::wstring& romFile) {
     if (log == INVALID_HANDLE_VALUE || inHandle == INVALID_HANDLE_VALUE) {
         if (log != INVALID_HANDLE_VALUE) CloseHandle(log);
         if (inHandle != INVALID_HANDLE_VALUE) CloseHandle(inHandle);
-        MessageBoxW(window, L"Session-Logdatei konnte nicht geöffnet werden.", L"OceanBlast", MB_ICONERROR);
+        MessageBoxW(window, tr().logOpenError, L"OceanBlast", MB_ICONERROR);
         return false;
     }
 
@@ -236,14 +806,14 @@ static bool launchRom(const std::wstring& romFile) {
     CloseHandle(log);
     CloseHandle(inHandle);
     if (!ok) {
-        MessageBoxW(window, L"Emulator-Prozess konnte nicht gestartet werden.", L"OceanBlast", MB_ICONERROR);
+        MessageBoxW(window, tr().launchError, L"OceanBlast", MB_ICONERROR);
         return false;
     }
     process = child.hProcess;
     CloseHandle(child.hThread);
     if (startButton) EnableWindow(startButton, FALSE);
     if (stopButton) EnableWindow(stopButton, TRUE);
-    if (statusBox) SetWindowTextW(statusBox, L"Emulator läuft. Details werden in sessions\\session.log protokolliert.");
+    if (statusBox) SetWindowTextW(statusBox, L"Emulator running. Details are logged in sessions\\session.log.");
     const auto romName = std::filesystem::path(romFile).filename().wstring();
     SetWindowTextW(window, (L"OceanBlast — " + romName).c_str());
     return true;
@@ -256,7 +826,7 @@ static bool browseRom(HWND owner, bool autoLaunch) {
     dialog.hwndOwner = owner;
     dialog.lpstrFile = filename;
     dialog.nMaxFile = 32768;
-    dialog.lpstrFilter = L"digiBLAST ROM (*.bin;*.rom)\0*.bin;*.rom\0Alle Dateien (*.*)\0*.*\0";
+    dialog.lpstrFilter = tr().romFilter;
     dialog.lpstrInitialDir = settings.romFolder.empty() ? nullptr : settings.romFolder.c_str();
     dialog.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
     if (!GetOpenFileNameW(&dialog)) return false;
@@ -269,7 +839,7 @@ static bool browseRom(HWND owner, bool autoLaunch) {
 static void chooseRomFolder() {
     BROWSEINFOW info{};
     info.hwndOwner = settingsWindow ? settingsWindow : window;
-    info.lpszTitle = L"Standard-Ordner für digiBLAST-ROMs auswählen";
+    info.lpszTitle = tr().chooseFolderTitle;
     info.ulFlags = BIF_RETURNONLYFSDIRS | BIF_USENEWUI;
     if (auto item = SHBrowseForFolderW(&info)) {
         wchar_t path[MAX_PATH]{};
@@ -282,28 +852,22 @@ static void chooseRomFolder() {
 }
 
 static HMENU makeMenu() {
+    const auto& t = tr();
     HMENU menu = CreateMenu();
     HMENU file = CreatePopupMenu();
     HMENU cfg = CreatePopupMenu();
-    AppendMenuW(file, MF_STRING, OpenRom, L"ROM laden...\tStrg+O");
-    AppendMenuW(file, MF_STRING, RestartRom, L"Spiel neu starten\tStrg+R");
-    AppendMenuW(file, MF_STRING, StopRom, L"Spiel stoppen");
+    AppendMenuW(file, MF_STRING, OpenRom, t.menuOpenRom);
+    AppendMenuW(file, MF_STRING, RestartRom, t.menuRestartRom);
+    AppendMenuW(file, MF_STRING, StopRom, t.menuStopRom);
     AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(file, MF_STRING, ExitApp, L"Beenden");
+    AppendMenuW(file, MF_STRING, ExitApp, t.menuExit);
 
-    const wchar_t* names[]{
-        L"Ordner & System...",
-        L"Steuerung...",
-        L"Sound...",
-        L"Video...",
-        L"Timing & Diagnose...",
-        L"Kurztasten & Hilfe..."
-    };
     for (unsigned i = 0; i < 6; ++i) {
-        AppendMenuW(cfg, MF_STRING, SettingsBase + i, names[i]);
+        std::wstring item = std::wstring(t.categories[i]) + L"...";
+        AppendMenuW(cfg, MF_STRING, SettingsBase + i, item.c_str());
     }
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(file), L"Datei");
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(cfg), L"Einstellungen");
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(file), t.menuFile);
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(cfg), t.menuSettings);
     return menu;
 }
 
@@ -330,9 +894,7 @@ static void startScreen(HDC dc) {
     SetTextColor(dc, RGB(180, 195, 213));
     HGDIOBJ oldFont = SelectObject(dc, GetStockObject(DEFAULT_GUI_FONT));
     RECT text{10, r.bottom - 88, r.right - 10, r.bottom - 28};
-    DrawTextW(dc,
-              L"ROM laden: Strg+O · ROM ins Fenster ziehen\nEinstellungen: System, Controller, Sound, Video und Timing",
-              -1, &text, DT_CENTER | DT_WORDBREAK);
+    DrawTextW(dc, tr().startScreenText, -1, &text, DT_CENTER | DT_WORDBREAK);
     SelectObject(dc, oldFont);
 }
 
@@ -356,6 +918,7 @@ static void comboItem(HWND h, const wchar_t* text) {
 }
 
 static void rebuildSettings() {
+    const auto& t = tr();
     learnAction = -1;
     deviceCombo = nullptr;
     learningLabel = nullptr;
@@ -363,149 +926,136 @@ static void rebuildSettings() {
     settingsChildren.clear();
 
     HWND nav = settingsControl(L"LISTBOX", L"", 900, 12, 14, 180, 535, LBS_NOTIFY | WS_BORDER | WS_TABSTOP);
-    for (auto name : categories) SendMessageW(nav, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(name));
+    for (auto name : t.categories) SendMessageW(nav, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(name));
     SendMessageW(nav, LB_SETCURSEL, settingsPage, 0);
 
-    settingsControl(L"BUTTON", L"Schließen", 901, 720, 550, 110, 30, WS_TABSTOP);
-    settingsLabel(L"Änderungen werden lokal gespeichert.", 210, 553, 500);
+    settingsControl(L"BUTTON", t.closeBtn, 901, 720, 550, 110, 30, WS_TABSTOP);
+    settingsLabel(t.savedLocallyNote, 210, 553, 500);
 
     if (settingsPage == 0) {
-        settingsLabel(L"ROM-Ordner (Startverzeichnis für Strg+O)", 210, 18);
-        settingsControl(L"EDIT", settings.romFolder.empty() ? L"Standardverzeichnis" : settings.romFolder.c_str(),
-                        0, 210, 44, 490, 25, ES_READONLY | WS_BORDER);
-        settingsControl(L"BUTTON", L"Auswählen...", 910, 710, 44, 120, 25, WS_TABSTOP);
+        settingsLabel(t.languageLabel, 210, 18);
+        HWND langCombo = settingsControl(L"COMBOBOX", L"", 915, 210, 42, 300, 200, CBS_DROPDOWNLIST | WS_TABSTOP);
+        for (auto langName : kLanguageNames) comboItem(langCombo, langName);
+        SendMessageW(langCombo, CB_SETCURSEL, std::min(6u, settings.language), 0);
 
-        settingsLabel(L"Ausgewähltes digiBLAST-ROM", 210, 88);
-        settingsControl(L"EDIT", settings.lastRom.empty() ? L"Noch kein ROM ausgewählt" : settings.lastRom.c_str(),
-                        0, 210, 114, 490, 25, ES_READONLY | WS_BORDER);
-        settingsControl(L"BUTTON", L"Datei...", 911, 710, 114, 120, 25, WS_TABSTOP);
+        settingsLabel(t.romFolderLabel, 210, 84);
+        settingsControl(L"EDIT", settings.romFolder.empty() ? t.defaultFolderText : settings.romFolder.c_str(),
+                        0, 210, 108, 490, 25, ES_READONLY | WS_BORDER);
+        settingsControl(L"BUTTON", t.browseFolderBtn, 910, 710, 108, 120, 25, WS_TABSTOP);
 
-        settingsControl(L"BUTTON", L"Spiel starten", 912, 210, 154, 150, 30, BS_DEFPUSHBUTTON | WS_TABSTOP);
-        HWND stopBtn = settingsControl(L"BUTTON", L"Spiel stoppen", 913, 372, 154, 150, 30, WS_TABSTOP);
+        settingsLabel(t.selectedRomLabel, 210, 148);
+        settingsControl(L"EDIT", settings.lastRom.empty() ? t.noRomSelectedText : settings.lastRom.c_str(),
+                        0, 210, 172, 490, 25, ES_READONLY | WS_BORDER);
+        settingsControl(L"BUTTON", t.browseFileBtn, 911, 710, 172, 120, 25, WS_TABSTOP);
+
+        settingsControl(L"BUTTON", t.startGameBtn, 912, 210, 212, 150, 30, BS_DEFPUSHBUTTON | WS_TABSTOP);
+        HWND stopBtn = settingsControl(L"BUTTON", t.stopGameBtn, 913, 372, 212, 150, 30, WS_TABSTOP);
         EnableWindow(stopBtn, process != nullptr);
 
-        settingsLabel(L"Persistenter Gerätespeicher (2 KB I2C-EEPROM)", 210, 212);
-        HWND nvram = settingsControl(L"BUTTON", L"Geräteeinstellungen und Spielstände speichern (sessions\\board.nvram)",
-                                     914, 210, 240, 600, 28, BS_AUTOCHECKBOX | WS_TABSTOP);
+        settingsLabel(t.nvramHeader, 210, 264);
+        HWND nvram = settingsControl(L"BUTTON", t.nvramCheck,
+                                     914, 210, 290, 610, 28, BS_AUTOCHECKBOX | WS_TABSTOP);
         SendMessageW(nvram, BM_SETCHECK, settings.keepNvram ? BST_CHECKED : BST_UNCHECKED, 0);
 
-        settingsLabel(L"Tipp: Du kannst ROM-Dateien (*.bin; *.rom) jederzeit direkt per Drag & Drop in das Hauptfenster ziehen oder mit Strg+O öffnen.", 210, 292, 620, 44);
+        settingsLabel(t.page0Tip, 210, 336, 620, 48);
     } else if (settingsPage == 1) {
-        settingsLabel(L"Controller auswählen", 210, 16);
+        settingsLabel(t.selectControllerLabel, 210, 16);
         deviceCombo = settingsControl(L"COMBOBOX", L"", 960, 210, 42, 440, 180, CBS_DROPDOWNLIST | WS_TABSTOP);
         int selected = -1;
         for (unsigned i = 0; i < input.controllers.size(); ++i) {
-            comboItem(deviceCombo, input.controllers[i].name.c_str());
+            const wchar_t* itemLabel = (input.controllers[i].key == L"keyboard")
+                ? t.keyboardOnlyItem
+                : input.controllers[i].name.c_str();
+            comboItem(deviceCombo, itemLabel);
             if (input.controllers[i].key == input.key()) selected = static_cast<int>(i);
         }
         if (selected < 0) {
             selected = static_cast<int>(input.controllers.size());
-            comboItem(deviceCombo, L"Gespeicherter Controller (nicht verbunden)");
+            comboItem(deviceCombo, t.disconnectedControllerItem);
         }
         SendMessageW(deviceCombo, CB_SETCURSEL, selected, 0);
-        settingsControl(L"BUTTON", L"Aktualisieren", 961, 666, 42, 164, 25, WS_TABSTOP);
+        settingsControl(L"BUTTON", t.refreshBtn, 961, 666, 42, 164, 25, WS_TABSTOP);
 
-        settingsLabel(L"Preset", 210, 80, 65);
+        settingsLabel(t.presetLabel, 210, 80, 65);
         HWND preset = settingsControl(L"COMBOBOX", L"", 962, 280, 76, 370, 160, CBS_DROPDOWNLIST | WS_TABSTOP);
-        for (auto text : {L"Stadia / Xbox — Positionen", L"PlayStation — Positionen", L"digiBLAST / USB — anlernbar"})
+        for (auto text : t.presets)
             comboItem(preset, text);
         SendMessageW(preset, CB_SETCURSEL, settings.controllerPreset, 0);
 
-        settingsLabel(L"digiBLAST  Controller             Tastatur", 210, 314, 300);
-        settingsLabel(L"digiBLAST  Controller             Tastatur", 525, 314, 305);
+        settingsLabel(t.mappingColumnHeader, 210, 314, 300);
+        settingsLabel(t.mappingColumnHeader, 525, 314, 305);
         for (unsigned i = 0; i < 12; ++i) {
             int y = 345 + static_cast<int>(i % 6) * 25;
             int x = 210 + static_cast<int>(i / 6) * 315;
-            settingsLabel(win::actionNames[i], x, y, 48);
-            settingsControl(L"BUTTON", win::controlLabel(settings.padMap[i]).c_str(),
+            settingsLabel(win::actionName(i, settings.language), x, y, 48);
+            settingsControl(L"BUTTON", win::controlLabel(settings.padMap[i], settings.language).c_str(),
                             980 + i, x + 50, y, 153, 23, WS_TABSTOP);
-            settingsControl(L"BUTTON", win::keyboardLabel(settings.keyboardKeys[i]).c_str(),
+            settingsControl(L"BUTTON", win::keyboardLabel(settings.keyboardKeys[i], settings.language).c_str(),
                             1000 + i, x + 207, y, 98, 23, WS_TABSTOP);
         }
         learningLabel = settingsControl(
-            L"STATIC", L"Belegung anklicken, dann Taste drücken. Esc bricht ab.",
+            L"STATIC", t.clickToBindHint,
             0, 210, 498, 620, 42);
     } else if (settingsPage == 2) {
-        settingsLabel(L"Sound", 210, 20);
-        HWND enabled = settingsControl(L"BUTTON", L"Audio-Ausgabe aktivieren", 970, 210, 62, 400, 30, BS_AUTOCHECKBOX | WS_TABSTOP);
+        settingsLabel(t.soundHeader, 210, 20);
+        HWND enabled = settingsControl(L"BUTTON", t.enableAudioCheck, 970, 210, 62, 400, 30, BS_AUTOCHECKBOX | WS_TABSTOP);
         SendMessageW(enabled, BM_SETCHECK, settings.soundEnabled ? BST_CHECKED : BST_UNCHECKED, 0);
 
-        settingsLabel(L"Lautstärke", 210, 110);
+        settingsLabel(t.volumeLabel, 210, 110);
         HWND volume = settingsControl(TRACKBAR_CLASSW, L"", 971, 210, 140, 580, 45, TBS_AUTOTICKS | WS_TABSTOP);
         SendMessageW(volume, TBM_SETRANGE, TRUE, MAKELONG(0, 100));
         SendMessageW(volume, TBM_SETPOS, TRUE, settings.soundVolume);
 
-        settingsLabel(L"S3C2410 IIS + DMA2 Stereo-Audio · 22,05 kHz Standardrate mit dynamischem Resampling.", 210, 220, 620, 40);
+        settingsLabel(t.soundInfoText, 210, 220, 620, 40);
     } else if (settingsPage == 3) {
-        settingsLabel(L"Darstellungsmodus", 210, 20);
+        settingsLabel(t.displayModeLabel, 210, 20);
         HWND winMode = settingsControl(L"COMBOBOX", L"", 975, 210, 46, 500, 140, CBS_DROPDOWNLIST | WS_TABSTOP);
-        for (auto text : {L"digiBLAST-Gehäuse (Console Skin)", L"Vollbild (F11 schaltet um)", L"Standard-Fenster (LCD im Hauptfenster)"})
+        for (auto text : t.windowModes)
             comboItem(winMode, text);
         SendMessageW(winMode, CB_SETCURSEL, settings.windowMode, 0);
 
-        settingsLabel(L"Bildformat", 210, 88);
+        settingsLabel(t.aspectRatioLabel, 210, 88);
         HWND aspect = settingsControl(L"COMBOBOX", L"", 972, 210, 114, 500, 140, CBS_DROPDOWNLIST | WS_TABSTOP);
-        for (auto text : {L"Originale digiBLAST-Proportionen (3:2)", L"4:3", L"Fensterfüllend (gestreckt)"})
+        for (auto text : t.aspectRatios)
             comboItem(aspect, text);
         SendMessageW(aspect, CB_SETCURSEL, settings.videoAspect, 0);
 
-        HWND integer = settingsControl(L"BUTTON", L"Ganzzahlige Pixelskalierung (hat Vorrang vor Bildformat)",
+        HWND integer = settingsControl(L"BUTTON", t.integerScaleCheck,
                                        973, 210, 156, 600, 28, BS_AUTOCHECKBOX | WS_TABSTOP);
         SendMessageW(integer, BM_SETCHECK, settings.integerScale ? BST_CHECKED : BST_UNCHECKED, 0);
 
-        HWND smooth = settingsControl(L"BUTTON", L"Weiche Bildskalierung (GDI Halftone)",
+        HWND smooth = settingsControl(L"BUTTON", t.smoothScaleCheck,
                                       974, 210, 190, 500, 28, BS_AUTOCHECKBOX | WS_TABSTOP);
         SendMessageW(smooth, BM_SETCHECK, settings.smoothVideo ? BST_CHECKED : BST_UNCHECKED, 0);
 
-        settingsLabel(L"Stand-Alone-Skalierungsfaktor (--gui)", 210, 232);
+        settingsLabel(t.scaleFactorLabel, 210, 232);
         HWND scale = settingsControl(L"COMBOBOX", L"", 976, 210, 258, 300, 120, CBS_DROPDOWNLIST | WS_TABSTOP);
-        for (auto text : {L"2× (480 × 320)", L"3× (720 × 480, Standard)", L"4× (960 × 640)"})
+        for (auto text : t.scaleFactors)
             comboItem(scale, text);
         SendMessageW(scale, CB_SETCURSEL, settings.scaleIndex, 0);
 
-        settingsLabel(L"Display-Decoder", 210, 300);
-        HWND decoder = settingsControl(L"COMBOBOX", L"", 977, 210, 326, 420, 150, CBS_DROPDOWNLIST | WS_TABSTOP);
-        for (auto text : {
-            L"Automatisch (Standard, 12-Bit LCD / 16-Bit RGB565)",
-            L"RGB444, 480-Byte Zeilen (Diagnose)",
-            L"RGB444 gepackt, 360-Byte Zeilen (Diagnose)",
-            L"RGB565, 480-Byte Zeilen (Diagnose)",
-            L"Nur LCD-Register (Diagnose)"
-        }) comboItem(decoder, text);
+        settingsLabel(t.decoderLabel, 210, 300);
+        HWND decoder = settingsControl(L"COMBOBOX", L"", 977, 210, 326, 460, 150, CBS_DROPDOWNLIST | WS_TABSTOP);
+        for (auto text : t.decoders) comboItem(decoder, text);
         SendMessageW(decoder, CB_SETCURSEL, settings.displayFormat, 0);
     } else if (settingsPage == 4) {
-        settingsLabel(L"CPU- & Peripherie-Timing", 210, 20);
-        HWND timing = settingsControl(L"COMBOBOX", L"", 978, 210, 48, 520, 160, CBS_DROPDOWNLIST | WS_TABSTOP);
-        for (auto text : {
-            L"Automatische ROM-Einstellungen (Standard)",
-            L"Standard: 1× (20 MIPS Basis)",
-            L"Automatische Register-Takte (experimentell)",
-            L"Mehr CPU-Arbeit: 2× (40 MIPS)",
-            L"Mehr CPU-Arbeit: 4× (80 MIPS)",
-            L"Mehr CPU-Arbeit: 8× (160 MIPS, schneller Kampf in Wade Hixton)"
-        }) comboItem(timing, text);
+        settingsLabel(t.timingHeader, 210, 20);
+        HWND timing = settingsControl(L"COMBOBOX", L"", 978, 210, 48, 560, 160, CBS_DROPDOWNLIST | WS_TABSTOP);
+        for (auto text : t.timingModes) comboItem(timing, text);
         SendMessageW(timing, CB_SETCURSEL, settings.timingMode, 0);
 
-        HWND fps = settingsControl(L"BUTTON", L"FPS- & Audio-Metriken in sessions\\performance.csv protokollieren",
+        HWND fps = settingsControl(L"BUTTON", t.fpsLogCheck,
                                    979, 210, 96, 600, 28, BS_AUTOCHECKBOX | WS_TABSTOP);
         SendMessageW(fps, BM_SETCHECK, settings.fpsLog ? BST_CHECKED : BST_UNCHECKED, 0);
 
-        HWND dbg = settingsControl(L"BUTTON", L"Erweitertes Debug-Logging in sessions\\session.log aktivieren",
+        HWND dbg = settingsControl(L"BUTTON", t.debugLogCheck,
                                    965, 210, 132, 600, 28, BS_AUTOCHECKBOX | WS_TABSTOP);
         SendMessageW(dbg, BM_SETCHECK, settings.debugLog ? BST_CHECKED : BST_UNCHECKED, 0);
 
-        settingsLabel(L"Hinweis: Änderungen am Timing-Modus oder Display-Decoder werden beim nächsten Start bzw. Neustart (Strg+R) des ROMs übernommen.", 210, 185, 620, 48);
+        settingsLabel(t.timingNote, 210, 185, 620, 48);
     } else {
-        settingsLabel(L"Kurztasten & Steuerung", 210, 20);
-        settingsLabel(
-            L"• Strg+O: ROM laden    ·    Strg+R: Spiel neu starten\n"
-            L"• ROM-Datei ins Fenster ziehen: Spiel direkt per Drag & Drop starten\n"
-            L"• F11 oder Alt+Eingabe: Vollbild umschalten\n"
-            L"• Esc: Vollbild verlassen / Pause\n"
-            L"• F5: Pause / Weiter    ·    F6: Einzelner CPU-Schritt    ·    F7: Snapshot speichern\n"
-            L"• F8 / L2: Rücklauf    ·    F9: Stopp    ·    F10: Play/Pause    ·    F12 / R2: Vorlauf\n\n"
-            L"Unter 'Steuerung' lassen sich Xbox-, Stadia-, PlayStation- und USB-Controller sowie alle Tastaturtasten frei anlernen.",
-            210, 56, 620, 240);
+        settingsLabel(t.hotkeysHeader, 210, 20);
+        settingsLabel(t.hotkeysBody, 210, 56, 620, 240);
     }
     InvalidateRect(settingsWindow, nullptr, TRUE);
 }
@@ -722,9 +1272,11 @@ static void drawController(HDC dc) {
     g.DrawString(L"L / L2", -1, &smallFont, RectF(px(80.0f), py(410.0f), pr(175.0f), 18.0f), &centered, lPressed ? &highlight : &labelBrush);
     g.DrawString(L"R / R2", -1, &smallFont, RectF(px(1025.0f), py(410.0f), pr(175.0f), 18.0f), &centered, rPressed ? &highlight : &labelBrush);
 
-    const wchar_t* name = (info && info->stadia) ? L"Google Stadia Controller" : (info ? info->name.c_str() : L"Controller");
+    const wchar_t* name = (info && info->stadia)
+        ? L"Google Stadia Controller"
+        : (info ? (info->key == L"keyboard" ? tr().keyboardOnlyItem : info->name.c_str()) : L"Controller");
     g.DrawString(name, -1, &font, RectF(210.0f, 103.0f, 620.0f, 20.0f), &centered, &labelBrush);
-    g.DrawString(input.connected ? L"Verbunden · Eingaben werden live hervorgehoben" : L"Kein verbundenes Eingabegerät",
+    g.DrawString(input.connected ? tr().controllerConnectedStatus : tr().controllerDisconnectedStatus,
                  -1, &smallFont, RectF(210.0f, 293.0f, 620.0f, 19.0f), &centered, &labelBrush);
 }
 
@@ -753,6 +1305,24 @@ static LRESULT CALLBACK settingsProc(HWND h, UINT message, WPARAM w, LPARAM l) {
         }
         if (event == CBN_SELCHANGE) {
             const auto value = static_cast<unsigned>(SendMessageW(reinterpret_cast<HWND>(l), CB_GETCURSEL, 0, 0));
+            if (id == 915 && value < 7) {
+                settings.language = value;
+                saveSettings();
+                if (window) {
+                    HMENU newMenu = makeMenu();
+                    if (!mainFullscreen) {
+                        SetMenu(window, newMenu);
+                        DrawMenuBar(window);
+                    }
+                    if (mainMenu) DestroyMenu(mainMenu);
+                    mainMenu = newMenu;
+                    if (!process) setIdleTitle();
+                    InvalidateRect(window, nullptr, TRUE);
+                }
+                SetWindowTextW(h, tr().settingsWindowTitle);
+                rebuildSettings();
+                return 0;
+            }
             if (id == 960 && value < input.controllers.size()) {
                 input.select(input.controllers[value].key);
                 settings.savedController = input.key();
@@ -801,14 +1371,14 @@ static LRESULT CALLBACK settingsProc(HWND h, UINT message, WPARAM w, LPARAM l) {
             learnAction = id - 980;
             learnKeyboard = false;
             previousPad = input.poll();
-            SetWindowTextW(learningLabel, L"Jetzt einen Controller-Knopf oder eine Richtung drücken … (Esc: Abbrechen)");
+            SetWindowTextW(learningLabel, tr().pressControllerPrompt);
             SetFocus(h);
             return 0;
         }
         if (id >= 1000 && id < 1012) {
             learnAction = id - 1000;
             learnKeyboard = true;
-            SetWindowTextW(learningLabel, L"Jetzt eine Tastaturtaste drücken … (Esc: Abbrechen)");
+            SetWindowTextW(learningLabel, tr().pressKeyboardPrompt);
             SetFocus(h);
             return 0;
         }
@@ -875,6 +1445,7 @@ static LRESULT CALLBACK settingsProc(HWND h, UINT message, WPARAM w, LPARAM l) {
 static void showSettings(int page = 0) {
     settingsPage = page;
     if (settingsWindow) {
+        SetWindowTextW(settingsWindow, tr().settingsWindowTitle);
         rebuildSettings();
         SetForegroundWindow(settingsWindow);
         return;
@@ -890,7 +1461,7 @@ static void showSettings(int page = 0) {
     RECT rect{0, 0, 850, 595};
     AdjustWindowRect(&rect, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, FALSE);
     settingsWindow = CreateWindowW(
-        wc.lpszClassName, L"OceanBlast — Einstellungen",
+        wc.lpszClassName, tr().settingsWindowTitle,
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
         CW_USEDEFAULT, CW_USEDEFAULT,
         rect.right - rect.left, rect.bottom - rect.top,
@@ -1064,7 +1635,7 @@ static int run() {
     AdjustWindowRect(&r, WS_OVERLAPPEDWINDOW, TRUE);
     window = CreateWindowW(
         cls.lpszClassName,
-        L"OceanBlast — Strg+O: ROM öffnen, ROM hierher ziehen",
+        tr().idleWindowTitle,
         WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
         CW_USEDEFAULT, CW_USEDEFAULT,
         r.right - r.left, r.bottom - r.top,

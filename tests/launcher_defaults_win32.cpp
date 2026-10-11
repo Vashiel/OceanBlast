@@ -83,6 +83,7 @@ static void CALLBACK inspect(HWND, UINT, UINT_PTR timer, DWORD) {
     using namespace oceanblast::launcher;
     KillTimer(nullptr, timer);
 
+    check("Launcher default language is English (0)", settings.language == 0);
     check("Launcher audio enabled", SendMessageW(soundBox, BM_GETCHECK, 0, 0) == BST_CHECKED);
     check("Launcher automatic ROM settings", SendMessageW(timingBox, CB_GETCURSEL, 0, 0) == 0);
     check("Launcher plain window", SendMessageW(windowModeBox, CB_GETCURSEL, 0, 0) == 2);
@@ -106,6 +107,24 @@ static void CALLBACK inspect(HWND, UINT, UINT_PTR timer, DWORD) {
         }
     }
     check("All 6 settings categories build cleanly", allPagesOk);
+
+    bool allLanguagesOk = true;
+    for (unsigned lang : {1u, 2u, 3u, 4u, 5u, 6u, 0u}) {
+        showSettings(0);
+        HWND langCombo = GetDlgItem(settingsWindow, 915);
+        if (!langCombo || SendMessageW(langCombo, CB_GETCOUNT, 0, 0) != 7) {
+            allLanguagesOk = false;
+            break;
+        }
+        SendMessageW(langCombo, CB_SETCURSEL, lang, 0);
+        SendMessageW(settingsWindow, WM_COMMAND, MAKEWPARAM(915, CBN_SELCHANGE), reinterpret_cast<LPARAM>(langCombo));
+        if (settings.language != lang) allLanguagesOk = false;
+        wchar_t title[256]{};
+        GetWindowTextW(settingsWindow, title, 256);
+        if (std::wstring(title) != kUiText[lang].settingsWindowTitle) allLanguagesOk = false;
+    }
+    check("All 7 UI languages switch live and persist cleanly", allLanguagesOk && settings.language == 0);
+
     if (settingsWindow) DestroyWindow(settingsWindow);
 
     PostMessageW(window, WM_CLOSE, 0, 0);
