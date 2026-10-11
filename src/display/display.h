@@ -104,6 +104,8 @@ private:
     int m_savedX = 0, m_savedY = 0, m_savedW = 0, m_savedH = 0;
     uint32_t m_mouseMask = 0;
     uint32_t m_gamepadMask = 0;
+    uint64_t m_lastEventPollMs = 0;
+    uint64_t m_lastInputPollMs = 0;
     std::array<uint32_t, 256> m_keyboardButtons{};
     uint64_t m_previousPresented = 0;
     unsigned m_sourceHeight = LCD_HEIGHT;

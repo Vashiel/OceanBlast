@@ -207,5 +207,33 @@ int main() {
       uint64_t elapsed=0;while(b.getMmio(0x4b000094)){auto next=b.ticksUntilEvent();b.tick(next);elapsed+=next;}
       check("Idle DMA advancement captures every sample before completion",samples==16 && elapsed==uint64_t(32)*20000000/22050/4);
     }
+    { Bus b;ARM920T c(b);
+      c.setReg(0,25);
+      arm(b,c,0xee000190); // fltd f0, r0 (25.0)
+      arm(b,c,0xee10118a); // mufd f1, f0, #2.0 (50.0)
+      arm(b,c,0xee01118d); // adfd f1, f1, #5.0 (55.0)
+      arm(b,c,0xee102171); // fixz r2, f1 (55)
+      arm(b,c,0xee91f119); // cmf f1, #1.0 (GT -> C=1, Z=0, N=0, V=0)
+      check("FPA11 FLT/MUF/ADF/FIX/CMF executes in hardware",c.getReg(2)==55 && ((c.getCPSR()>>28)&0xF)==0x2);
+      c.setReg(3,0x30020000);
+      arm(b,c,0xed830100); // stfs f0, [r3]
+      arm(b,c,0xed831182); // stfd f1, [r3, #8]
+      arm(b,c,0xed932100); // ldfs f2, [r3]
+      arm(b,c,0xed933182); // ldfd f3, [r3, #8]
+      arm(b,c,0xee024183); // adfd f4, f2, f3 (25.0 + 55.0 = 80.0)
+      arm(b,c,0xee104174); // fixz r4, f4 (80)
+      check("FPA11 LDFS/STFS/LDFD/STFD preserves mixed-endian double layout",c.getReg(4)==80);
+      c.setReg(5,0x30020100);
+      arm(b,c,0xed252206); // sfm f2, 2, [r5, #-24]!
+      arm(b,c,0xee00a188); // mvfd f2, #0.0
+      arm(b,c,0xee00b188); // mvfd f3, #0.0
+      arm(b,c,0xecb52206); // lfm f2, 2, [r5], #24
+      arm(b,c,0xee026183); // adfd f6, f2, f3 (80.0)
+      arm(b,c,0xee106176); // fixz r6, f6 (80)
+      check("FPA11 SFM/LFM round-trips 12-byte register frames and writeback",c.getReg(6)==80 && c.getReg(5)==0x30020100);
+      c.setFpa11Execution(false);
+      b.write32(0x100,0xee000190);c.setReg(15,0x100);c.step(0);
+      check("Disabling FPA11 falls back to Undefined Instruction trap",c.getPC()==0x04 && (c.getCPSR()&0x1F)==0x1B);
+    }
     std::cout << failures << " failure(s)\n";return failures?1:0;
 }

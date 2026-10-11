@@ -54,7 +54,7 @@ For the complete chronological engineering log and all 45 technical reports (`do
 | **Pitfall: The Lost Expedition** `[G] (EN)` | Yes | Intro, Title & Gameplay | Plays (slow pacing) | Native 12-bpp LCD444; auto 2× ratio ([docs/21](docs/21_pitfall_original_hardware_reference.md), [docs/34](docs/34_automatic_cartridge_settings.md)) |
 | **Rayman 3** `[G] (M10)` | Yes | Intro, Title & In-Game | Stutters under load | High CPU/blitter load ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/18](docs/18_manual_cartridge_validation.md)) |
 | **Spider-Man: Mysterio's Menace** `[G] (EN)` | Yes | Main Menu, Story & In-Game | Plays (metallic/crackling) | ~17.5 FPS sampled changes at 1× ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/18](docs/18_manual_cartridge_validation.md)) |
-| **Superstar Chefs** `[G] (EN)` | Yes | Menus & Playable Level (~20 FPS) | Smooth at Auto 4× ([docs/44](docs/44_superstar_chefs_analysis_and_fix.md)) | Auto 4× ratio eliminates `AddChannel` + `480×320` collapse (`2.4 -> 19.8 FPS`) & cuts `NWFPE` loading (`23 -> 13 s`) ([docs/44](docs/44_superstar_chefs_analysis_and_fix.md)) |
+| **Superstar Chefs** `[G] (EN)` | Yes | Menus & Playable Level (~16–22 FPS) | Smooth at Auto 3× ([docs/44](docs/44_superstar_chefs_analysis_and_fix.md)) | Hardware FPA11 (`cp1`/`cp2`) + Auto 3× cuts `InitAudio` loading (`14 -> 3 s`) & prevents `480×320` + `AddChannel` collapse at `100%` speed ([docs/44](docs/44_superstar_chefs_analysis_and_fix.md)) |
 | **Wade Hixton's Counter Punch** `[G] (EN)` | Yes | Intro, Menus & First Fight | Improved (`-50%` frame work) | `GPH8 = 1` removes 16-bpp shadow blit (`4.5M -> 2.25M` steps/frame) ([docs/41](docs/41_wade_binary_and_s3c2410fb_analysis.md), [docs/42](docs/42_wade_gph8_lcd_mode.md)) |
 
 ### 2. Video & Combined Game+Video Cartridges
@@ -74,7 +74,7 @@ The Nikko digiBLAST hardware is built around the Samsung S3C2410A / OCEAN-L-20 p
 
 | Subsystem | Hardware Specification | Emulation Status |
 | :--- | :--- | :--- |
-| **CPU Core & MMU** | ARM920T (ARMv4T, 32-bit ARM + 16-bit Thumb, CP15, MMU, 16 KB I/D-Cache) | Interpreter with fast page-cache, AP permission faults (Linux COW), and bounded batches ([docs/05](docs/05_black_screen_investigation.md), [docs/37](docs/37_cpu_fetch_and_interpreter_execution.md)) |
+| **CPU Core, FPA11 & MMU** | ARM920T (ARMv4T, 32-bit ARM + 16-bit Thumb, CP15, MMU, 16 KB I/D-Cache) | Interpreter with fast page-cache, direct FPA11 (`cp1`/`cp2`) execution, AP faults (Linux COW), and bounded batches ([docs/05](docs/05_black_screen_investigation.md), [docs/37](docs/37_cpu_fetch_and_interpreter_execution.md), [docs/44](docs/44_superstar_chefs_analysis_and_fix.md)) |
 | **Memory & Boot** | 4 KB Steppingstone SRAM (`0x00000000`), 32 MB SDRAM (`0x30000000`) | Autonomous 4 KB NAND boot copy, SDRAM mirroring (`0x32000000`), and MMIO bus ([docs/01](docs/01_memory_map.md)) |
 | **NAND Flash** | S3C2410 NAND (`0x4E000000`), Toshiba TC58 / Samsung K9 (16–128 MB) | Read ID (`0x90` for `nidc`), 512+16 raw OOB passthrough, and 1-bit Hamming ECC synthesis ([docs/03](docs/03_boot_progress.md), [docs/39](docs/39_photographed_cartridge_hardware.md)) |
 | **Clocks & Timer 4** | PLL (`MPLLCON`, `CLKDIVN`) & PWM Timer 4 (`0x51000000`, `HZ=200`) | Register-derived FCLK/HCLK/PCLK, 200-Hz IRQ 14, and 1-µs `TCNTO4` interpolation ([docs/17](docs/17_timer_and_runtime_validation.md), [docs/23](docs/23_register_clocks_and_iis_pause.md), [docs/41](docs/41_wade_binary_and_s3c2410fb_analysis.md)) |

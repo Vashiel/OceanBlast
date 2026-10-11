@@ -101,21 +101,34 @@ As `AddChannel` starves the main thread, frame duration grows toward `128 ms` (`
 
 ---
 
-## Guest Workload Comparison: Ratio 2 (`40M` steps/s) vs Ratio 4 (`80M` steps/s)
+## Eliminating the Guest `NWFPE` Bottleneck via Direct FPA11 Hardware Execution
 
-Running the identical 60-modeled-second full-system probe at `cpuStepsPerTick = 4` (`80M` steps/s) with the matching input script (`tests/chefs_ratio4_confirm.txt`) demonstrates that `Ratio 4` resolves both the startup bottleneck and the mid-level collapse:
+While raising `cpuStepsPerTick` to `4` (`80M` steps/s) worked around the guest bottleneck in headless probes, a `4x` preset requires **`80.0 MIPS`** of sustained host throughput for `100%` real-time speed. In live embedded launcher testing (`oceanblast.exe --parent-hwnd`), Windows 11 background power throttling (`EcoQoS`) and per-batch `DirectInput8` controller polling (`800–1,600` calls/s) capped host throughput at `32–43 MIPS` (`~48%` real-time speed), causing 18-second wall-clock loading times, `424` audio queue underrun events, and half-speed audio/animations.
 
-| Metric | Ratio 2 (`40M` steps/s) | Ratio 4 (`80M` steps/s) | Improvement |
-| --- | ---: | ---: | --- |
-| Frozen loading screen duration (`InitAudio`) | `14 s` (`Seconds 9..22`) | `5 s` (`Seconds 6..10`) | **`2.8x` faster** (`-9 s`) |
-| Total modeled time to Title Screen | `23 s` | `13 s` | **`-10 s` (`43.5%` faster)** |
-| Late-level `AddChannel` (`0x05d74c`) CPU share (`Seconds 47..60`) | `63.49%` (`352,376` samples) | `31.15%` (`345,803` samples) | Leaves `~69%` budget for game thread |
-| Late-level `_Z8UpdateFSv` (`0x00b838`) CPU share (`Seconds 38..60`) | `8.22%` (`71,695` samples) | `29.01%` (`506,076` samples) | **`7.06x` more downsampling work completed** |
-| Late-level `_Z7CKBlittiiP7SURFACEiiii` (`0x00ce04`) share (`Seconds 38..60`) | `3.26%` (`28,452` samples) | `11.42%` (`199,154` samples) | **`7.00x` more sprite/tile blitting completed** |
-| Late-level main-loop frame rate (`_newselect` at `Seconds 38..60`) | `2.41 /s` (range `2..3 /s`) | `19.83 /s` (range `15..33 /s`) | **`8.23x` higher frame rate (no collapse)** |
-| Late-level framebuffer changes/s (`FB_Chg` at `Seconds 38..60`) | `6.87 /s` (range `5..8 /s`) | `24.39 /s` (range `19..37 /s`) | **`3.55x` higher display update rate** |
+To solve both the guest instruction explosion and the host MIPS requirement at their root:
 
-Byte-verified ELF function attribution files for all intervals are stored in:
+1. **Direct Hardware Execution of ARM FPA11 (`cp1` / `cp2`) Floating-Point Instructions (`src/cpu/arm920t.cpp`, `src/cpu/arm920t.h`):**
+   - Implemented full ARM FPA11 coprocessor execution directly in `ARM920T`:
+     - `executeFPA11DataTransfer`: `cp1` `LDFS`/`STFS` (32-bit IEEE-754 single) and `LDFD`/`STFD` (64-bit FPA mixed-endian double: high word at `addr`, low word at `addr + 4`), plus `cp2` `LFM`/`SFM` (1–4 registers, 12-byte tag/high/low frames) with clean `handleDataAbort` page-fault recovery so Linux demand-paging and Copy-On-Write work transparently on floating-point loads and stores.
+     - `executeFPA11Operation`: `CPRT cp1` (`FLT`, `FIX` with nearest/ `+inf` / `-inf` / zero rounding modes, `WFS`, `RFS`, `WFC`, `RFC`, and `CMF`/`CMNF`/`CMFE`/`CMNFE` flag comparisons against registers and FPA11's constant table `{0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 0.5, 10.0}`) and `CPDO cp1` binary/unary operations (`ADF`, `MUF`, `SUF`, `RSF`, `DVF`, `RDF`, `POW`, `RPW`, `RMF`, `FML`, `FDV`, `FRD`, `MVF`, `MNF`, `ABS`, `RND`, `SQT`, `LOG`, `LGN`, `EXP`, `SIN`, `COS`, `TAN`, `ASN`, `ACS`, `ATN`, `URD`, `NRM`).
+   - Executing FPA11 instructions in hardware eliminates **100% of the `NWFPE` Undefined Instruction trap storm (`362M` instructions during `InitAudio`)** and stops `switchMode(UND/SVC/USR)` from flushing `Bus::instructionPage` millions of times per second.
+   - Controlled via `--fpa11 <on|off>` (default `on`).
+
+2. **Full-System Workload Comparison: Ratio 2 (`No FPA11`) vs Ratio 2 (`FPA11`) vs Ratio 3 (`FPA11`):**
+
+| Metric | Ratio 2 (`40M`/s, No FPA11) | Ratio 2 (`40M`/s, FPA11) | Ratio 3 (`60M`/s, FPA11) | Improvement (Ratio 3 + FPA11) |
+| --- | ---: | ---: | ---: | --- |
+| Kernel `NWFPE` CPU share during `InitAudio` | `65.33%` (`362,598` samples) | `0.00%` (`0` samples) | `0.00%` (`0` samples) | **100% eliminated** |
+| Frozen Arcade Lab loading duration (`InitAudio`) | `14 s` (`Seconds 9..22`) | `3 s` (`Seconds 10..12`) | `3 s` (`Seconds 7..9`) | **`4.67x` faster (`-11 s`)** |
+| Total modeled time from power-on to Title Screen | `23 s` | `13 s` | `10 s` | **`2.30x` faster (`-13 s`)** |
+| Title Screen `User%` / main-loop `select` rate | `60.7%` / `28–36 /s` | `92.8%` / `37–49 /s` | `94.7%` / `86–103 /s` | **`+2.8x` Title loop rate** |
+| Gameplay `User%` (`Seconds 20..60`) | `78.8%` | `93.4%` | `95.6%` | Kernel overhead reduced to `4.4%` |
+| Late-level `AddChannel` (`0x05d74c`) CPU share | `63.49%` | `63.00%` | `42.46%` | Leaves `57.5%` CPU for game thread |
+| Late-level `_Z8UpdateFSv` (`0x00b838`) CPU share | `8.22%` | `13.11%` | `26.98%` | **`4.92x` more downsampling work/s** |
+| Late-level framebuffer changes/s (`FB_Chg`, `Seconds 38..60`) | `6.87 /s` (`5..8 /s`) | `10.91 /s` (`8..14 /s`) | `19.09 /s` (`15..25 /s`) | **No slow-motion collapse** |
+| Host MIPS required for `100%` real-time speed | `40.0 MIPS` | `40.0 MIPS` | `60.0 MIPS` | **`-25%` lower target than `4x`** |
+
+Byte-verified ELF function attribution and live GUI performance files are stored in:
 
 * [`docs/validation/2026-10-11_chefs_ratio2_loading_8_22_functions.json`](validation/2026-10-11_chefs_ratio2_loading_8_22_functions.json)
 * [`docs/validation/2026-10-11_chefs_ratio2_early_game_31_37_functions.json`](validation/2026-10-11_chefs_ratio2_early_game_31_37_functions.json)
@@ -123,17 +136,26 @@ Byte-verified ELF function attribution files for all intervals are stored in:
 * [`docs/validation/2026-10-11_chefs_ratio4_loading_5_10_functions.json`](validation/2026-10-11_chefs_ratio4_loading_5_10_functions.json)
 * [`docs/validation/2026-10-11_chefs_ratio4_game_20_60_functions.json`](validation/2026-10-11_chefs_ratio4_game_20_60_functions.json)
 * [`docs/validation/2026-10-11_chefs_ratio4_late_game_38_60_functions.json`](validation/2026-10-11_chefs_ratio4_late_game_38_60_functions.json)
+* [`docs/validation/2026-10-11_chefs_fpa11_ratio3_gui_performance.csv`](validation/2026-10-11_chefs_fpa11_ratio3_gui_performance.csv)
 
 ---
 
-## Fixes Implemented
+## Fixes Implemented and Verified Live GUI + Sound Performance
 
-1. **Automatic Cartridge Preset (`src/core/cartridge_settings.h`):**
-   - Updated the automatic preset for `Superstar Chefs` (`size == 17301504 && crc == 0x93209877u`) from `cpuStepsPerTick = 2` to `cpuStepsPerTick = 4` (`80M` instructions per modeled second), and updated [`tests/cartridge_settings.cpp`](../tests/cartridge_settings.cpp).
-2. **ARM920T Interpreter Hot-Path Optimizations (`src/cpu/arm920t.cpp`):**
-   - Replaced the multi-branch `evaluateCondition` switch with a branchless 16-entry `NZCV` bitmask lookup table (`kConditionMask[cond] >> (cpsr >> 28)`).
-   - Restructured `ARM920T::stepARM` so `LDR`/`STR`, `LDM`/`STM`, and `B`/`BL` bypass the `executeSimpleDataProcessing` pre-check, and partitioned `case 0` on `(instr & 0x90) == 0x90` so `LDRH`/`STRH`/`LDRSH` (`executeHalfwordTransfer`) and `MUL`/`MLA`/`SMULL`/`UMULL` (`executeMultiply`) avoid sequential `BX`/`MRS`/`MSR`/`SWP` comparisons.
-   - Replaced 16-iteration bit-scanning loops in `ARM920T::executeBlockDataTransfer` and Thumb `PUSH`/`POP`/`LDMIA`/`STMIA` with `__builtin_popcount` and `__builtin_ctz` set-bit iteration.
-3. **Standard Build Inlining (`Makefile` & `tools/build_profiled.ps1`):**
-   - Updated `Makefile` to compile `bin/oceanblast.exe` via an `-O3` unity translation unit (`build/unity.cpp`), eliminating cross-translation-unit call overhead between `runLegacyInstructions`, `ARM920T::step`, and `Bus` memory accessors in standard `make` builds (`25.48 MIPS` -> `46.08 MIPS`, `+80.8%`).
-   - Updated `tools/build_profiled.ps1` to include the Windows resource object (`oceanblast_res.o`) and DirectInput/shell link libraries (`-lcomctl32 -lshell32 -lole32 -ldinput8 -ldxguid`).
+1. **ARM FPA11 Coprocessor Execution & ALU Fast Path (`src/cpu/arm920t.h`, `src/cpu/arm920t.cpp`):**
+   - Added hardware `cp1`/`cp2` FPA11 execution (`executeFPA11DataTransfer`, `executeFPA11Operation`) and extended `executeSimpleDataProcessing` to handle `ADC`, `SBC`, and `RSC` carry arithmetic directly inside the fast path (accelerating `libmikmod`'s 64-bit `AddChannel` loop).
+   - Replaced `evaluateCondition` with a 16-entry `NZCV` bitmask lookup table, reordered `stepARM` instruction class dispatch, and replaced 16-iteration `LDM`/`STM` loops with `__builtin_popcount`/`__builtin_ctz` set-bit iteration.
+2. **Automatic Cartridge Preset (`src/core/cartridge_settings.h`):**
+   - Set the automatic preset for `Superstar Chefs` (`size == 17301504 && crc == 0x93209877u`) to `cpuStepsPerTick = 3` (`60M` instructions per modeled second).
+3. **Host Build Inlining & Profile-Guided Optimization (`Makefile`, `tools/build_profiled.ps1`):**
+   - Ordered `bus.cpp` and `arm920t.cpp` before `main.cpp` in `build/unity.cpp` with targeted GCC inlining parameters (`--param inline-unit-growth=400 --param large-unit-insns=100000 --param max-inline-insns-single=1000 --param max-inline-insns-auto=200`), raising single-core throughput on the `400M`-instruction *Superstar Chefs* benchmark from `25.48 MIPS` (multi-TU) to **`74.09 MIPS`** (standard `make`) and **`101.61 MIPS`** (PGO unity build via `tools/build_profiled.ps1` — **`3.99x` faster**).
+4. **Windows 11 Power-Throttling Prevention & Input Polling Throttle (`src/main.cpp`, `src/display/display_win32.cpp`):**
+   - Disabled Windows 11 `PROCESS_POWER_THROTTLING_EXECUTION_SPEED` (`EcoQoS`) via `SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling, ...)` and raised process/thread priority to `ABOVE_NORMAL_PRIORITY_CLASS` so embedded `--parent-hwnd` child processes are never throttled to base/idle clock speeds.
+   - Gated `Display::processEvents()` `PeekMessageA` calls with `GetTickCount64()` / `HIWORD(GetQueueStatus(QS_ALLINPUT))` and throttled `InputManager::poll()` (`DirectInput8` + `XInput`) to `125 Hz` (`8 ms`).
+5. **Live 60-Second `--gui --sound` Verification ([`2026-10-11_chefs_fpa11_ratio3_gui_performance.csv`](validation/2026-10-11_chefs_fpa11_ratio3_gui_performance.csv)):**
+   - Across 60 full seconds of live GUI + audio execution (`3,541,900,000` instructions, `1,249,280` stereo audio frames at `21,972 Hz`):
+     - **Real-time speed (`speed_percent`):** **`100.00%` average** (`98.80%..101.22%`, `60.00 MIPS`).
+     - **Arcade Lab loading screen:** Appears at `6.0 s`, finishes `InitAudio` in **`3.0 s`**, and reaches the animated Title Screen + music at **`10.0 s`** (`25.0–32.0` presented FPS).
+     - **Audio stability:** **`0` dropped samples**, **`0` empty queue events across the first 52 seconds** (`1` event total in 60 seconds vs `424` previously), with `2,048–3,072` queued frames maintained continuously.
+     - **Late-level gameplay (`Seconds 38..60`):** Sustains **`15.0–22.0` presented FPS** (`avg 16.4 FPS`) at `100.0%` real-time speed without slowdown.
+

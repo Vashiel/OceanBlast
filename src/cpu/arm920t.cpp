@@ -2,6 +2,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cstring>
+#include <cmath>
 #include <sstream>
 
 namespace oceanblast {
@@ -21,6 +22,10 @@ ARM920T::~ARM920T() {}
 
 void ARM920T::reset(u32 startAddress) {
     std::memset(r, 0, sizeof(r));
+    for (auto& reg : fpa) {
+        reg = {};
+    }
+    fpaFpsr = 0;
     r[15] = startAddress; // Reset vector (typically 0x00000000 in Steppingstone SRAM)
     r[13] = 0x00000F00;   // Boot stack pointer in Steppingstone SRAM
     cpsr  = 0x000000D3;   // Supervisor (SVC32) mode, ARM state, IRQ/FIQ disabled
@@ -348,13 +353,14 @@ bool ARM920T::executeSimpleDataProcessing(u32 instr) {
     if (!immediate && (instr & (1u << 4))) return false;
     const u32 opcode = (instr >> 21) & 15;
     const bool flags = (instr & (1u << 20)) != 0;
-    // Carry arithmetic and control-register encodings use the general path.
-    if ((opcode >= 5 && opcode <= 7) || (opcode >= 8 && opcode <= 11 && !flags)) return false;
+    // Control-register encodings (TST/TEQ/CMP/CMN without S bit) use the general path.
+    if (opcode >= 8 && opcode <= 11 && !flags) return false;
     const u32 rn = (instr >> 16) & 15;
     const u32 rd = (instr >> 12) & 15;
     const u32 op1 = rn == 15 ? r[15] + 4 : r[rn];
     u32 op2;
     bool carry = (cpsr & FLAG_C) != 0;
+    const bool arithmeticCarry = carry;
     if (immediate) {
         const u32 rotation = ((instr >> 8) & 15) * 2;
         const u32 value = instr & 255;
@@ -388,12 +394,17 @@ bool ARM920T::executeSimpleDataProcessing(u32 instr) {
         }
     }
     u32 result = 0;
+    const u32 adcCarry = arithmeticCarry ? 1u : 0u;
+    const u32 sbcBorrow = arithmeticCarry ? 0u : 1u;
     switch (opcode) {
         case 0: case 8: result = op1 & op2; break;
         case 1: case 9: result = op1 ^ op2; break;
         case 2: case 10: result = op1 - op2; break;
         case 3: result = op2 - op1; break;
         case 4: case 11: result = op1 + op2; break;
+        case 5: result = op1 + op2 + adcCarry; break;
+        case 6: result = op1 - op2 - sbcBorrow; break;
+        case 7: result = op2 - op1 - sbcBorrow; break;
         case 12: result = op1 | op2; break;
         case 13: result = op2; break;
         case 14: result = op1 & ~op2; break;
@@ -404,7 +415,25 @@ bool ARM920T::executeSimpleDataProcessing(u32 instr) {
         if (opcode == 2 || opcode == 10) setSubFlags(op1, op2, result);
         else if (opcode == 3) setSubFlags(op2, op1, result);
         else if (opcode == 4 || opcode == 11) setAddFlags(op1, op2, result);
-        else {
+        else if (opcode == 5) {
+            setNZFlags(result);
+            if (static_cast<u64>(op1) + op2 + adcCarry > 0xFFFFFFFFULL) cpsr |= FLAG_C;
+            else cpsr &= ~FLAG_C;
+            if (((op1 ^ result) & (op2 ^ result) & 0x80000000u) != 0) cpsr |= FLAG_V;
+            else cpsr &= ~FLAG_V;
+        } else if (opcode == 6) {
+            setNZFlags(result);
+            if (static_cast<u64>(op1) >= static_cast<u64>(op2) + sbcBorrow) cpsr |= FLAG_C;
+            else cpsr &= ~FLAG_C;
+            if (((op1 ^ op2) & (op1 ^ result) & 0x80000000u) != 0) cpsr |= FLAG_V;
+            else cpsr &= ~FLAG_V;
+        } else if (opcode == 7) {
+            setNZFlags(result);
+            if (static_cast<u64>(op2) >= static_cast<u64>(op1) + sbcBorrow) cpsr |= FLAG_C;
+            else cpsr &= ~FLAG_C;
+            if (((op2 ^ op1) & (op2 ^ result) & 0x80000000u) != 0) cpsr |= FLAG_V;
+            else cpsr &= ~FLAG_V;
+        } else {
             setNZFlags(result);
             cpsr = (cpsr & ~FLAG_C) | (carry ? FLAG_C : 0);
         }
@@ -529,9 +558,15 @@ void ARM920T::stepARM(u32 instr) {
         case 2: case 3: executeSingleDataTransfer(instr); return;
         case 4: executeBlockDataTransfer(instr); return;
         case 5: executeBranch(instr); return;
+        case 6: {
+            const u32 cp = (instr >> 8) & 15;
+            if (fpa11Execution && (cp == 1 || cp == 2) && executeFPA11DataTransfer(instr)) return;
+            break;
+        }
         case 7:
             if ((instr & 0x0F000000) == 0x0F000000) { executeSWI(instr); return; }
             if ((instr & 0x0F000010) == 0x0E000010 && ((instr >> 8) & 15) == 15) { executeCP15(instr); return; }
+            if (fpa11Execution && ((instr >> 8) & 15) == 1 && executeFPA11Operation(instr)) return;
             break;
     }
     static int unkCount = 0;
@@ -540,6 +575,348 @@ void ARM920T::stepARM(u32 instr) {
                   << " at PC 0x" << pc << std::dec << std::endl;
     }
     handleUndefinedInstruction(instr);
+}
+
+static inline float fpaBitsToFloat(u32 w) {
+    float f = 0.0f;
+    std::memcpy(&f, &w, sizeof(f));
+    return f;
+}
+
+static inline u32 fpaFloatToBits(float f) {
+    u32 w = 0;
+    std::memcpy(&w, &f, sizeof(w));
+    return w;
+}
+
+static inline double fpaWordsToDouble(u32 lo, u32 hi) {
+    const u64 bits = (static_cast<u64>(hi) << 32) | lo;
+    double d = 0.0;
+    std::memcpy(&d, &bits, sizeof(d));
+    return d;
+}
+
+static inline void fpaDoubleToWords(double d, u32& lo, u32& hi) {
+    u64 bits = 0;
+    std::memcpy(&bits, &d, sizeof(bits));
+    lo = static_cast<u32>(bits);
+    hi = static_cast<u32>(bits >> 32);
+}
+
+float ARM920T::readFpaSingle(u32 reg) const {
+    const FpaReg& fr = fpa[reg & 7u];
+    if (fr.type == 1) return fpaBitsToFloat(fr.w0);
+    if (fr.type == 2) return static_cast<float>(fpaWordsToDouble(fr.w0, fr.w1));
+    return 0.0f;
+}
+
+double ARM920T::readFpaDouble(u32 reg) const {
+    const FpaReg& fr = fpa[reg & 7u];
+    if (fr.type == 1) return static_cast<double>(fpaBitsToFloat(fr.w0));
+    if (fr.type == 2) return fpaWordsToDouble(fr.w0, fr.w1);
+    return 0.0;
+}
+
+void ARM920T::writeFpaSingle(u32 reg, float val) {
+    FpaReg& fr = fpa[reg & 7u];
+    fr.type = 1;
+    fr.w0 = fpaFloatToBits(val);
+    fr.w1 = 0;
+}
+
+void ARM920T::writeFpaDouble(u32 reg, double val) {
+    FpaReg& fr = fpa[reg & 7u];
+    fr.type = 2;
+    fpaDoubleToWords(val, fr.w0, fr.w1);
+}
+
+bool ARM920T::executeFPA11DataTransfer(u32 instr) {
+    const u32 cp = (instr >> 8) & 15u;
+    const u32 rn = (instr >> 16) & 15u;
+    const u32 fd = (instr >> 12) & 7u;
+    const u32 offset = (instr & 0xFFu) * 4u;
+    const bool pre = (instr & (1u << 24)) != 0;
+    const bool up = (instr & (1u << 23)) != 0;
+    const bool writeback = (instr & (1u << 21)) != 0 && rn != 15u;
+    const bool isLoad = (instr & (1u << 20)) != 0;
+    const u32 baseVal = (rn == 15u) ? (r[15] + 4u) : r[rn];
+    const u32 wbAddr = up ? (baseVal + offset) : (baseVal - offset);
+    const u32 addr = pre ? wbAddr : baseVal;
+    const u32 tr = ((instr >> 21) & 2u) | ((instr >> 15) & 1u);
+
+    if (cp == 1u) {
+        if (tr == 0u) { // Single (32-bit)
+            lastCycles = 2;
+            if (isLoad) {
+                const u32 w = bus.read32(addr);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                    handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                    bus.clearLastFault();
+                    return true;
+                }
+                fpa[fd] = {1, w, 0};
+            } else {
+                const u32 w = (fpa[fd].type == 2) ? fpaFloatToBits(static_cast<float>(readFpaDouble(fd))) : fpa[fd].w0;
+                bus.write32(addr, w);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                    handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                    bus.clearLastFault();
+                    return true;
+                }
+            }
+        } else if (tr == 1u) { // Double (64-bit, FPA mixed-endian word order: hi at addr, lo at addr + 4)
+            lastCycles = 3;
+            if (isLoad) {
+                const u32 lo = bus.read32(addr + 4u);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                    handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                    bus.clearLastFault();
+                    return true;
+                }
+                const u32 hi = bus.read32(addr);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                    handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                    bus.clearLastFault();
+                    return true;
+                }
+                fpa[fd] = {2, lo, hi};
+            } else {
+                u32 lo = fpa[fd].w0, hi = fpa[fd].w1;
+                if (fpa[fd].type == 1) fpaDoubleToWords(static_cast<double>(fpaBitsToFloat(fpa[fd].w0)), lo, hi);
+                else if (fpa[fd].type == 0) { lo = 0; hi = 0; }
+                bus.write32(addr, hi);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                    handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                    bus.clearLastFault();
+                    return true;
+                }
+                bus.write32(addr + 4u, lo);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                    handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                    bus.clearLastFault();
+                    return true;
+                }
+            }
+        } else {
+            return false;
+        }
+        if (writeback) r[rn] = wbAddr;
+        return true;
+    }
+
+    if (cp == 2u) { // LFM / SFM (3 words = 12 bytes per register)
+        const u32 count = (tr == 0u) ? 4u : tr;
+        lastCycles = 1u + count * 3u;
+        if (isLoad) {
+            FpaReg tmp[4]{};
+            for (u32 i = 0; i < count; ++i) {
+                const u32 a = addr + i * 12u;
+                const u32 tag = bus.read32(a);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                    handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                    bus.clearLastFault();
+                    return true;
+                }
+                const u8 t = static_cast<u8>((tag >> 14) & 3u);
+                u32 lo = 0, hi = 0;
+                if (t == 1u || t == 2u) {
+                    lo = bus.read32(a + 8u);
+                    if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                        handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                        bus.clearLastFault();
+                        return true;
+                    }
+                    hi = bus.read32(a + 4u);
+                    if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                        handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                        bus.clearLastFault();
+                        return true;
+                    }
+                }
+                tmp[i] = {t, lo, hi};
+            }
+            for (u32 i = 0; i < count; ++i) fpa[(fd + i) & 7u] = tmp[i];
+        } else {
+            for (u32 i = 0; i < count; ++i) {
+                const u32 reg = (fd + i) & 7u;
+                const u32 a = addr + i * 12u;
+                if (fpa[reg].type == 1u || fpa[reg].type == 2u) {
+                    bus.write32(a + 8u, fpa[reg].w0);
+                    if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                        handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                        bus.clearLastFault();
+                        return true;
+                    }
+                    bus.write32(a + 4u, fpa[reg].w1);
+                    if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                        handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                        bus.clearLastFault();
+                        return true;
+                    }
+                }
+                bus.write32(a, static_cast<u32>(fpa[reg].type) << 14);
+                if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                    handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                    bus.clearLastFault();
+                    return true;
+                }
+            }
+        }
+        if (writeback) r[rn] = wbAddr;
+        return true;
+    }
+    return false;
+}
+
+bool ARM920T::executeFPA11Operation(u32 instr) {
+    static constexpr double kFpaImm[8] = {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 0.5, 10.0};
+    const u32 prec = ((instr >> 18) & 2u) | ((instr >> 7) & 1u);
+    const u32 rnd = (instr >> 5) & 3u;
+    lastCycles = 1;
+
+    if (instr & 0x10u) { // CPRT cp1
+        if (instr & 0x00800000u) { // CMF / CMNF / CMFE / CMNFE
+            const u32 fn = (instr >> 16) & 7u;
+            const u32 fm = instr & 7u;
+            const double lhs = readFpaDouble(fn);
+            double rhs = (instr & 8u) ? kFpaImm[fm] : readFpaDouble(fm);
+            if (instr & 0x00200000u) rhs = -rhs;
+            u32 flags = 0;
+            if (std::isnan(lhs) || std::isnan(rhs)) {
+                flags = (fpaFpsr & 0x1000u) ? (FLAG_C | FLAG_V) : FLAG_V;
+            } else if (lhs == rhs) {
+                flags = FLAG_Z | FLAG_C;
+            } else if (lhs < rhs) {
+                flags = FLAG_N;
+            } else {
+                flags = FLAG_C;
+            }
+            cpsr = (cpsr & 0x0FFFFFFFu) | flags;
+            return true;
+        }
+        const u32 opc = (instr >> 20) & 7u;
+        const u32 rd = (instr >> 12) & 15u;
+        switch (opc) {
+            case 0: { // FLT Fn, Rd
+                const u32 fn = (instr >> 16) & 7u;
+                const i32 val = static_cast<i32>((rd == 15u) ? (r[15] + 4u) : r[rd]);
+                if (prec == 0u) writeFpaSingle(fn, static_cast<float>(val));
+                else writeFpaDouble(fn, static_cast<double>(val));
+                return true;
+            }
+            case 1: { // FIX Rd, Fm
+                const u32 fm = instr & 7u;
+                const double d = (instr & 8u) ? kFpaImm[fm] : readFpaDouble(fm);
+                double rounded = d;
+                switch (rnd) {
+                    case 0: rounded = std::rint(d); break;
+                    case 1: rounded = std::ceil(d); break;
+                    case 2: rounded = std::floor(d); break;
+                    case 3: rounded = std::trunc(d); break;
+                }
+                i32 out = 0;
+                if (std::isnan(rounded)) out = 0;
+                else if (rounded >= 2147483647.0) out = 2147483647;
+                else if (rounded <= -2147483648.0) out = static_cast<i32>(0x80000000u);
+                else out = static_cast<i32>(rounded);
+                if (rd != 15u) r[rd] = static_cast<u32>(out);
+                return true;
+            }
+            case 2: { // WFS Rd
+                const u32 val = (rd == 15u) ? (r[15] + 4u) : r[rd];
+                fpaFpsr = (fpaFpsr & 0xFF000000u) | (val & 0x00FFFFFFu);
+                return true;
+            }
+            case 3: { // RFS Rd
+                if (rd != 15u) r[rd] = fpaFpsr;
+                return true;
+            }
+            case 4: // WFC
+                return true;
+            case 5: // RFC
+                if (rd != 15u) r[rd] = 0;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    // CPDO cp1
+    const u32 opc = ((instr >> 20) & 15u) | (((instr >> 15) & 1u) << 4);
+    const u32 fd = (instr >> 12) & 7u;
+    const u32 fn = (instr >> 16) & 7u;
+    const u32 fm = instr & 7u;
+
+    if (prec == 0u) { // Single precision
+        const float lhs = readFpaSingle(fn);
+        const float rhs = (instr & 8u) ? static_cast<float>(kFpaImm[fm]) : readFpaSingle(fm);
+        float res = 0.0f;
+        switch (opc) {
+            case 0x00: res = lhs + rhs; break; // ADF
+            case 0x01: case 0x09: res = lhs * rhs; break; // MUF / FML
+            case 0x02: res = lhs - rhs; break; // SUF
+            case 0x03: res = rhs - lhs; break; // RSF
+            case 0x04: case 0x0A: res = lhs / rhs; break; // DVF / FDV
+            case 0x05: case 0x0B: res = rhs / lhs; break; // RDF / FRD
+            case 0x06: res = std::pow(lhs, rhs); break; // POW
+            case 0x07: res = std::pow(rhs, lhs); break; // RPW
+            case 0x08: res = std::remainder(lhs, rhs); break; // RMF
+            case 0x10: case 0x1F: res = rhs; break; // MVF / NRM
+            case 0x11: res = -rhs; break; // MNF
+            case 0x12: res = std::fabs(rhs); break; // ABS
+            case 0x13: case 0x1E: // RND / URD
+                res = (rnd == 0u) ? std::rint(rhs) : (rnd == 1u) ? std::ceil(rhs) : (rnd == 2u) ? std::floor(rhs) : std::trunc(rhs);
+                break;
+            case 0x14: res = std::sqrt(rhs); break; // SQT
+            case 0x15: res = std::log10(rhs); break; // LOG
+            case 0x16: res = std::log(rhs); break; // LGN
+            case 0x17: res = std::exp(rhs); break; // EXP
+            case 0x18: res = std::sin(rhs); break; // SIN
+            case 0x19: res = std::cos(rhs); break; // COS
+            case 0x1A: res = std::tan(rhs); break; // TAN
+            case 0x1B: res = std::asin(rhs); break; // ASN
+            case 0x1C: res = std::acos(rhs); break; // ACS
+            case 0x1D: res = std::atan(rhs); break; // ATN
+            default: return false;
+        }
+        writeFpaSingle(fd, res);
+        return true;
+    }
+
+    // Double / Extended precision
+    const double lhs = readFpaDouble(fn);
+    const double rhs = (instr & 8u) ? kFpaImm[fm] : readFpaDouble(fm);
+    double res = 0.0;
+    switch (opc) {
+        case 0x00: res = lhs + rhs; break;
+        case 0x01: case 0x09: res = lhs * rhs; break;
+        case 0x02: res = lhs - rhs; break;
+        case 0x03: res = rhs - lhs; break;
+        case 0x04: case 0x0A: res = lhs / rhs; break;
+        case 0x05: case 0x0B: res = rhs / lhs; break;
+        case 0x06: res = std::pow(lhs, rhs); break;
+        case 0x07: res = std::pow(rhs, lhs); break;
+        case 0x08: res = std::remainder(lhs, rhs); break;
+        case 0x10: case 0x1F: res = rhs; break;
+        case 0x11: res = -rhs; break;
+        case 0x12: res = std::fabs(rhs); break;
+        case 0x13: case 0x1E:
+            res = (rnd == 0u) ? std::rint(rhs) : (rnd == 1u) ? std::ceil(rhs) : (rnd == 2u) ? std::floor(rhs) : std::trunc(rhs);
+            break;
+        case 0x14: res = std::sqrt(rhs); break;
+        case 0x15: res = std::log10(rhs); break;
+        case 0x16: res = std::log(rhs); break;
+        case 0x17: res = std::exp(rhs); break;
+        case 0x18: res = std::sin(rhs); break;
+        case 0x19: res = std::cos(rhs); break;
+        case 0x1A: res = std::tan(rhs); break;
+        case 0x1B: res = std::asin(rhs); break;
+        case 0x1C: res = std::acos(rhs); break;
+        case 0x1D: res = std::atan(rhs); break;
+        default: return false;
+    }
+    writeFpaDouble(fd, res);
+    return true;
 }
 
 void ARM920T::executeBranch(u32 instr) {

@@ -70,6 +70,13 @@ int main(int argc, char* argv[]) {
         FreeConsole();
         return oceanblast::launcher::run();
     }
+    SetPriorityClass(GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS);
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
+    PROCESS_POWER_THROTTLING_STATE powerThrottling{};
+    powerThrottling.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+    powerThrottling.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+    powerThrottling.StateMask = 0;
+    SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling, &powerThrottling, sizeof(powerThrottling));
 #endif
     printBanner();
 
@@ -94,6 +101,7 @@ int main(int argc, char* argv[]) {
     bool mmioProfile = false;
     std::string nvramPath;
     bool simpleAluExecution = true;
+    bool fpa11Execution = true;
     int displayFormat = 0; // 0: LCD registers, 1: RGB444, 2: RGB565.
     bool automaticDisplay = true;
     bool coherentFrames = true, gdiPresentation = false;
@@ -192,6 +200,10 @@ int main(int argc, char* argv[]) {
             const std::string value = argv[++i];
             if (value != "on" && value != "off") { std::cerr << "[Error] Invalid ALU mode.\n"; return 1; }
             simpleAluExecution = value == "on";
+        } else if (arg == "--fpa11" && i + 1 < argc) {
+            const std::string value = argv[++i];
+            if (value != "on" && value != "off") { std::cerr << "[Error] Invalid FPA11 mode.\n"; return 1; }
+            fpa11Execution = value == "on";
         } else if (arg == "--host-wait" && i + 1 < argc) {
             const std::string wait = argv[++i];
             if (wait != "timer" && wait != "sleep") { std::cerr << "[Error] Invalid host wait.\n"; return 1; }
@@ -288,6 +300,7 @@ int main(int argc, char* argv[]) {
     oceanblast::ARM920T cpu(bus);
     cpu.reset(0x00000000); // Boot from Steppingstone SRAM
     cpu.setSimpleAluExecution(simpleAluExecution);
+    cpu.setFpa11Execution(fpa11Execution);
     cpu.setCycleTiming(autoTiming);
     cpu.setDebugLogging(debug || trace);
     cpu.setFaultLogging(faultLog);

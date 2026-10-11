@@ -44,11 +44,11 @@ all: $(TARGET)
 
 build/unity.cpp: Makefile
 	@mkdir -p build
-	@printf '#include "../src/main.cpp"\n#include "../src/cpu/arm920t.cpp"\n#include "../src/memory/bus.cpp"\n#include "../src/cartridge/cart_parser.cpp"\n#include "../src/display/display_win32.cpp"\n#include "../src/audio/audio_win32.cpp"\n' > $@
+	@printf '#include "../src/memory/bus.cpp"\n#include "../src/cpu/arm920t.cpp"\n#include "../src/cartridge/cart_parser.cpp"\n#include "../src/display/display_win32.cpp"\n#include "../src/audio/audio_win32.cpp"\n#include "../src/main.cpp"\n' > $@
 
 build/unity.o: build/unity.cpp $(SRCS) $(HEADERS)
 	@mkdir -p build
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) --param inline-unit-growth=400 --param large-unit-insns=100000 --param max-inline-insns-single=1000 --param max-inline-insns-auto=200 -c $< -o $@
 
 build/framebuffer.exe: src/display/display_profile.h
 

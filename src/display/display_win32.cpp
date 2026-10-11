@@ -321,6 +321,12 @@ bool Display::init(const char* title) {
 void Display::processEvents() {
     if (!m_open || !m_hwnd) return;
 
+    const uint64_t nowMs = GetTickCount64();
+    if (!paused && nowMs == m_lastEventPollMs && !HIWORD(GetQueueStatus(QS_ALLINPUT))) {
+        return;
+    }
+    m_lastEventPollMs = nowMs;
+
     MSG msg;
     while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
         if (msg.message == WM_QUIT) {
@@ -331,7 +337,8 @@ void Display::processEvents() {
         DispatchMessageA(&msg);
     }
 
-    if (m_open && m_inputManager) {
+    if (m_open && m_inputManager && (paused || nowMs - m_lastInputPollMs >= 8)) {
+        m_lastInputPollMs = nowMs;
         auto* mgr = static_cast<win::InputManager*>(m_inputManager);
         const auto pad = mgr->poll();
         gamepadButtons(win::mapPad(pad, m_padMap));

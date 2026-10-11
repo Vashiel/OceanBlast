@@ -23,6 +23,7 @@ public:
     // Normal execution retains one peripheral tick per step.
     void step(size_t peripheralTicks = 1);
     void setSimpleAluExecution(bool enabled) { simpleAluExecution = enabled; }
+    void setFpa11Execution(bool enabled) { fpa11Execution = enabled; }
     void setCycleTiming(bool enabled) { cycleTiming = enabled; waitingForInterrupt = false; }
     uint32_t getControlRegister() const { return cp15_control; }
     uint32_t getExecutionClock() const {
@@ -60,6 +61,20 @@ private:
     u32 spsr;
     bool halted;
     bool simpleAluExecution = true;
+    bool fpa11Execution = true;
+    struct FpaReg {
+        u8 type = 0; // 0: None, 1: Single, 2: Double
+        u32 w0 = 0;  // Single IEEE-754 bits or Double low 32 bits
+        u32 w1 = 0;  // Double high 32 bits
+    };
+    FpaReg fpa[8]{};
+    u32 fpaFpsr = 0;
+    float readFpaSingle(u32 reg) const;
+    double readFpaDouble(u32 reg) const;
+    void writeFpaSingle(u32 reg, float val);
+    void writeFpaDouble(u32 reg, double val);
+    bool executeFPA11DataTransfer(u32 instruction);
+    bool executeFPA11Operation(u32 instruction);
     bool executeSimpleDataProcessing(u32 instruction);
     bool cycleTiming = false, waitingForInterrupt = false;
     uint32_t lastCycles = 1;

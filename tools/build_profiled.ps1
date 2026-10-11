@@ -21,14 +21,16 @@ $outputRoot = Join-Path $projectRoot $outputRelative
 $profileRoot = Join-Path $outputRoot 'data'
 New-Item -ItemType Directory -Force -Path $profileRoot | Out-Null
 $executable = Join-Path $outputRoot 'oceanblast_profiled.exe'
-$sources = @('src/main.cpp','src/cpu/arm920t.cpp','src/memory/bus.cpp','src/cartridge/cart_parser.cpp','src/display/display_win32.cpp','src/audio/audio_win32.cpp')
+$sources = @('src/memory/bus.cpp','src/cpu/arm920t.cpp','src/cartridge/cart_parser.cpp','src/display/display_win32.cpp','src/audio/audio_win32.cpp','src/main.cpp')
+$unityFlags = @()
 if ($Unity) {
     $unitySource = Join-Path $outputRoot 'unity.cpp'
     ($sources | ForEach-Object { '#include "../../' + $_ + '"' }) | Set-Content -LiteralPath $unitySource -Encoding utf8
     $sources = @($outputRelative + '/unity.cpp')
+    $unityFlags = @('--param','inline-unit-growth=400','--param','large-unit-insns=100000','--param','max-inline-insns-single=1000','--param','max-inline-insns-auto=200')
 }
 $resObj = $outputRelative + '/oceanblast_res.o'
-$common = @('-std=c++17','-Wall','-Wextra',('-' + $Optimization),'-Isrc') + $sources + @($resObj,'-lgdi32','-luser32','-lwinmm','-lcomdlg32','-lcomctl32','-lshell32','-lole32','-ldinput8','-ldxguid','-ld3d11','-ldxgi','-ld3dcompiler','-lgdiplus','-o',($outputRelative + '/oceanblast_profiled.exe'))
+$common = @('-std=c++17','-Wall','-Wextra',('-' + $Optimization),'-Isrc') + $unityFlags + $sources + @($resObj,'-lgdi32','-luser32','-lwinmm','-lcomdlg32','-lcomctl32','-lshell32','-lole32','-ldinput8','-ldxguid','-ld3d11','-ldxgi','-ld3dcompiler','-lgdiplus','-o',($outputRelative + '/oceanblast_profiled.exe'))
 $profileOption = $profileRoot.Replace('\','/')
 Push-Location $projectRoot
 try {
