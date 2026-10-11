@@ -85,6 +85,10 @@ public:
     bool isUserMode() const { return userMode; }
 
     void flushTlb() const;
+    inline void flushTlbEntry(u32 va) const {
+        instructionPage = UINT32_MAX;
+        tlb[(va >> 12) & (TLB_SIZE - 1)].valid = false;
+    }
     void setMmuEnabled(bool en) { mmuEnabled = en; flushTlb(); }
     void setTtb(u32 val) { ttb = val; flushTlb(); }
     u32  getTtb() const { return ttb; }
@@ -373,6 +377,7 @@ private:
     };
     static constexpr size_t TLB_SIZE = 2048;
     mutable std::array<TlbEntry, TLB_SIZE> tlb = {};
+    mutable bool tlbEmpty = true;
     mutable u32 instructionPage = UINT32_MAX;
     const u8* instructionPointer = nullptr;
 

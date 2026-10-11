@@ -1,6 +1,6 @@
 CXX ?= g++
 WINDRES ?= windres
-CXXFLAGS = -std=c++17 -Wall -Wextra -O3 -g -Isrc
+CXXFLAGS = -std=c++17 -Wall -Wextra -O3 -march=native -g -Isrc
 
 TARGET = bin/oceanblast.exe
 

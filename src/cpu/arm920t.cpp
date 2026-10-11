@@ -1020,7 +1020,8 @@ void ARM920T::executeCP15(u32 instr) {
         } else if (crn == 6) {
             cp15_far = val;
         } else if (crn == 8) {
-            bus.flushTlb();
+            if (((instr >> 5) & 7) == 1) bus.flushTlbEntry(val);
+            else bus.flushTlb();
         }
         if (cycleTiming && crn == 7 && (instr & 15) == 0 &&
             ((instr >> 5) & 7) == 4 && ((instr >> 21) & 7) == 0)

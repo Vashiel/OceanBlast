@@ -74,7 +74,7 @@ int main() {
       b.write32(0x4a000008,~(1u<<19));
       check("Unmasking DMA delivers the already pending interrupt",b.getMmio(0x4a000010)==(1u<<19));
     }
-    { Bus b;b.reset();b.write32(0x4a000008,~3u);b.setButtonMask(1u<<5);b.setButtonMask((1u<<5)|(1u<<4));
+    { Bus b;b.reset();b.write32(0x4a000008,~3u);b.setButtonMask(1u<<6);b.setButtonMask((1u<<6)|(1u<<4));
       b.write32(0x4a000010,1u<<7);
       check("Unrelated INTPND acknowledgement preserves selected source",b.getMmio(0x4a000010)==2);
       b.write32(0x4a000000,2);b.write32(0x4a000010,2);

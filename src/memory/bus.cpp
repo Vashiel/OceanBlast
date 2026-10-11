@@ -47,7 +47,7 @@ bool Bus::saveEeprom(const std::string& path) const {
 }
 
 void Bus::reset() {
-    instructionPage = UINT32_MAX;
+    flushTlb();
     sdramPtr = sdram.data();
     std::fill(steppingstone.begin(), steppingstone.end(), 0);
     std::fill(sdram.begin(), sdram.end(), 0);
@@ -605,23 +605,25 @@ u32 Bus::readMmio(u32 addr, bool guestAccess) {
         // GPIO & System Status Registers (0x56000000)
         case 0x56000054: { // GPFDAT: Active-low inputs for buttons
             u32 gpf = 0xFF;
-            if (buttonMask & (1 << 10)) gpf &= ~(1 << 4); // Third action input -> GPF4 / KEY_5
-            if (buttonMask & (1 << 4)) gpf &= ~(1 << 0); // BTN_A -> GPF0
-            if (buttonMask & (1 << 5)) gpf &= ~(1 << 1); // BTN_B -> GPF1
-            if (buttonMask & (1 << 0)) gpf &= ~(1 << 2); // BTN_UP -> GPF2
-            if (buttonMask & (1 << 2)) gpf &= ~(1 << 3); // BTN_LEFT -> GPF3
-            if (buttonMask & (1 << 3)) gpf &= ~(1 << 6); // BTN_RIGHT -> GPF6
-            if (buttonMask & (1 << 1)) gpf &= ~(1 << 7); // BTN_DOWN -> GPF7
+            if (buttonMask & (1 << 4)) gpf &= ~(1 << 0);  // BTN_A -> GPF0 (KEY_1)
+            if (buttonMask & (1 << 5)) gpf &= ~(1 << 5);  // BTN_B -> GPF5 (KEY_2)
+            if (buttonMask & (1 << 6)) gpf &= ~(1 << 1);  // BTN_L -> GPF1 (KEY_4)
+            if (buttonMask & ((1 << 7) | (1 << 10))) gpf &= ~(1 << 4); // BTN_R / BTN_C -> GPF4 (KEY_5)
+            if (buttonMask & (1 << 0)) gpf &= ~(1 << 2);  // BTN_UP -> GPF2
+            if (buttonMask & (1 << 2)) gpf &= ~(1 << 3);  // BTN_LEFT -> GPF3
+            if (buttonMask & (1 << 3)) gpf &= ~(1 << 6);  // BTN_RIGHT -> GPF6
+            if (buttonMask & (1 << 1)) gpf &= ~(1 << 7);  // BTN_DOWN -> GPF7
             return gpf;
         }
         case 0x56000064: { // GPGDAT: Active-low inputs for buttons
             u32 gpg = 0xFFFF;
-            if (buttonMask & (1 << 11)) gpg &= ~(1 << 0); // Player backward: KEY_B
-            if (buttonMask & (1 << 12)) gpg &= ~(1 << 13); // Player forward: KEY_N
-            if (buttonMask & (1 << 7)) gpg &= ~(1 << 8);  // BTN_R -> GPG8
-            if (buttonMask & (1 << 9)) gpg &= ~(1 << 9);  // BTN_SELECT -> GPG9
-            if (buttonMask & (1 << 8)) gpg &= ~(1 << 10); // BTN_START -> GPG10
-            if (buttonMask & (1 << 6)) gpg &= ~(1 << 11); // BTN_L -> GPG11
+            if (buttonMask & (1 << 11)) gpg &= ~(1 << 0);  // BTN_REWIND -> GPG0 (KEY_B)
+            if (buttonMask & (1 << 12)) gpg &= ~(1 << 13); // BTN_FORWARD -> GPG13 (KEY_N)
+            if (buttonMask & (1 << 10)) gpg &= ~(1 << 12); // BTN_C -> GPG12 (KEY_3)
+            if (buttonMask & ((1 << 7) | (1 << 8))) gpg &= ~(1 << 8);  // BTN_R / BTN_START -> GPG8 (KEY_RIGHTCTRL)
+            if (buttonMask & (1 << 9)) gpg &= ~(1 << 9);   // BTN_SELECT -> GPG9 (KEY_P)
+            if (buttonMask & (1 << 8)) gpg &= ~(1 << 10);  // BTN_START -> GPG10 (KEY_S)
+            if (buttonMask & ((1 << 6) | (1 << 9))) gpg &= ~(1 << 11); // BTN_L / BTN_SELECT -> GPG11 (KEY_LEFTCTRL)
             return gpg;
         }
         case 0x56000074: { // GPHDAT: input pins read the external level, not the written latch
@@ -933,15 +935,16 @@ void Bus::setButtonMask(u32 newMask) {
     if (changed == 0) return;
 
     // External Interrupts 0..3 (GPF0..3)
-    if (changed & (1 << 4)) requestIrq(0); // BTN_A -> EINT0
-    if (changed & (1 << 5)) requestIrq(1); // BTN_B -> EINT1
-    if (changed & (1 << 0)) requestIrq(2); // BTN_UP -> EINT2
-    if (changed & (1 << 2)) requestIrq(3); // BTN_LEFT -> EINT3
+    if (changed & (1 << 4)) requestIrq(0); // BTN_A -> GPF0 -> EINT0
+    if (changed & (1 << 6)) requestIrq(1); // BTN_L -> GPF1 -> EINT1
+    if (changed & (1 << 0)) requestIrq(2); // BTN_UP -> GPF2 -> EINT2
+    if (changed & (1 << 2)) requestIrq(3); // BTN_LEFT -> GPF3 -> EINT3
 
     // External Interrupts 4..7 (GPF4..7)
     u32 eintMask = mmioRegs[0x560000A4];
     bool trig4_7 = false;
-    if (changed & (1 << 10)) { mmioRegs[0x560000A8] |= (1 << 4); trig4_7 = true; }
+    if (changed & ((1 << 7) | (1 << 10))) { mmioRegs[0x560000A8] |= (1 << 4); trig4_7 = true; } // BTN_R / BTN_C -> EINT4
+    if (changed & (1 << 5)) { mmioRegs[0x560000A8] |= (1 << 5); trig4_7 = true; } // BTN_B -> GPF5 -> EINT5
     if (changed & (1 << 3)) { mmioRegs[0x560000A8] |= (1 << 6); trig4_7 = true; } // BTN_RIGHT -> EINT6
     if (changed & (1 << 1)) { mmioRegs[0x560000A8] |= (1 << 7); trig4_7 = true; } // BTN_DOWN -> EINT7
     if (trig4_7 && ((mmioRegs[0x560000A8] & ~eintMask) & 0xF0)) {
@@ -950,12 +953,13 @@ void Bus::setButtonMask(u32 newMask) {
 
     // External Interrupts 8..23 (GPG0..15 -> EINT8..23)
     bool trig8_23 = false;
-    if (changed & (1 << 11)) { mmioRegs[0x560000A8] |= (1 << 8); trig8_23 = true; }
-    if (changed & (1 << 12)) { mmioRegs[0x560000A8] |= (1 << 21); trig8_23 = true; }
-    if (changed & (1 << 7)) { mmioRegs[0x560000A8] |= (1 << 16); trig8_23 = true; } // BTN_R -> GPG8 -> EINT16
-    if (changed & (1 << 9)) { mmioRegs[0x560000A8] |= (1 << 17); trig8_23 = true; } // BTN_SELECT -> GPG9 -> EINT17
-    if (changed & (1 << 8)) { mmioRegs[0x560000A8] |= (1 << 18); trig8_23 = true; } // BTN_START -> GPG10 -> EINT18
-    if (changed & (1 << 6)) { mmioRegs[0x560000A8] |= (1 << 19); trig8_23 = true; } // BTN_L -> GPG11 -> EINT19
+    if (changed & (1 << 11)) { mmioRegs[0x560000A8] |= (1 << 8); trig8_23 = true; }  // BTN_REWIND -> GPG0 -> EINT8
+    if (changed & (1 << 12)) { mmioRegs[0x560000A8] |= (1 << 21); trig8_23 = true; } // BTN_FORWARD -> GPG13 -> EINT21
+    if (changed & (1 << 10)) { mmioRegs[0x560000A8] |= (1 << 20); trig8_23 = true; } // BTN_C -> GPG12 -> EINT20
+    if (changed & ((1 << 7) | (1 << 8))) { mmioRegs[0x560000A8] |= (1 << 16); trig8_23 = true; } // BTN_R / BTN_START -> GPG8 -> EINT16
+    if (changed & (1 << 9)) { mmioRegs[0x560000A8] |= (1 << 17); trig8_23 = true; }  // BTN_SELECT -> GPG9 -> EINT17
+    if (changed & (1 << 8)) { mmioRegs[0x560000A8] |= (1 << 18); trig8_23 = true; }  // BTN_START -> GPG10 -> EINT18
+    if (changed & ((1 << 6) | (1 << 9))) { mmioRegs[0x560000A8] |= (1 << 19); trig8_23 = true; } // BTN_L / BTN_SELECT -> GPG11 -> EINT19
     if (trig8_23 && ((mmioRegs[0x560000A8] & ~eintMask) & 0x00FFFF00)) {
         requestIrq(5); // EINT8_23
     }
@@ -1042,9 +1046,11 @@ void Bus::completeI2cByte() {
 
 void Bus::flushTlb() const {
     instructionPage = UINT32_MAX;
+    if (tlbEmpty) return;
     for (size_t i = 0; i < TLB_SIZE; ++i) {
         tlb[i].valid = false;
     }
+    tlbEmpty = true;
 }
 
 u32 Bus::translateSlow(u32 va, MmuFault* fault, bool isWrite) const {
@@ -1075,6 +1081,7 @@ u32 Bus::translateSlow(u32 va, MmuFault* fault, bool isWrite) const {
             tlb[idx].paBase = pa & ~0xFFF;
             tlb[idx].ap = ap;
             tlb[idx].valid = true;
+            tlbEmpty = false;
             return pa;
         } else if ((desc & 3) == 1) { // Coarse Page Table
             u32 ptPhys = desc & ~0x3FF;
@@ -1097,6 +1104,7 @@ u32 Bus::translateSlow(u32 va, MmuFault* fault, bool isWrite) const {
                     tlb[idx].paBase = pa & ~0xFFF;
                     tlb[idx].ap = ap;
                     tlb[idx].valid = true;
+                    tlbEmpty = false;
                     return pa;
                 } else if ((pte & 3) == 1) { // Large Page (64KB)
                     int apShift = 4 + (((va >> 14) & 3) * 2);
@@ -1112,6 +1120,7 @@ u32 Bus::translateSlow(u32 va, MmuFault* fault, bool isWrite) const {
                     tlb[idx].paBase = pa & ~0xFFF;
                     tlb[idx].ap = ap;
                     tlb[idx].valid = true;
+                    tlbEmpty = false;
                     return pa;
                 } else {
                     if (fault) *fault = MmuFault::PAGE_TRANSLATION_FAULT;
@@ -1131,6 +1140,7 @@ u32 Bus::translateSlow(u32 va, MmuFault* fault, bool isWrite) const {
         tlb[idx].paBase = pa & ~0xFFF;
         tlb[idx].ap = 3;
         tlb[idx].valid = true;
+        tlbEmpty = false;
         return pa;
     }
 

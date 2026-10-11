@@ -30,7 +30,7 @@ if ($Unity) {
     $unityFlags = @('--param','inline-unit-growth=400','--param','large-unit-insns=100000','--param','max-inline-insns-single=1000','--param','max-inline-insns-auto=200')
 }
 $resObj = $outputRelative + '/oceanblast_res.o'
-$common = @('-std=c++17','-Wall','-Wextra',('-' + $Optimization),'-Isrc') + $unityFlags + $sources + @($resObj,'-lgdi32','-luser32','-lwinmm','-lcomdlg32','-lcomctl32','-lshell32','-lole32','-ldinput8','-ldxguid','-ld3d11','-ldxgi','-ld3dcompiler','-lgdiplus','-o',($outputRelative + '/oceanblast_profiled.exe'))
+$common = @('-std=c++17','-Wall','-Wextra',('-' + $Optimization),'-march=native','-Isrc') + $unityFlags + $sources + @($resObj,'-lgdi32','-luser32','-lwinmm','-lcomdlg32','-lcomctl32','-lshell32','-lole32','-ldinput8','-ldxguid','-ld3d11','-ldxgi','-ld3dcompiler','-lgdiplus','-o',($outputRelative + '/oceanblast_profiled.exe'))
 $profileOption = $profileRoot.Replace('\','/')
 Push-Location $projectRoot
 try {
