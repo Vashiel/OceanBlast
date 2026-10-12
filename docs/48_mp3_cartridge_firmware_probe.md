@@ -12,11 +12,22 @@ A 600-million-step headless run at CPU ratio 3 with the optimized executable rea
 
 The emulated NAND identifies as a Toshiba 16-MiB device. The guest reports that its rootfs partition extends beyond this device and truncates it. The data partition begins at `0x01770000`, beyond the exposed NAND capacity, and is disabled. The USB OHCI host-controller reset times out, and driver startup fails. Repeated I2C acknowledgement failures also occur. These are observed limitations of this execution, not proof that the source dump is damaged.
 
+## Firmware Storage Topology
+
+Read-only extraction of the SquashFS at data offset `0x170000` identifies the actual music-storage path. `/linuxrc` does not call the shared startup script's `mountall` function. It instead expects a USB/SCSI whole disk at `/dev/scsi/host0/bus0/target0/lun0/disc` and its first partition at `.../part1`. The player uses `/mnt/mass`; `DIGIBLAST_BACKING_FILE` points to the SCSI disk and `DIGIBLAST_LO_OFFSET` is 512 bytes. The startup script also loads `g_file_storage.ko` with removable storage enabled.
+
+If the SCSI disk is missing, `memoryerror.sh` displays an MP3 storage accessibility error. If the partition is absent or its filesystem check fails, `formatusb.sh` creates a partition table and FAT filesystem on that disk. These scripts were inspected as data and were not executed. The extracted player package contains `digiblastmp3` and Helix MP3 decoder/format plugins. The firmware therefore provides a concrete USB/SCSI dependency independent of the disabled NAND `/data` partition.
+
+| Extracted file | SHA-256 |
+| --- | --- |
+| `/linuxrc` | `60f4c7a6de6c503254d13680fce84cf0397c5bef49750da24507528b9f0b4335` |
+| `/usr/packages/startupscripts/startup.sh` | `4bc433d85cd8c499b46503c3996a42cfec9f04791d4eaa5265a23426ea0ddae5` |
+
 ## Emulation Scope
 
-Preserving the original MP3 interface and its playback software is useful independently of game compatibility. A usable implementation needs the original storage topology established, writable persistent music storage, and the peripherals exercised by the firmware. USB transfer support should follow evidence of the relevant host/device path rather than substituting a generic host MP3 player.
+Preserving the original MP3 interface and playback software is useful independently of game compatibility. The next implementation boundary is OHCI enumeration and USB mass-storage transport exposing a persistent disk to the guest SCSI stack, followed by filesystem mounting and player startup. The gadget-side sharing path and I2C failures require separate validation. A virtual disk must isolate guest formatting from host files.
 
-The next step is to inspect the firmware's startup scripts, storage driver expectations, and player executable. A virtual music image should only be added after determining how the guest accesses the missing store. Game and RealVideo timing remain independent compatibility work.
+Enlarging the NAND image to the advertised music capacity does not implement the firmware's USB/SCSI topology. The supplied image is useful for firmware analysis; a complete original music-storage image and working playback have not been established. Game and RealVideo timing remain independent compatibility work.
 
 ```powershell
 bin/oceanblast.exe "roms/hardware/MP3 player 256MB/MP3 player 256MB.bin" `

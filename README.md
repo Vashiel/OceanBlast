@@ -16,10 +16,10 @@ The goal of this project is digital preservation, architectural documentation, a
 
 ## Emulated Gameplay Preview
 
-| **Rayman 3** `[G] (M10)` | **Superstar Chefs** `[G] (EN)` |
+| **Rayman 3** `[G] (M10)` | Yes | First level; about 40 host submissions/s | Auto 4�; no empty queues or dropped samples in measured gameplay | Magenta background remains; pacing is not hardware-speed validation ([docs/50](docs/50_runtime_acceptance.md)) |
 | :---: | :---: |
 | <img src="assets/preview/rayman3.gif" alt="Rayman 3 Gameplay" width="380" /> | <img src="assets/preview/superstar_chefs.gif" alt="Superstar Chefs Gameplay" width="380" /> |
-| **Wade Hixton's Counter Punch** `[G] (EN)` | **Pitfall: The Lost Expedition** `[G] (EN)` |
+| **Wade Hixton's Counter Punch** `[G] (EN)` | Yes | First fight; about 13 host submissions/s | Auto 3�; no empty queues or dropped samples in measured combat | Low combat cadence remains under investigation ([docs/50](docs/50_runtime_acceptance.md)) |
 | <img src="assets/preview/wade_hixton.gif" alt="Wade Hixton's Counter Punch Gameplay" width="380" /> | <img src="assets/preview/pitfall.gif" alt="Pitfall: The Lost Expedition Gameplay" width="380" /> |
 | **Spider-Man: Mysterio's Menace** `[G] (EN)` | **Crazy Jack** `[G] (EN)` |
 | <img src="assets/preview/spiderman.gif" alt="Spider-Man: Mysterio's Menace Gameplay" width="380" /> | <img src="assets/preview/crazy_jack.gif" alt="Crazy Jack Gameplay" width="380" /> |
@@ -36,6 +36,8 @@ Double-click `bin/oceanblast.exe` (or `oceanblast.exe` from a release archive) w
 3. Open **Settings → Controls** to test your controller live (XInput, DirectInput8, Google Stadia, Xbox, PlayStation, or generic USB gamepads), apply a controller preset (**Stadia / Xbox**, **PlayStation**, **digiBLAST / USB**), or click any row in the mapping table to interactively learn a controller button or keyboard key.
 4. Adjust audio volume, aspect ratio (**3:2 Native**, **4:3**, **Stretched**), integer/smooth scaling, window appearance (**Plain Window**, interactive **Console Skin** via `--window-mode skin`, or **Fullscreen** via **F11** / **Alt+Enter**), and CPU timing under **Settings** (persisted to `%APPDATA%\OceanBlast\windows.ini`).
 
+The **Playback** menu provides dedicated video controls and a cartridge language selection independent of the interface language; see [media input and language](docs/49_media_input_and_cartridge_language.md).
+
 Automatic per-cartridge settings are enabled by default (see [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md), [docs/43](docs/43_windows_launcher_and_controller_input.md), [docs/34](docs/34_automatic_cartridge_settings.md), and [docs/33](docs/33_console_skin_and_fullscreen.md)).
 
 ---
@@ -45,6 +47,8 @@ Automatic per-cartridge settings are enabled by default (see [docs/45](docs/45_c
 All tested cartridges boot autonomously through the 4-KB S3C2410 Steppingstone SRAM, U-Boot 1.1.2 (`nidc` NAND ID & `checkbattery` ADC checks), and the embedded Linux 2.6.11 kernel without kernel panics or guest segmentation faults. Automatic per-cartridge CPU ratio presets (`2×`–`4×`) and the PGO unity build improve runtime pacing across the commercial game library; per-title frame rate and audio acceptance remain distinct compatibility measures.
 
 For the complete chronological engineering log and all 49 technical reports (`docs/00`–`docs/48`), see [**CHANGELOG.md**](CHANGELOG.md).
+
+The [reviewed-build runtime validation](docs/50_runtime_acceptance.md) records actual gameplay scenes, paired build results, video capture limitations and unresolved graphics/audio issues.
 
 ### 1. Commercial Game Cartridges (11 / 11 Boot to Game Binary)
 
@@ -57,10 +61,10 @@ For the complete chronological engineering log and all 49 technical reports (`do
 | **Gormiti: Lotta Oscura** `[G] (IT)` | Yes | Intro & Title / Start Screen | Plays (Auto 3×) | 32 MB NAND; Auto 3× preset ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/28](docs/28_cartridge_register_audit.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
 | **Gormiti: Masters of the Gorm Island** `[G] (IT)` | Yes | Main Menu & In-Game Level/HUD | Plays (Auto 3×) | 16 MB NAND; Auto 3× preset ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/28](docs/28_cartridge_register_audit.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
 | **Pitfall: The Lost Expedition** `[G] (EN)` | Yes | Intro, Title & Gameplay | Smooth at Auto 3× | Native 12-bpp LCD444; Auto 3× preset & GBA `KEY_1/2/4/5/CTRL` input ([docs/21](docs/21_pitfall_original_hardware_reference.md), [docs/34](docs/34_automatic_cartridge_settings.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
-| **Rayman 3** `[G] (M10)` | Yes | Intro and title; about `30 FPS` in the measured interval | Auto 4×; averaged `100%` emulated speed, with brief samples down to `97%` | Four empty audio-queue observations and zero dropped samples in the 35-second capture; see [docs/46](docs/46_runtime_build_profiles_and_rayman_ratio.md) |
+| **Rayman 3** `[G] (M10)` | Yes | First level; about 40 host submissions/s | Auto 4�; no empty queues or dropped samples in measured gameplay | Magenta background remains; pacing is not hardware-speed validation ([docs/50](docs/50_runtime_acceptance.md)) |
 | **Spider-Man: Mysterio's Menace** `[G] (EN)` | Yes | Main Menu, Story & In-Game | Plays (Auto 3×) | Auto 3× preset & full GBA `KEY_1/2/4/5/CTRL` input ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/18](docs/18_manual_cartridge_validation.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
-| **Superstar Chefs** `[G] (EN)` | Yes | Menus (31–40 FPS) & Level (~16–22 FPS) | Smooth at Auto 3× ([docs/44](docs/44_superstar_chefs_analysis_and_fix.md)) | Hardware FPA11 (`cp1`/`cp2`) + Auto 3× cuts `InitAudio` loading (`14 -> 3 s`) & prevents `480×320` + `AddChannel` collapse at `100%` speed ([docs/44](docs/44_superstar_chefs_analysis_and_fix.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
-| **Wade Hixton's Counter Punch** `[G] (EN)` | Yes | Intro, Menus & First Fight | Smooth at Auto 3× | `GPH8 = 1` removes 16-bpp shadow blit (`-50%` frame work); Auto 3× preset & `KEY_2` (`GPF5`) fix ([docs/41](docs/41_wade_binary_and_s3c2410fb_analysis.md), [docs/42](docs/42_wade_gph8_lcd_mode.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
+| **Superstar Chefs** `[G] (EN)` | Yes | First level; about 15 host submissions/s | Auto 3�; no empty queues or dropped samples in measured gameplay | Paired PGO builds retain identical final CPU, SDRAM and framebuffer state ([docs/50](docs/50_runtime_acceptance.md)) |
+| **Wade Hixton's Counter Punch** `[G] (EN)` | Yes | First fight; about 13 host submissions/s | Auto 3�; no empty queues or dropped samples in measured combat | Low combat cadence remains under investigation ([docs/50](docs/50_runtime_acceptance.md)) |
 
 ### 2. Video & Combined Game+Video Cartridges
 
@@ -68,7 +72,7 @@ For the complete chronological engineering log and all 49 technical reports (`do
 | :--- | :---: | :---: | :---: | :--- |
 | **Gormiti / SpongeBob / Yu-Gi-Oh!** *(Video)* | Yes | Visible Episode Imagery | Keypad Controls Active | 240-row scanout & coherent frame latch ([docs/28](docs/28_cartridge_register_audit.md), [docs/31](docs/31_programmed_scanout_height.md), [docs/32](docs/32_coherent_video_and_vsync.md)) |
 | **SpongeBob / Winx** *(IT/ES Combined Game+Video)* | Yes | Language Menu & Episode Video | Keypad Controls Active | Native 12-bpp LCD444 (`GPH8 = 1`) & I2C EEPROM ([docs/16](docs/16_i2c_eeprom_and_player_startup.md), [docs/42](docs/42_wade_gph8_lcd_mode.md)); intl. Winx has corrupt blocks ([docs/14](docs/14_rom_integrity.md)) |
-| **Sonic X / Winx** *(IT/ES Video-Only)* | Yes | Decodes Frames at High CPU Budget | Play/Pause/Seek Verified | Dark at 1×; decodes colored RealVideo frames at higher budget ([docs/30](docs/30_realvideo_frame_delivery.md), [docs/33](docs/33_console_skin_and_fullscreen.md)) |
+| **Sonic X / Winx** *(IT/ES Video-Only)* | Yes | Complete source sweeps at Auto 3� | Dedicated controls tested; sync/fidelity remain unverified | About 12�13 submissions/s; native capture detection can fail at manual 4� ([docs/50](docs/50_runtime_acceptance.md)) |
 | **Totally Spies / Winx** *(NL Video-Only)* | Yes | Black Framebuffer at Tested Budget | Player State Reaches `PLAYING` | Active framebuffer remains zeroed at 2.5B steps ([docs/28](docs/28_cartridge_register_audit.md), [docs/30](docs/30_realvideo_frame_delivery.md)) |
 
 ---
@@ -122,8 +126,10 @@ bin/oceanblast.exe <path_to_cartridge_dump.bin> [--steps <N>] [--gui] [--window-
 | **D-Pad** | `GPF2` / `GPF7` / `GPF3` / `GPF6` | `D-Pad (POV Hat)` or `Left Stick` | `Arrow Keys` |
 | **Button A / B / C** | `GPF0` (`KEY_1`) / `GPF5` (`KEY_2`) / `GPG12`+`GPF4` (`KEY_3`+`KEY_5`) | `B1 (A/Cross)` / `B2 (B/Circle)` / `B3 (X/Square)` (`B4` in Stadia/Xbox preset) | `Z` (`K`) / `X` (`J`) / `C` |
 | **L / R Shoulder** | `GPG11`+`GPF1` / `GPG8`+`GPF4` | `B5 (LB/L1)` / `B6 (RB/R1)` | `A` (`Q`) / `S` (`W`) |
-| **Start / Stop** | `GPG10`+`GPG8` (`EINT18`+`EINT16`) | `B8 (Start/Options)` (`B12` on Stadia DInput) | `Enter` or `F9` |
-| **Select / Play-Pause** | `GPG9`+`GPG11` (`EINT17`+`EINT19`) | `B7 (Back/Select)` (`B11` on Stadia DInput) | `Space` or `F10` |
+| **Game Start** | `GPG10`+`GPG8` (`EINT18`+`EINT16`) | `B8 (Start/Options)` (`B12` on Stadia DInput) | `Enter` |
+| **Media Stop** | `GPG10` (`EINT18`) | Dedicated skin / Playback menu | `Backspace` or `F9` |
+| **Game Select** | `GPG9`+`GPG11` (`EINT17`+`EINT19`) | `B7 (Back/Select)` (`B11` on Stadia DInput) | `Space` |
+| **Media Play/Pause** | `GPG9` (`EINT17`) | Dedicated skin / Playback menu | `P` or `F10` |
 | **Rewind / Forward** | `GPG0` / `GPG13` | `LT (L2)` / `RT (R2)` or `B9` / `B10` | `F8` / `F12` |
 | **Open ROM / Fullscreen / Stop** | — | — | `Ctrl+O` / `F11` (`Alt+Enter`) / `Escape` |
 

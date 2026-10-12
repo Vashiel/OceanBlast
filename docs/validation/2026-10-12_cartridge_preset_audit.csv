@@ -1,0 +1,26 @@
+cartridge,bytes,crc32,exact_preset
+roms/games/Crazy Jack [G] (EN).bin,17301504,9bce041a,True
+roms/games/Cuccioli Cerca Amici [G] (IT).bin,69206016,40a18574,True
+roms/games/DigiQUAD [G] (EN).bin,17301504,c57e4b7c,True
+roms/games/Gormiti Agguato nella Valle [G] (IT).bin,34603008,ddeec7ea,True
+roms/games/Gormiti Lotta Oscura [G] (IT).bin,34603008,d11135f5,True
+roms/games/Gormiti Masters of the Gorm Island [G] (IT).bin,17301504,f890f74c,True
+roms/games/Pitfall The Lost Expedition [G] (EN).bin,17301504,d1d6118f,True
+roms/games/Rayman 3 [G] (M10).bin,17301504,e3e1953e,True
+roms/games/Spider-Man Mysterio's Menace [G] (EN).bin,17301504,142577ee,True
+roms/games/Superstar Chefs [G] (EN).bin,17301504,93209877,True
+roms/games/Wade Hixton's Counter Punch [G] (EN).bin,17301504,eba2a2c3,True
+roms/hardware/MP3 player 256MB/MP3 player 256MB.bin,17301504,b048a789,False
+roms/test.bin,17301504,e3e1953e,True
+roms/video_games/Sponge Bob + 5 Atari Games [V+G] (IT ES).bin,34603008,69ab74c0,True
+roms/video_games/Winx Club + 5 Atari Games [V+G] (IT ES).bin,34603008,6b5ca82e,True
+roms/video_games/Winx Club + 5 Atari Games [V+G] (NL FR DE TR).bin,34603008,eb1d8fda,True
+roms/videos/Gormiti 2 episodi [V] (IT)/Gormiti 2 episodi [V] (IT).bin,34603008,b0b98ad1,True
+roms/videos/Gormiti Dalle Origini all_Eclissi [V] (IT)/Gormiti Dalle Origini all'Eclissi [V] (IT).bin,69206016,8bf52908,True
+roms/videos/Sonic X 1 [V] (IT ES)/Sonic X 1 [V] (IT ES).bin,69206016,c24cb643,True
+roms/videos/Sponge Bob Square Pants 1 [V] (IT ES)/Sponge Bob Square Pants 1 [V] (IT ES).bin,69206016,56deccb3,True
+roms/videos/Totally Spies! 1 [V] (IT)/Totally Spies! 1 [V] (IT).bin,69206016,2f88baaf,True
+roms/videos/Totally Spies! 1 [V] (NL EN FR TR)/Totally Spies! 1 [V] (NL EN FR TR).bin,69206016,93e46afb,True
+roms/videos/Winx Club 1 [V] (IT ES)/Winx Club 1 [V] (IT ES).bin,69206016,a870766e,True
+roms/videos/Winx Club 1 [V] (NL FR EN TR)/Winx Club 1 [V] (NL FR EN TR).bin,69206016,ee696172,True
+roms/videos/Yu-Gi-Oh! 1 [V] (IT ES)/Yu-Gi-Oh! 1 [V] (IT ES).bin,69206016,2494e958,True
