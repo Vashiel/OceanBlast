@@ -18,6 +18,8 @@ HEADERS = src/core/types.h \
           src/core/execution_batch.h \
           src/core/host_pacer.h \
           src/core/cartridge_settings.h \
+          src/core/cartridge_language.h \
+          src/core/button_pulses.h \
           src/cpu/arm920t.h \
           src/memory/bus.h \
           src/memory/i2c_eeprom.h \
@@ -62,6 +64,7 @@ $(TARGET): $(OBJS) $(RES_OBJ)
 
 test: build/frame_latch.exe build/emulation_timing.exe build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
 	./build/cartridge_settings.exe
+	./build/cartridge_loading.exe
 	./build/frame_latch.exe
 	./build/emulation_timing.exe
 	./build/cpu_regression.exe
@@ -176,10 +179,15 @@ test-windows: build/display_height_win32.exe build/console_skin_win32.exe build/
 
 .PHONY: test-windows
 
-build/cartridge_settings.exe: tests/cartridge_settings.cpp src/core/cartridge_settings.h
+build/cartridge_settings.exe: tests/cartridge_settings.cpp src/core/cartridge_settings.h src/core/cartridge_language.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $<
 test: build/cartridge_settings.exe
+test: build/cartridge_loading.exe
+
+build/cartridge_loading.exe: tests/cartridge_loading.cpp src/memory/bus.cpp $(HEADERS)
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
 
 build/launcher_defaults_win32.exe: tests/launcher_defaults_win32.cpp src/display/launcher.h src/display/windows_input.h src/display/input_mapping.h $(RES_OBJ)
 	@mkdir -p build

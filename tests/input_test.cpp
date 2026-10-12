@@ -96,13 +96,78 @@ int main() {
     }
     std::cout << "PASS: Button release restores pull-up high state" << std::endl;
 
-    bus.setButtonMask(BTN_C | BTN_REWIND | BTN_FORWARD);
-    if ((bus.getMmio(0x56000054)&(1<<4)) || (bus.getMmio(0x56000064)&((1<<0)|(1<<13)))) return 1;
-    if ((bus.getMmio(0x560000A8)&((1<<4)|(1<<8)|(1<<21))) != ((1<<4)|(1<<8)|(1<<21))) return 1;
-    std::cout << "PASS: Additional action and Player seek inputs drive active-low GPIO and EINT pending bits\n";
+    bus.setButtonMask(BTN_C | BTN_REWIND | BTN_FORWARD | BTN_PLAY | BTN_STOP);
+    if ((bus.getMmio(0x56000054)&(1<<4)) || (bus.getMmio(0x56000064)&((1<<0)|(1<<9)|(1<<10)|(1<<13)))) return 1;
+    if ((bus.getMmio(0x560000A8)&((1<<4)|(1<<8)|(1<<17)|(1<<18)|(1<<21))) != ((1<<4)|(1<<8)|(1<<17)|(1<<18)|(1<<21))) return 1;
+    std::cout << "PASS: Additional action and Player transport/seek inputs drive active-low GPIO and EINT pending bits\n";
     bus.setButtonMask(0);
+    bus.write32(0x560000A8, 0xFFFFFFFF);
+    bus.write32(0x4A000000, 0xFFFFFFFF);
+    bus.write32(0x4A000010, 0xFFFFFFFF);
     if ((bus.getMmio(0x56000054)&0xff)!=0xff || (bus.getMmio(0x56000064)&0xffff)!=0xffff) return 1;
     std::cout << "PASS: Additional input release restores pull-ups\n";
+
+    // Test multi-bit EINTPEND re-assertion (BTN_SELECT asserts both EINT17 and EINT19)
+    bus.setButtonMask(BTN_SELECT);
+    if ((bus.getMmio(0x560000A8) & ((1 << 17) | (1 << 19))) != ((1 << 17) | (1 << 19))) return 1;
+    // Simulate kernel servicing EINT19 first and clearing SRCPND bit 5
+    bus.write32(0x560000A8, 1 << 19);
+    bus.write32(0x4A000000, 1 << 5);
+    bus.write32(0x4A000010, 1 << 5);
+    // Because EINT17 is still pending and unmasked, SRCPND bit 5 must re-assert for a second IRQ pass
+    if (!bus.hasPendingIrq() || bus.getMmio(0x4A000014) != 5) {
+        std::cerr << "FAIL: IRQ 5 did not re-assert while EINT17 remained pending in EINTPEND" << std::endl;
+        return 1;
+    }
+    bus.write32(0x560000A8, 1 << 17);
+    bus.write32(0x4A000000, 1 << 5);
+    bus.write32(0x4A000010, 1 << 5);
+    if (bus.hasPendingIrq()) {
+        std::cerr << "FAIL: IRQ 5 remained asserted after all EINTPEND bits were cleared" << std::endl;
+        return 1;
+    }
+    bus.setButtonMask(0);
+    bus.write32(0x560000A8, 0xFFFFFFFF);
+    bus.write32(0x4A000000, 0xFFFFFFFF);
+    bus.write32(0x4A000010, 0xFFFFFFFF);
+    std::cout << "PASS: Multi-bit EINTPEND re-asserts IRQ 5 until all unmasked sub-interrupts are serviced\n";
+    // A masked pin edge is retained and forwarded when its EINT is unmasked.
+    bus.write32(0x560000A4, 0x00fffff0);
+    bus.setButtonMask(BTN_PLAY);
+    if (bus.hasPendingIrq() || !(bus.getMmio(0x560000A8) & (1u << 17))) return 1;
+    bus.write32(0x560000A4, 0);
+    if (!bus.hasPendingIrq() || bus.getMmio(0x4A000014) != 5) return 1;
+    bus.write32(0x560000A8, 1u << 17);
+    bus.write32(0x4A000000, 1u << 5);
+    bus.write32(0x4A000010, 1u << 5);
+    std::cout << "PASS: Unmasking a retained EINT forwards its group interrupt\n";
+    // Select already holds the Play GPIO low; adding/removing Play creates no edge.
+    bus.setButtonMask(BTN_SELECT);
+    bus.write32(0x560000A8, 0xffffffff);
+    bus.write32(0x4A000000, 0xffffffff);
+    bus.write32(0x4A000010, 0xffffffff);
+    bus.setButtonMask(BTN_SELECT | BTN_PLAY);
+    bus.setButtonMask(BTN_SELECT);
+    if (bus.hasPendingIrq() || bus.getMmio(0x560000A8)) return 1;
+    if (bus.getMmio(0x56000064) & (1u << 9)) return 1;
+    bus.setButtonMask(0);
+    if ((bus.getMmio(0x560000A8) & ((1u << 17) | (1u << 19))) != ((1u << 17) | (1u << 19))) return 1;
+    std::cout << "PASS: Shared host aliases create interrupts only on physical pin edges\n";
+    ButtonPulses pulses;
+    pulses.press(BTN_PLAY, 100, 180);
+    pulses.press(BTN_FORWARD, 150, 1500);
+    pulses.expire(280);
+    if (pulses.mask() != BTN_FORWARD) return 1;
+    pulses.expire(1649);
+    if (pulses.mask() != BTN_FORWARD) return 1;
+    pulses.expire(1650);
+    if (pulses.mask()) return 1;
+    pulses.press(BTN_STOP, 2000, 0);
+    pulses.expire(2179);
+    if (pulses.mask() != BTN_STOP) return 1;
+    pulses.clear();
+    if (pulses.mask()) return 1;
+    std::cout << "PASS: Media pulses expire independently and focus loss clears them\n";
     Display input;
     input.setButtonState(BTN_A,true); input.setButtonState(BTN_A,false);
     if (input.consumeButtonMask()!=BTN_A || input.consumeButtonMask()!=0) return 1;

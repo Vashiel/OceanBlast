@@ -621,8 +621,8 @@ u32 Bus::readMmio(u32 addr, bool guestAccess) {
             if (buttonMask & (1 << 12)) gpg &= ~(1 << 13); // BTN_FORWARD -> GPG13 (KEY_N)
             if (buttonMask & (1 << 10)) gpg &= ~(1 << 12); // BTN_C -> GPG12 (KEY_3)
             if (buttonMask & ((1 << 7) | (1 << 8))) gpg &= ~(1 << 8);  // BTN_R / BTN_START -> GPG8 (KEY_RIGHTCTRL)
-            if (buttonMask & (1 << 9)) gpg &= ~(1 << 9);   // BTN_SELECT -> GPG9 (KEY_P)
-            if (buttonMask & (1 << 8)) gpg &= ~(1 << 10);  // BTN_START -> GPG10 (KEY_S)
+            if (buttonMask & ((1 << 9) | (1 << 13))) gpg &= ~(1 << 9); // BTN_SELECT / BTN_PLAY -> GPG9 (KEY_P)
+            if (buttonMask & ((1 << 8) | (1 << 14))) gpg &= ~(1 << 10); // BTN_START / BTN_STOP -> GPG10 (KEY_S)
             if (buttonMask & ((1 << 6) | (1 << 9))) gpg &= ~(1 << 11); // BTN_L / BTN_SELECT -> GPG11 (KEY_LEFTCTRL)
             return gpg;
         }
@@ -667,6 +667,7 @@ void Bus::writeMmio(u32 addr, u32 val) {
                 if (val & regSrcpnd & (1u << bit)) ++irqDiagnostics.sourceClears[bit];
             regSrcpnd &= ~val;
             mmioRegs[0x4A000000] = regSrcpnd;
+            updateExtInterrupts();
             return;
         case 0x4A000008: // INTMSK
             regIntmsk = val;
@@ -842,9 +843,11 @@ void Bus::writeMmio(u32 addr, u32 val) {
         // S3C2410 GPIO & External Interrupt Registers
         case 0x560000A4: // EINTMASK
             mmioRegs[0x560000A4] = val;
+            updateExtInterrupts();
             return;
         case 0x560000A8: // EINTPEND (W1C: Write 1 to clear)
             mmioRegs[0x560000A8] &= ~val;
+            updateExtInterrupts();
             return;
 
         default:
@@ -852,6 +855,12 @@ void Bus::writeMmio(u32 addr, u32 val) {
             if (addr >= 0x4d000000 && addr <= 0x4d00001c) refreshHostFrameCapture();
             break;
     }
+}
+
+void Bus::updateExtInterrupts() {
+    const u32 active = mmioRegs[0x560000A8] & ~mmioRegs[0x560000A4];
+    if (active & 0x000000F0u) requestIrq(4);
+    if (active & 0x00FFFF00u) requestIrq(5);
 }
 
 void Bus::updateUart0TxInterrupt(bool emptyTransition) {
@@ -930,39 +939,18 @@ void Bus::streamDma2Audio(bool complete) {
 }
 
 void Bus::setButtonMask(u32 newMask) {
-    u32 changed = newMask ^ buttonMask;
-    buttonMask = newMask;
-    if (changed == 0) return;
+    const u32 oldF = readMmio(0x56000054, false);
+    const u32 oldG = readMmio(0x56000064, false);
+    buttonMask = newMask & 0x7fff;
+    const u32 changedF = oldF ^ readMmio(0x56000054, false);
+    const u32 changedG = oldG ^ readMmio(0x56000064, false);
+    if (!changedF && !changedG) return;
 
-    // External Interrupts 0..3 (GPF0..3)
-    if (changed & (1 << 4)) requestIrq(0); // BTN_A -> GPF0 -> EINT0
-    if (changed & (1 << 6)) requestIrq(1); // BTN_L -> GPF1 -> EINT1
-    if (changed & (1 << 0)) requestIrq(2); // BTN_UP -> GPF2 -> EINT2
-    if (changed & (1 << 2)) requestIrq(3); // BTN_LEFT -> GPF3 -> EINT3
-
-    // External Interrupts 4..7 (GPF4..7)
-    u32 eintMask = mmioRegs[0x560000A4];
-    bool trig4_7 = false;
-    if (changed & ((1 << 7) | (1 << 10))) { mmioRegs[0x560000A8] |= (1 << 4); trig4_7 = true; } // BTN_R / BTN_C -> EINT4
-    if (changed & (1 << 5)) { mmioRegs[0x560000A8] |= (1 << 5); trig4_7 = true; } // BTN_B -> GPF5 -> EINT5
-    if (changed & (1 << 3)) { mmioRegs[0x560000A8] |= (1 << 6); trig4_7 = true; } // BTN_RIGHT -> EINT6
-    if (changed & (1 << 1)) { mmioRegs[0x560000A8] |= (1 << 7); trig4_7 = true; } // BTN_DOWN -> EINT7
-    if (trig4_7 && ((mmioRegs[0x560000A8] & ~eintMask) & 0xF0)) {
-        requestIrq(4); // EINT4_7
-    }
-
-    // External Interrupts 8..23 (GPG0..15 -> EINT8..23)
-    bool trig8_23 = false;
-    if (changed & (1 << 11)) { mmioRegs[0x560000A8] |= (1 << 8); trig8_23 = true; }  // BTN_REWIND -> GPG0 -> EINT8
-    if (changed & (1 << 12)) { mmioRegs[0x560000A8] |= (1 << 21); trig8_23 = true; } // BTN_FORWARD -> GPG13 -> EINT21
-    if (changed & (1 << 10)) { mmioRegs[0x560000A8] |= (1 << 20); trig8_23 = true; } // BTN_C -> GPG12 -> EINT20
-    if (changed & ((1 << 7) | (1 << 8))) { mmioRegs[0x560000A8] |= (1 << 16); trig8_23 = true; } // BTN_R / BTN_START -> GPG8 -> EINT16
-    if (changed & (1 << 9)) { mmioRegs[0x560000A8] |= (1 << 17); trig8_23 = true; }  // BTN_SELECT -> GPG9 -> EINT17
-    if (changed & (1 << 8)) { mmioRegs[0x560000A8] |= (1 << 18); trig8_23 = true; }  // BTN_START -> GPG10 -> EINT18
-    if (changed & ((1 << 6) | (1 << 9))) { mmioRegs[0x560000A8] |= (1 << 19); trig8_23 = true; } // BTN_L / BTN_SELECT -> GPG11 -> EINT19
-    if (trig8_23 && ((mmioRegs[0x560000A8] & ~eintMask) & 0x00FFFF00)) {
-        requestIrq(5); // EINT8_23
-    }
+    // Interrupts follow physical pin transitions, including shared host aliases.
+    for (u32 bit = 0; bit < 4; ++bit)
+        if (changedF & (1u << bit)) requestIrq(bit);
+    mmioRegs[0x560000A8] |= (changedF & 0xf0u) | ((changedG & 0xffffu) << 8);
+    updateExtInterrupts();
 }
 
 void Bus::tickDma2() {

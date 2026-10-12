@@ -1,3 +1,4 @@
+#include <chrono>
 #include "display.h"
 #include "framebuffer.h"
 
@@ -33,6 +34,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         } else if (msg == WM_APP + 1) {
             g_currentDisplay->reloadUserSettings();
             g_currentDisplay->refreshLayout();
+            return 0;
+        } else if (msg == WM_APP + 2) {
+            g_currentDisplay->pulseButton(
+                static_cast<uint32_t>(wParam),
+                lParam > 0 ? static_cast<uint32_t>(lParam) : 180u);
             return 0;
         } else if (msg == WM_KILLFOCUS) {
             g_currentDisplay->mouseButton(0, 0, false);
@@ -81,10 +87,22 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 case 'Z': case 'K': mask |= BTN_A; break;
                 case 'X': case 'J': mask |= BTN_B; break;
                 case 'C': mask |= BTN_C; break;
-                case VK_F8: mask |= BTN_REWIND; break;
-                case VK_F9: mask |= BTN_START; break;
-                case VK_F10: mask |= BTN_SELECT; break;
-                case VK_F12: mask |= BTN_FORWARD; break;
+                case VK_F8: case 'B': case VK_PRIOR: case VK_OEM_COMMA: mask |= BTN_REWIND; break;
+                case VK_F9: case VK_BACK: mask |= BTN_STOP; break;
+                case VK_F10: case 'P': mask |= BTN_PLAY; break;
+                case VK_F12: case 'N': case VK_NEXT: case VK_OEM_PERIOD: mask |= BTN_FORWARD; break;
+                case VK_MEDIA_PREV_TRACK:
+                    if (isDown && !(lParam & (1L << 30))) g_currentDisplay->pulseButton(BTN_REWIND, 180);
+                    return 0;
+                case VK_MEDIA_STOP:
+                    if (isDown && !(lParam & (1L << 30))) g_currentDisplay->pulseButton(BTN_STOP, 180);
+                    return 0;
+                case VK_MEDIA_PLAY_PAUSE:
+                    if (isDown && !(lParam & (1L << 30))) g_currentDisplay->pulseButton(BTN_PLAY, 180);
+                    return 0;
+                case VK_MEDIA_NEXT_TRACK:
+                    if (isDown && !(lParam & (1L << 30))) g_currentDisplay->pulseButton(BTN_FORWARD, 180);
+                    return 0;
                 case 'A': case 'Q': mask |= BTN_L; break;
                 case 'S': case 'W': mask |= BTN_R; break;
                 case VK_RETURN: mask |= BTN_START; break;
@@ -322,6 +340,9 @@ void Display::processEvents() {
     if (!m_open || !m_hwnd) return;
 
     const uint64_t nowMs = GetTickCount64();
+    const uint32_t previousPulses = m_pulses.mask();
+    m_pulses.expire(nowMs);
+    if (previousPulses != m_pulses.mask()) updateHostButtons();
     if (!paused && nowMs == m_lastEventPollMs && !HIWORD(GetQueueStatus(QS_ALLINPUT))) {
         return;
     }
@@ -477,8 +498,17 @@ void Display::gamepadButtons(uint32_t mask) {
         updateHostButtons();
     }
 }
+void Display::pulseButton(uint32_t mask, uint32_t durationMs) {
+    if (!mask) return;
+    if (m_buttonMask & mask) {
+        m_pulses.release(mask);
+        updateHostButtons();
+    }
+    m_pulses.press(mask, GetTickCount64(), durationMs);
+    updateHostButtons();
+}
 void Display::updateHostButtons() {
-    uint32_t next = m_mouseMask | m_gamepadMask;
+    uint32_t next = m_mouseMask | m_gamepadMask | m_pulses.mask();
     for (auto key : m_keyboardButtons) next |= key;
     if (next != m_buttonMask) { m_buttonMask = next; m_buttonTransitions.push_back(next); refreshControls(); }
 }
@@ -558,8 +588,18 @@ void Display::mouseButton(int, int, bool) {}
 void Display::refreshControls() {}
 void Display::keyboardButton(unsigned key, uint32_t mask, bool down) { if (key < m_keyboardButtons.size()) { m_keyboardButtons[key] = down ? mask : 0; updateHostButtons(); } }
 void Display::gamepadButtons(uint32_t mask) { m_gamepadMask = mask; updateHostButtons(); }
-void Display::updateHostButtons() { uint32_t next = m_mouseMask | m_gamepadMask; for (auto key : m_keyboardButtons) next |= key; if (next != m_buttonMask) { m_buttonMask = next; m_buttonTransitions.push_back(next); } }
-void Display::processEvents() {}
+void Display::pulseButton(uint32_t mask, uint32_t duration) {
+    m_pulses.release(mask); updateHostButtons();
+    const auto now = std::chrono::steady_clock::now().time_since_epoch();
+    m_pulses.press(mask, std::chrono::duration_cast<std::chrono::milliseconds>(now).count(), duration);
+    updateHostButtons();
+}
+void Display::updateHostButtons() { uint32_t next = m_mouseMask | m_gamepadMask | m_pulses.mask(); for (auto key : m_keyboardButtons) next |= key; if (next != m_buttonMask) { m_buttonMask = next; m_buttonTransitions.push_back(next); } }
+void Display::processEvents() {
+    const auto now = std::chrono::steady_clock::now().time_since_epoch();
+    m_pulses.expire(std::chrono::duration_cast<std::chrono::milliseconds>(now).count());
+    updateHostButtons();
+}
 void Display::updateFrame(const uint8_t*, uint32_t, bool, size_t, unsigned) {}
 void Display::updateFrameData(const uint8_t*, bool, size_t, unsigned) {}
 bool Display::usesSyncedPresentation() const { return false; }

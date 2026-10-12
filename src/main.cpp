@@ -11,6 +11,7 @@
 #include "core/types.h"
 #include "core/input_script.h"
 #include "core/cartridge_settings.h"
+#include "core/cartridge_language.h"
 #include "core/emulation_clock.h"
 #include "core/execution_batch.h"
 #include "core/host_pacer.h"
@@ -49,6 +50,7 @@ void printUsage(const char* progName) {
     std::cout << "  --snapshot-interval <N> Save framebuffer/state every N instructions\n"
               << "  --exit-on-limit         Close GUI after the instruction budget is exhausted\n"
               << "  --nvram <path>          Load/save a separate 2048-byte EEPROM image\n"
+              << "  --cart-language <auto|ask|en|de|es|it|nl|fr|tr|keep> Cartridge/video language\n"
               << "  --pc-profile <N>        Sample execution pages every N instructions\n"
               << "  --i2c-log               Trace I2C register writes and byte completions\n"
               << "  --mmio-profile          Count guest MMIO accesses (excludes host inspection)\n"
@@ -63,6 +65,7 @@ void printUsage(const char* progName) {
               << "  --trace-pc <start> <end> Trace an inclusive PC range (decimal or 0x addresses)\n"
               << "  --input-script <path>   Replay step/mask events (decimal steps, hex masks)\n";
 }
+
 
 int main(int argc, char* argv[]) {
 #ifdef _WIN32
@@ -100,6 +103,7 @@ int main(int argc, char* argv[]) {
     bool i2cLog = false;
     bool mmioProfile = false;
     std::string nvramPath;
+    std::string cartLanguageMode;
     bool simpleAluExecution = true;
     bool fpa11Execution = true;
     int displayFormat = 0; // 0: LCD registers, 1: RGB444, 2: RGB565.
@@ -159,6 +163,15 @@ int main(int argc, char* argv[]) {
             mmioProfile = true;
         } else if (arg == "--nvram" && i + 1 < argc) {
             nvramPath = argv[++i];
+        } else if (arg == "--cart-language" && i + 1 < argc) {
+            cartLanguageMode = argv[++i];
+            if (cartLanguageMode != "auto" && cartLanguageMode != "ask" && cartLanguageMode != "menu" &&
+                cartLanguageMode != "flags" && cartLanguageMode != "en" && cartLanguageMode != "de" &&
+                cartLanguageMode != "es" && cartLanguageMode != "it" && cartLanguageMode != "nl" &&
+                cartLanguageMode != "fr" && cartLanguageMode != "tr" && cartLanguageMode != "keep") {
+                std::cerr << "[Error] Invalid cartridge language mode.\n";
+                return 1;
+            }
         } else if (arg == "--trace-pc" && i + 2 < argc) {
             traceStart = static_cast<u32>(std::stoul(argv[++i], nullptr, 0));
             traceEnd = static_cast<u32>(std::stoul(argv[++i], nullptr, 0));
@@ -261,6 +274,28 @@ int main(int argc, char* argv[]) {
         if (error || (existing && !bus.loadEeprom(nvramPath))) {
             std::cerr << "[Error] NVRAM file must contain exactly 2048 bytes." << std::endl;
             return 1;
+        }
+    }
+    {
+        unsigned uiLang = 0;
+#ifdef _WIN32
+        if (gui || !cartLanguageMode.empty()) {
+            win::FrontendSettings userSettings;
+            userSettings.load();
+            uiLang = userSettings.language;
+            if (cartLanguageMode.empty() && gui) {
+                static constexpr const char* kModes[10] = {
+                    "auto", "ask", "en", "de", "es", "it", "nl", "fr", "tr", "keep"
+                };
+                cartLanguageMode = kModes[userSettings.cartLanguage < 10 ? userSettings.cartLanguage : 0];
+            }
+        }
+#endif
+        if (!cartLanguageMode.empty()) {
+            const int langByte = resolveCartridgeLanguageByte(cartLanguageMode, uiLang, cartPath);
+            if (langByte >= 0) {
+                bus.setEepromByte(0, static_cast<u8>(langByte));
+            }
         }
     }
     std::vector<InputEvent> inputEvents;

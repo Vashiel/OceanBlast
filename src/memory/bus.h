@@ -60,6 +60,8 @@ public:
     uint64_t getTimer4Expirations() const { return timer4.getExpirations(); }
     bool loadEeprom(const std::string& path);
     bool saveEeprom(const std::string& path) const;
+    void setEepromByte(size_t offset, u8 value) { eeprom.setByte(offset, value); }
+    u8 getEepromByte(size_t offset) const { return eeprom.getByte(offset); }
 
     void enableHostFrameCapture(bool enabled, bool nativeVideo = false) { hostFrameEnabled = enabled; hostNativeVideo = nativeVideo; refreshHostFrameCapture(); }
     const FrameLatch& getHostFrameCapture() const { return hostFrameCapture; }
@@ -361,6 +363,7 @@ private:
     // S3C2410 Keypad / GPIO Button State
     u32  buttonMask = 0;
     void requestIrq(u32 bit);
+    void updateExtInterrupts();
     // S3C2410 / ARM920T MMU State
     bool mmuEnabled = false;
     bool userMode = false;

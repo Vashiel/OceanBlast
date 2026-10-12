@@ -42,6 +42,18 @@ int main(int argc,char**) {
  if(d.getButtonMask()!=BTN_A)return 1;
  d.keyboardButton('Z',BTN_A,false);
  std::cout<<"PASS: Mouse release preserves held keyboard input\n";
+ d.synchronizeButtons();
+ SendMessage(window,WM_APP+2,BTN_FORWARD,180);
+ SendMessage(window,WM_APP+2,BTN_PLAY,30);
+ Sleep(50);d.processEvents();
+ if(d.getButtonMask()!=BTN_FORWARD)return 1;
+ SendMessage(window,WM_KILLFOCUS,0,0);
+ if(d.getButtonMask())return 1;
+ std::cout<<"PASS: Media IPC pulses expire independently and focus loss cancels them\n";
+ d.keyboardButton('P',BTN_PLAY,true);d.pulseButton(BTN_PLAY,10);
+ Sleep(20);d.processEvents();if(d.getButtonMask()!=BTN_PLAY)return 1;
+ d.keyboardButton('P',BTN_PLAY,false);if(d.getButtonMask())return 1;
+ std::cout<<"PASS: Expiring media pulse preserves a held keyboard alias\n";
  for(int i=0;i<3;++i){SendMessage(window,WM_KEYDOWN,VK_F11,0);if(!d.fullscreen())return 1;GetWindowRect(lcd,&child);if(abs((child.right-child.left)*2-(child.bottom-child.top)*3)>3)return 1;
   SendMessage(window,WM_KEYDOWN,VK_ESCAPE,0);if(d.fullscreen()||!d.isOpen())return 1;RECT now{};GetWindowRect(window,&now);if(memcmp(&now,&saved,sizeof(now)))return 1;}
  std::cout<<"PASS: Repeated fullscreen toggles preserve aspect, window position and Escape behavior\n";

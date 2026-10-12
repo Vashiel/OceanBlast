@@ -2,6 +2,7 @@
 #define OCEANBLAST_DISPLAY_H
 
 #include <cstdint>
+#include "core/button_pulses.h"
 #include <string>
 #include <vector>
 #include <deque>
@@ -15,19 +16,21 @@ constexpr int LCD_HEIGHT = 160;
 
 // Button flags
 enum Button {
-    BTN_UP     = 1 << 0,
-    BTN_DOWN   = 1 << 1,
-    BTN_LEFT   = 1 << 2,
-    BTN_RIGHT  = 1 << 3,
-    BTN_A      = 1 << 4,
-    BTN_B      = 1 << 5,
-    BTN_L      = 1 << 6,
-    BTN_R      = 1 << 7,
-    BTN_START  = 1 << 8,
-    BTN_SELECT = 1 << 9,
-    BTN_C      = 1 << 10,
-    BTN_REWIND = 1 << 11,
-    BTN_FORWARD = 1 << 12
+    BTN_UP      = 1 << 0,
+    BTN_DOWN    = 1 << 1,
+    BTN_LEFT    = 1 << 2,
+    BTN_RIGHT   = 1 << 3,
+    BTN_A       = 1 << 4,
+    BTN_B       = 1 << 5,
+    BTN_L       = 1 << 6,
+    BTN_R       = 1 << 7,
+    BTN_START   = 1 << 8,
+    BTN_SELECT  = 1 << 9,
+    BTN_C       = 1 << 10,
+    BTN_REWIND  = 1 << 11,
+    BTN_FORWARD = 1 << 12,
+    BTN_PLAY    = 1 << 13,
+    BTN_STOP    = 1 << 14
 };
 
 class Display {
@@ -57,6 +60,7 @@ public:
     void refreshControls();
     void keyboardButton(unsigned key, uint32_t mask, bool down);
     void gamepadButtons(uint32_t mask);
+    void pulseButton(uint32_t mask, uint32_t durationMs = 180);
     void updateHostButtons();
     void onDeviceChange();
     void useGdiPresentation(bool value) { m_gdiOnly = value; }
@@ -82,7 +86,7 @@ public:
     }
     void synchronizeButtons() { m_buttonTransitions.clear(); m_guestButtonMask = m_buttonMask; }
     void releaseButtons() {
-        m_keyboardButtons.fill(0); m_mouseMask = 0; m_gamepadMask = 0;
+        m_keyboardButtons.fill(0); m_mouseMask = 0; m_gamepadMask = 0; m_pulses.clear();
         if (m_buttonMask) { m_buttonMask = 0; m_buttonTransitions.push_back(0); }
     }
 
@@ -104,6 +108,7 @@ private:
     int m_savedX = 0, m_savedY = 0, m_savedW = 0, m_savedH = 0;
     uint32_t m_mouseMask = 0;
     uint32_t m_gamepadMask = 0;
+    ButtonPulses m_pulses;
     uint64_t m_lastEventPollMs = 0;
     uint64_t m_lastInputPollMs = 0;
     std::array<uint32_t, 256> m_keyboardButtons{};

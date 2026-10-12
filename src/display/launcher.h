@@ -54,17 +54,33 @@ enum {
     ToggleFullscreenCmd = 103,
     EscapeFromChildCmd = 104,
     ExitApp = 105,
-    SettingsBase = 200
+    SettingsBase = 200,
+    MediaPlayPause = 210,
+    MediaStop = 211,
+    MediaPrev = 212,
+    MediaNext = 213,
+    MediaSeekBack = 214,
+    MediaSeekFwd = 215,
+    CartLangBase = 220
 };
 
 struct UiText {
     const wchar_t* categories[6];
     const wchar_t* menuFile;
+    const wchar_t* menuPlayback;
     const wchar_t* menuSettings;
     const wchar_t* menuOpenRom;
     const wchar_t* menuRestartRom;
     const wchar_t* menuStopRom;
     const wchar_t* menuExit;
+    const wchar_t* menuPlayPause;
+    const wchar_t* menuStopMedia;
+    const wchar_t* menuPrevTrack;
+    const wchar_t* menuNextTrack;
+    const wchar_t* menuSeekBack;
+    const wchar_t* menuSeekFwd;
+    const wchar_t* cartLanguageLabel;
+    const wchar_t* cartLanguageOptions[10];
     const wchar_t* idleWindowTitle;
     const wchar_t* settingsWindowTitle;
     const wchar_t* startScreenText;
@@ -143,8 +159,27 @@ static constexpr UiText kUiText[7]{
     // 0: English (Default)
     {
         {L"Folders & System", L"Controls", L"Sound", L"Video", L"Timing & Diagnostics", L"Hotkeys & Help"},
-        L"File", L"Settings",
+        L"File", L"Playback", L"Settings",
         L"Load ROM...\tCtrl+O", L"Restart Game\tCtrl+R", L"Stop Game", L"Exit",
+        L"Play / Pause\tP / F10",
+        L"Stop / Episode Menu\tBackspace / F9",
+        L"|<< Previous / Rewind\tB / F8",
+        L">>I Next / Fast-Forward\tN / F12",
+        L"<< Seek Backward (Hold |<<)",
+        L">> Seek Forward (Hold >>I)",
+        L"Cartridge / Video Language",
+        {
+            L"Auto (Match UI Language)",
+            L"Always Ask in Cartridge (Flag Menu)",
+            L"English (EN)",
+            L"Deutsch (DE)",
+            L"Español (ES)",
+            L"Italiano (IT)",
+            L"Nederlands (NL)",
+            L"Français (FR)",
+            L"Türkçe (TR)",
+            L"Keep Saved EEPROM Value"
+        },
         L"OceanBlast — Ctrl+O: Open ROM, or drag ROM here",
         L"OceanBlast — Settings",
         L"Load ROM: Ctrl+O · Drag & drop a ROM into this window\nSettings: System, Controller, Sound, Video and Timing",
@@ -155,7 +190,7 @@ static constexpr UiText kUiText[7]{
         L"Could not start emulator process.",
         L"Select default folder for digiBLAST ROMs",
         L"digiBLAST ROM (*.bin;*.rom)\0*.bin;*.rom\0All Files (*.*)\0*.*\0",
-        L"Language",
+        L"UI Language",
         L"ROM Folder (default directory for Ctrl+O)", L"Default directory", L"Browse...",
         L"Selected digiBLAST ROM", L"No ROM selected yet", L"File...",
         L"Start Game", L"Stop Game",
@@ -204,17 +239,38 @@ static constexpr UiText kUiText[7]{
         L"Hotkeys & Controls",
         L"• Ctrl+O: Load ROM    ·    Ctrl+R: Restart game\n"
         L"• Drag ROM file into window: Launch game directly via drag & drop\n"
-        L"• F11 or Alt+Enter: Toggle fullscreen\n"
-        L"• Esc: Exit fullscreen / Pause\n"
+        L"• F11 or Alt+Enter: Toggle fullscreen    ·    Esc: Exit fullscreen / Stop\n"
         L"• F5: Pause / Resume    ·    F6: Single CPU step    ·    F7: Save snapshot\n"
-        L"• F8 / L2: Rewind    ·    F9: Stop    ·    F10: Play/Pause    ·    F12 / R2: Fast-forward\n\n"
-        L"Under 'Controls', you can freely bind Xbox, Stadia, PlayStation and USB controllers as well as any keyboard keys."
+        L"• Video Play/Pause: P / F10 / Space / Media Play\n"
+        L"• Video Stop / Episode Menu: Backspace / F9 / Enter / Media Stop\n"
+        L"• Video Previous / Rewind |<<: B / F8 / PageUp / , (hold to seek backward)\n"
+        L"• Video Next / Fast-Forward >>|: N / F12 / PageDown / . (hold to seek forward)\n\n"
+        L"Use the 'Playback' menu in the top bar for one-click video transport controls and multilingual audio selection."
     },
     // 1: Deutsch
     {
         {L"Ordner & System", L"Steuerung", L"Sound", L"Video", L"Timing & Diagnose", L"Kurztasten & Hilfe"},
-        L"Datei", L"Einstellungen",
+        L"Datei", L"Wiedergabe", L"Einstellungen",
         L"ROM laden...\tStrg+O", L"Spiel neu starten\tStrg+R", L"Spiel stoppen", L"Beenden",
+        L"Play / Pause\tP / F10",
+        L"Stopp / Episoden-Menü\tRücktaste / F9",
+        L"|<< Zurück / Rücklauf\tB / F8",
+        L">>I Weiter / Vorlauf\tN / F12",
+        L"<< Rückwärts spulen (|<< halten)",
+        L">> Vorwärts spulen (>>I halten)",
+        L"Modul- / Videosprache",
+        {
+            L"Automatisch (wie UI-Sprache)",
+            L"Immer im Modul fragen (Flaggen-Menü)",
+            L"English (EN)",
+            L"Deutsch (DE)",
+            L"Español (ES)",
+            L"Italiano (IT)",
+            L"Nederlands (NL)",
+            L"Français (FR)",
+            L"Türkçe (TR)",
+            L"Gespeicherten EEPROM-Wert behalten"
+        },
         L"OceanBlast — Strg+O: ROM öffnen, ROM hierher ziehen",
         L"OceanBlast — Einstellungen",
         L"ROM laden: Strg+O · ROM ins Fenster ziehen\nEinstellungen: System, Controller, Sound, Video und Timing",
@@ -225,7 +281,7 @@ static constexpr UiText kUiText[7]{
         L"Emulator-Prozess konnte nicht gestartet werden.",
         L"Standard-Ordner für digiBLAST-ROMs auswählen",
         L"digiBLAST ROM (*.bin;*.rom)\0*.bin;*.rom\0Alle Dateien (*.*)\0*.*\0",
-        L"Sprache",
+        L"Oberflächensprache",
         L"ROM-Ordner (Startverzeichnis für Strg+O)", L"Standardverzeichnis", L"Auswählen...",
         L"Ausgewähltes digiBLAST-ROM", L"Noch kein ROM ausgewählt", L"Datei...",
         L"Spiel starten", L"Spiel stoppen",
@@ -274,17 +330,38 @@ static constexpr UiText kUiText[7]{
         L"Kurztasten & Steuerung",
         L"• Strg+O: ROM laden    ·    Strg+R: Spiel neu starten\n"
         L"• ROM-Datei ins Fenster ziehen: Spiel direkt per Drag & Drop starten\n"
-        L"• F11 oder Alt+Eingabe: Vollbild umschalten\n"
-        L"• Esc: Vollbild verlassen / Pause\n"
+        L"• F11 oder Alt+Eingabe: Vollbild umschalten    ·    Esc: Vollbild verlassen / Stopp\n"
         L"• F5: Pause / Weiter    ·    F6: Einzelner CPU-Schritt    ·    F7: Snapshot speichern\n"
-        L"• F8 / L2: Rücklauf    ·    F9: Stopp    ·    F10: Play/Pause    ·    F12 / R2: Vorlauf\n\n"
-        L"Unter 'Steuerung' lassen sich Xbox-, Stadia-, PlayStation- und USB-Controller sowie alle Tastaturtasten frei anlernen."
+        L"• Video Play/Pause: P / F10 / Leertaste / Media-Play\n"
+        L"• Video Stopp / Episoden-Menü: Rücktaste (Backspace) / F9 / Eingabe / Media-Stopp\n"
+        L"• Video Zurück / Rücklauf |<<: B / F8 / Bild-Auf / , (gedrückt halten zum Zurückspulen)\n"
+        L"• Video Weiter / Vorlauf >>|: N / F12 / Bild-Ab / . (gedrückt halten zum Vorspulen)\n\n"
+        L"Über das Menü 'Wiedergabe' oben lassen sich RealVideo-Module und deren Sprache auch direkt per Maus steuern."
     },
     // 2: Español
     {
         {L"Carpetas y Sistema", L"Controles", L"Sonido", L"Vídeo", L"Tiempo y Diagnóstico", L"Atajos y Ayuda"},
-        L"Archivo", L"Configuración",
+        L"Archivo", L"Reproducción", L"Configuración",
         L"Cargar ROM...\tCtrl+O", L"Reiniciar juego\tCtrl+R", L"Detener juego", L"Salir",
+        L"Reproducir / Pausa\tP / F10",
+        L"Detener / Menú de episodios\tRetroceso / F9",
+        L"|<< Anterior / Rebobinar\tB / F8",
+        L">>I Siguiente / Avance rápido\tN / F12",
+        L"<< Retroceder (Mantener |<<)",
+        L">> Avanzar (Mantener >>I)",
+        L"Idioma de cartucho / vídeo",
+        {
+            L"Automático (según idioma de interfaz)",
+            L"Preguntar siempre en el cartucho (Menú de banderas)",
+            L"English (EN)",
+            L"Deutsch (DE)",
+            L"Español (ES)",
+            L"Italiano (IT)",
+            L"Nederlands (NL)",
+            L"Français (FR)",
+            L"Türkçe (TR)",
+            L"Mantener valor guardado en EEPROM"
+        },
         L"OceanBlast — Ctrl+O: Abrir ROM o arrastrar ROM aquí",
         L"OceanBlast — Configuración",
         L"Cargar ROM: Ctrl+O · Arrastra una ROM a la ventana\nConfiguración: Sistema, Mando, Sonido, Vídeo y Tiempo",
@@ -295,7 +372,7 @@ static constexpr UiText kUiText[7]{
         L"No se pudo iniciar el proceso del emulador.",
         L"Seleccionar carpeta predeterminada para ROMs de digiBLAST",
         L"ROM digiBLAST (*.bin;*.rom)\0*.bin;*.rom\0Todos los archivos (*.*)\0*.*\0",
-        L"Idioma",
+        L"Idioma de interfaz",
         L"Carpeta de ROMs (directorio inicial para Ctrl+O)", L"Directorio predeterminado", L"Elegir...",
         L"ROM de digiBLAST seleccionada", L"Ninguna ROM seleccionada", L"Archivo...",
         L"Iniciar juego", L"Detener juego",
@@ -344,17 +421,38 @@ static constexpr UiText kUiText[7]{
         L"Atajos y Controles",
         L"• Ctrl+O: Cargar ROM    ·    Ctrl+R: Reiniciar juego\n"
         L"• Arrastrar archivo ROM a la ventana: Iniciar juego directamente\n"
-        L"• F11 o Alt+Intro: Alternar pantalla completa\n"
-        L"• Esc: Salir de pantalla completa / Pausa\n"
+        L"• F11 o Alt+Intro: Pantalla completa    ·    Esc: Salir / Detener\n"
         L"• F5: Pausa / Continuar    ·    F6: Paso único de CPU    ·    F7: Guardar instantánea\n"
-        L"• F8 / L2: Rebobinar    ·    F9: Detener    ·    F10: Reproducir/Pausa    ·    F12 / R2: Avance rápido\n\n"
-        L"En 'Controles' puedes configurar libremente mandos de Xbox, Stadia, PlayStation y USB, así como cualquier tecla."
+        L"• Vídeo Reproducir/Pausa: P / F10 / Espacio / Media Play\n"
+        L"• Vídeo Detener / Menú de episodios: Retroceso / F9 / Intro / Media Stop\n"
+        L"• Vídeo Anterior / Rebobinar |<<: B / F8 / RePág / , (mantener para retroceder)\n"
+        L"• Vídeo Siguiente / Avance rápido >>|: N / F12 / AvPág / . (mantener para avanzar)\n\n"
+        L"Usa el menú 'Reproducción' en la barra superior para controlar vídeos y elegir el idioma del cartucho."
     },
     // 3: Italiano
     {
         {L"Cartelle e Sistema", L"Controlli", L"Audio", L"Video", L"Timing e Diagnostica", L"Scorciatoie e Aiuto"},
-        L"File", L"Impostazioni",
+        L"File", L"Riproduzione", L"Impostazioni",
         L"Carica ROM...\tCtrl+O", L"Riavvia gioco\tCtrl+R", L"Ferma gioco", L"Esci",
+        L"Play / Pausa\tP / F10",
+        L"Stop / Menu episodi\tBackspace / F9",
+        L"|<< Precedente / Riavvolgi\tB / F8",
+        L">>I Successivo / Avanti veloce\tN / F12",
+        L"<< Riavvolgi (Tieni |<<)",
+        L">> Avanti veloce (Tieni >>I)",
+        L"Lingua cartuccia / video",
+        {
+            L"Automatico (come lingua interfaccia)",
+            L"Chiedi sempre nella cartuccia (Menu bandiere)",
+            L"English (EN)",
+            L"Deutsch (DE)",
+            L"Español (ES)",
+            L"Italiano (IT)",
+            L"Nederlands (NL)",
+            L"Français (FR)",
+            L"Türkçe (TR)",
+            L"Mantieni valore EEPROM salvato"
+        },
         L"OceanBlast — Ctrl+O: Apri ROM o trascina ROM qui",
         L"OceanBlast — Impostazioni",
         L"Carica ROM: Ctrl+O · Trascina una ROM nella finestra\nImpostazioni: Sistema, Controller, Audio, Video e Timing",
@@ -365,7 +463,7 @@ static constexpr UiText kUiText[7]{
         L"Impossibile avviare il processo dell'emulatore.",
         L"Seleziona la cartella predefinita per le ROM digiBLAST",
         L"ROM digiBLAST (*.bin;*.rom)\0*.bin;*.rom\0Tutti i file (*.*)\0*.*\0",
-        L"Lingua",
+        L"Lingua interfaccia",
         L"Cartella ROM (directory iniziale per Ctrl+O)", L"Directory predefinita", L"Sfoglia...",
         L"ROM digiBLAST selezionata", L"Nessuna ROM selezionata", L"File...",
         L"Avvia gioco", L"Ferma gioco",
@@ -414,17 +512,38 @@ static constexpr UiText kUiText[7]{
         L"Scorciatoie e Controlli",
         L"• Ctrl+O: Carica ROM    ·    Ctrl+R: Riavvia gioco\n"
         L"• Trascina file ROM nella finestra: Avvia direttamente con drag & drop\n"
-        L"• F11 o Alt+Invio: Schermo intero\n"
-        L"• Esc: Esci da schermo intero / Pausa\n"
+        L"• F11 o Alt+Invio: Schermo intero    ·    Esc: Esci / Stop\n"
         L"• F5: Pausa / Riprendi    ·    F6: Singolo passo CPU    ·    F7: Salva snapshot\n"
-        L"• F8 / L2: Riavvolgi    ·    F9: Stop    ·    F10: Play/Pausa    ·    F12 / R2: Avanti veloce\n\n"
-        L"In 'Controlli' puoi configurare liberamente controller Xbox, Stadia, PlayStation, USB e tutti i tasti della tastiera."
+        L"• Video Play/Pausa: P / F10 / Spazio / Media Play\n"
+        L"• Video Stop / Menu episodi: Backspace / F9 / Invio / Media Stop\n"
+        L"• Video Precedente / Riavvolgi |<<: B / F8 / PagSu / , (tieni premuto per riavvolgere)\n"
+        L"• Video Successivo / Avanti veloce >>|: N / F12 / PagGiù / . (tieni premuto per avanzare)\n\n"
+        L"Usa il menu 'Riproduzione' nella barra superiore per controllare i video e scegliere la lingua della cartuccia."
     },
     // 4: Nederlands
     {
         {L"Mappen & Systeem", L"Besturing", L"Geluid", L"Video", L"Timing & Diagnose", L"Sneltoetsen & Hulp"},
-        L"Bestand", L"Instellingen",
+        L"Bestand", L"Afspelen", L"Instellingen",
         L"ROM laden...\tCtrl+O", L"Spel herstarten\tCtrl+R", L"Spel stoppen", L"Afsluiten",
+        L"Afspelen / Pauze\tP / F10",
+        L"Stop / Afleveringenmenu\tBackspace / F9",
+        L"|<< Vorige / Terugspoelen\tB / F8",
+        L">>I Volgende / Vooruitspoelen\tN / F12",
+        L"<< Terugspoelen (Houd |<< ingedrukt)",
+        L">> Vooruitspoelen (Houd >>I ingedrukt)",
+        L"Cartridge- / videotaal",
+        {
+            L"Automatisch (zoals UI-taal)",
+            L"Altijd in cartridge vragen (Vlaggenmenu)",
+            L"English (EN)",
+            L"Deutsch (DE)",
+            L"Español (ES)",
+            L"Italiano (IT)",
+            L"Nederlands (NL)",
+            L"Français (FR)",
+            L"Türkçe (TR)",
+            L"Opgeslagen EEPROM-waarde behouden"
+        },
         L"OceanBlast — Ctrl+O: ROM openen of sleep ROM hierheen",
         L"OceanBlast — Instellingen",
         L"ROM laden: Ctrl+O · Sleep een ROM naar dit venster\nInstellingen: Systeem, Controller, Geluid, Video en Timing",
@@ -435,7 +554,7 @@ static constexpr UiText kUiText[7]{
         L"Kon emulatorproces niet starten.",
         L"Standaardmap voor digiBLAST-ROMs selecteren",
         L"digiBLAST ROM (*.bin;*.rom)\0*.bin;*.rom\0Alle bestanden (*.*)\0*.*\0",
-        L"Taal",
+        L"Interfacetaal",
         L"ROM-map (startmap voor Ctrl+O)", L"Standaardmap", L"Bladeren...",
         L"Geselecteerde digiBLAST-ROM", L"Nog geen ROM geselecteerd", L"Bestand...",
         L"Spel starten", L"Spel stoppen",
@@ -484,17 +603,38 @@ static constexpr UiText kUiText[7]{
         L"Sneltoetsen & Besturing",
         L"• Ctrl+O: ROM laden    ·    Ctrl+R: Spel herstarten\n"
         L"• Sleep ROM-bestand naar venster: Spel direct starten via drag & drop\n"
-        L"• F11 of Alt+Enter: Volledig scherm schakelen\n"
-        L"• Esc: Volledig scherm verlaten / Pauze\n"
+        L"• F11 of Alt+Enter: Volledig scherm    ·    Esc: Verlaten / Stop\n"
         L"• F5: Pauze / Hervatten    ·    F6: Enkele CPU-stap    ·    F7: Snapshot opslaan\n"
-        L"• F8 / L2: Terugspoelen    ·    F9: Stop    ·    F10: Afspelen/Pauze    ·    F12 / R2: Vooruitspoelen\n\n"
-        L"Onder 'Besturing' kun je Xbox-, Stadia-, PlayStation- en USB-controllers en alle toetsenbordtoetsen vrij instellen."
+        L"• Video Afspelen/Pauze: P / F10 / Spatie / Media Play\n"
+        L"• Video Stop / Afleveringenmenu: Backspace / F9 / Enter / Media Stop\n"
+        L"• Video Vorige / Terugspoelen |<<: B / F8 / PageUp / , (ingedrukt houden om te spoelen)\n"
+        L"• Video Volgende / Vooruitspoelen >>|: N / F12 / PageDown / . (ingedrukt houden om te spoelen)\n\n"
+        L"Gebruik het menu 'Afspelen' bovenin voor directe videobesturing en taalkeuze voor meertalige cartridges."
     },
     // 5: Français
     {
         {L"Dossiers & Système", L"Commandes", L"Son", L"Vidéo", L"Timing & Diagnostic", L"Raccourcis & Aide"},
-        L"Fichier", L"Paramètres",
+        L"Fichier", L"Lecture", L"Paramètres",
         L"Charger une ROM...\tCtrl+O", L"Redémarrer le jeu\tCtrl+R", L"Arrêter le jeu", L"Quitter",
+        L"Lecture / Pause\tP / F10",
+        L"Arrêt / Menu des épisodes\tRetour arrière / F9",
+        L"|<< Précédent / Retour rapide\tB / F8",
+        L">>I Suivant / Avance rapide\tN / F12",
+        L"<< Reculer (Maintenir |<<)",
+        L">> Avancer (Maintenir >>I)",
+        L"Langue cartouche / vidéo",
+        {
+            L"Automatique (selon la langue de l'interface)",
+            L"Toujours demander dans la cartouche (Menu drapeaux)",
+            L"English (EN)",
+            L"Deutsch (DE)",
+            L"Español (ES)",
+            L"Italiano (IT)",
+            L"Nederlands (NL)",
+            L"Français (FR)",
+            L"Türkçe (TR)",
+            L"Conserver la valeur EEPROM enregistrée"
+        },
         L"OceanBlast — Ctrl+O : Ouvrir une ROM ou glisser une ROM ici",
         L"OceanBlast — Paramètres",
         L"Charger une ROM : Ctrl+O · Glisser-déposer une ROM dans la fenêtre\nParamètres : Système, Manette, Son, Vidéo et Timing",
@@ -505,7 +645,7 @@ static constexpr UiText kUiText[7]{
         L"Impossible de démarrer le processus de l'émulateur.",
         L"Sélectionner le dossier par défaut pour les ROMs digiBLAST",
         L"ROM digiBLAST (*.bin;*.rom)\0*.bin;*.rom\0Tous les fichiers (*.*)\0*.*\0",
-        L"Langue",
+        L"Langue de l'interface",
         L"Dossier ROM (répertoire initial pour Ctrl+O)", L"Répertoire par défaut", L"Parcourir...",
         L"ROM digiBLAST sélectionnée", L"Aucune ROM sélectionnée", L"Fichier...",
         L"Démarrer le jeu", L"Arrêter le jeu",
@@ -554,17 +694,38 @@ static constexpr UiText kUiText[7]{
         L"Raccourcis & Commandes",
         L"• Ctrl+O : Charger une ROM    ·    Ctrl+R : Redémarrer le jeu\n"
         L"• Glisser un fichier ROM dans la fenêtre : Lancer directement par glisser-déposer\n"
-        L"• F11 ou Alt+Entrée : Basculer en plein écran\n"
-        L"• Échap : Quitter le plein écran / Pause\n"
+        L"• F11 ou Alt+Entrée : Plein écran    ·    Échap : Quitter / Arrêt\n"
         L"• F5 : Pause / Reprendre    ·    F6 : Pas CPU unique    ·    F7 : Enregistrer un instantané\n"
-        L"• F8 / L2 : Retour rapide    ·    F9 : Arrêt    ·    F10 : Lecture/Pause    ·    F12 / R2 : Avance rapide\n\n"
-        L"Sous « Commandes », vous pouvez configurer librement les manettes Xbox, Stadia, PlayStation, USB et toutes les touches du clavier."
+        L"• Vidéo Lecture/Pause : P / F10 / Espace / Media Play\n"
+        L"• Vidéo Arrêt / Menu épisodes : Retour arrière / F9 / Entrée / Media Stop\n"
+        L"• Vidéo Précédent / Retour rapide |<< : B / F8 / PagePréc / , (maintenir pour reculer)\n"
+        L"• Vidéo Suivant / Avance rapide >>| : N / F12 / PageSuiv / . (maintenir pour avancer)\n\n"
+        L"Utilisez le menu « Lecture » dans la barre supérieure pour contrôler la vidéo et choisir la langue de la cartouche."
     },
     // 6: Türkçe
     {
         {L"Klasörler ve Sistem", L"Kontroller", L"Ses", L"Görüntü", L"Zamanlama ve Tanılama", L"Kısayollar ve Yardım"},
-        L"Dosya", L"Ayarlar",
+        L"Dosya", L"Oynatma", L"Ayarlar",
         L"ROM Yükle...\tCtrl+O", L"Oyunu Yeniden Başlat\tCtrl+R", L"Oyunu Durdur", L"Çıkış",
+        L"Oynat / Duraklat\tP / F10",
+        L"Durdur / Bölüm Menüsü\tBackspace / F9",
+        L"|<< Önceki / Geri Sar\tB / F8",
+        L">>I Sonraki / İleri Sar\tN / F12",
+        L"<< Geriye Sar (|<< Basılı Tut)",
+        L">> İleriye Sar (>>I Basılı Tut)",
+        L"Kartuş / Video Dili",
+        {
+            L"Otomatik (Arayüz Diliyle Aynı)",
+            L"Her Zaman Kartuşta Sor (Bayrak Menüsü)",
+            L"English (EN)",
+            L"Deutsch (DE)",
+            L"Español (ES)",
+            L"Italiano (IT)",
+            L"Nederlands (NL)",
+            L"Français (FR)",
+            L"Türkçe (TR)",
+            L"Kayıtlı EEPROM Değerini Koru"
+        },
         L"OceanBlast — Ctrl+O: ROM aç veya ROM dosyasını buraya sürükle",
         L"OceanBlast — Ayarlar",
         L"ROM Yükle: Ctrl+O · ROM dosyasını pencereye sürükleyin\nAyarlar: Sistem, Kontrolcü, Ses, Görüntü ve Zamanlama",
@@ -575,7 +736,7 @@ static constexpr UiText kUiText[7]{
         L"Emülatör işlemi başlatılamadı.",
         L"digiBLAST ROM'ları için varsayılan klasörü seçin",
         L"digiBLAST ROM (*.bin;*.rom)\0*.bin;*.rom\0Tüm Dosyalar (*.*)\0*.*\0",
-        L"Dil",
+        L"Arayüz Dili",
         L"ROM Klasörü (Ctrl+O için başlangıç dizini)", L"Varsayılan dizin", L"Seç...",
         L"Seçilen digiBLAST ROM", L"Henüz ROM seçilmedi", L"Dosya...",
         L"Oyunu Başlat", L"Oyunu Durdur",
@@ -624,11 +785,13 @@ static constexpr UiText kUiText[7]{
         L"Kısayollar ve Kontroller",
         L"• Ctrl+O: ROM yükle    ·    Ctrl+R: Oyunu yeniden başlat\n"
         L"• ROM dosyasını pencereye sürükle: Sürükle ve bırak ile doğrudan başlat\n"
-        L"• F11 veya Alt+Enter: Tam ekran geçişi\n"
-        L"• Esc: Tam ekrandan çık / Duraklat\n"
+        L"• F11 veya Alt+Enter: Tam ekran    ·    Esc: Çıkış / Durdur\n"
         L"• F5: Duraklat / Devam    ·    F6: Tek CPU adımı    ·    F7: Anlık görüntü kaydet\n"
-        L"• F8 / L2: Geri sar    ·    F9: Durdur    ·    F10: Oynat/Duraklat    ·    F12 / R2: İleri sar\n\n"
-        L"'Kontroller' altında Xbox, Stadia, PlayStation ve USB kontrolcülerini ve tüm klavye tuşlarını serbestçe atayabilirsiniz."
+        L"• Video Oynat/Duraklat: P / F10 / Boşluk / Media Play\n"
+        L"• Video Durdur / Bölüm Menüsü: Backspace / F9 / Enter / Media Stop\n"
+        L"• Video Önceki / Geri Sar |<<: B / F8 / PageUp / , (geri sarmak için basılı tutun)\n"
+        L"• Video Sonraki / İleri Sar >>|: N / F12 / PageDown / . (ileri sarmak için basılı tutun)\n\n"
+        L"Üst çubuktaki 'Oynatma' menüsünden videoları tek tıkla kontrol edebilir ve çok dilli kartuşların dilini seçebilirsiniz."
     }
 };
 
@@ -784,6 +947,13 @@ static bool launchRom(const std::wstring& romFile) {
     else if (settings.displayFormat == 4) command += L" --display-format lcd";
 
     if (settings.keepNvram) command += L" --nvram \"" + folder + L"\\board.nvram\"";
+    {
+        static constexpr const wchar_t* kCartLangModes[10]{
+            L"auto", L"ask", L"en", L"de", L"es", L"it", L"nl", L"fr", L"tr", L"keep"
+        };
+        command += L" --cart-language ";
+        command += kCartLangModes[std::min(9u, settings.cartLanguage)];
+    }
 
     SECURITY_ATTRIBUTES security = {sizeof(security), nullptr, TRUE};
     HANDLE log = CreateFileW((folder + L"\\session.log").c_str(), GENERIC_WRITE, FILE_SHARE_READ, &security, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -855,6 +1025,8 @@ static HMENU makeMenu() {
     const auto& t = tr();
     HMENU menu = CreateMenu();
     HMENU file = CreatePopupMenu();
+    HMENU playback = CreatePopupMenu();
+    HMENU cartLang = CreatePopupMenu();
     HMENU cfg = CreatePopupMenu();
     AppendMenuW(file, MF_STRING, OpenRom, t.menuOpenRom);
     AppendMenuW(file, MF_STRING, RestartRom, t.menuRestartRom);
@@ -862,13 +1034,45 @@ static HMENU makeMenu() {
     AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(file, MF_STRING, ExitApp, t.menuExit);
 
+    AppendMenuW(playback, MF_STRING, MediaPlayPause, t.menuPlayPause);
+    AppendMenuW(playback, MF_STRING, MediaStop, t.menuStopMedia);
+    AppendMenuW(playback, MF_STRING, MediaPrev, t.menuPrevTrack);
+    AppendMenuW(playback, MF_STRING, MediaNext, t.menuNextTrack);
+    AppendMenuW(playback, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(playback, MF_STRING, MediaSeekBack, t.menuSeekBack);
+    AppendMenuW(playback, MF_STRING, MediaSeekFwd, t.menuSeekFwd);
+    AppendMenuW(playback, MF_SEPARATOR, 0, nullptr);
+    for (unsigned i = 0; i < 10; ++i) {
+        const UINT flags = MF_STRING | (settings.cartLanguage == i ? MF_CHECKED : 0);
+        AppendMenuW(cartLang, flags, CartLangBase + i, t.cartLanguageOptions[i]);
+    }
+    AppendMenuW(playback, MF_POPUP, reinterpret_cast<UINT_PTR>(cartLang), t.cartLanguageLabel);
+
     for (unsigned i = 0; i < 6; ++i) {
         std::wstring item = std::wstring(t.categories[i]) + L"...";
         AppendMenuW(cfg, MF_STRING, SettingsBase + i, item.c_str());
     }
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(file), t.menuFile);
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(playback), t.menuPlayback);
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(cfg), t.menuSettings);
     return menu;
+}
+
+static void refreshMainMenuBar() {
+    if (!window) return;
+    HMENU newMenu = makeMenu();
+    if (!mainFullscreen) {
+        SetMenu(window, newMenu);
+        DrawMenuBar(window);
+    }
+    if (mainMenu) DestroyMenu(mainMenu);
+    mainMenu = newMenu;
+}
+
+static void sendMediaPulseToChild(uint32_t mask, uint32_t durationMs = 180) {
+    if (HWND child = findEmbeddedDisplay()) {
+        PostMessageA(child, WM_APP + 2, static_cast<WPARAM>(mask), static_cast<LPARAM>(durationMs));
+    }
 }
 
 static void startScreen(HDC dc) {
@@ -933,10 +1137,15 @@ static void rebuildSettings() {
     settingsLabel(t.savedLocallyNote, 210, 553, 500);
 
     if (settingsPage == 0) {
-        settingsLabel(t.languageLabel, 210, 18);
-        HWND langCombo = settingsControl(L"COMBOBOX", L"", 915, 210, 42, 300, 200, CBS_DROPDOWNLIST | WS_TABSTOP);
+        settingsLabel(t.languageLabel, 210, 18, 280);
+        HWND langCombo = settingsControl(L"COMBOBOX", L"", 915, 210, 42, 280, 200, CBS_DROPDOWNLIST | WS_TABSTOP);
         for (auto langName : kLanguageNames) comboItem(langCombo, langName);
         SendMessageW(langCombo, CB_SETCURSEL, std::min(6u, settings.language), 0);
+
+        settingsLabel(t.cartLanguageLabel, 510, 18, 320);
+        HWND cartLangCombo = settingsControl(L"COMBOBOX", L"", 916, 510, 42, 320, 240, CBS_DROPDOWNLIST | WS_TABSTOP);
+        for (auto opt : t.cartLanguageOptions) comboItem(cartLangCombo, opt);
+        SendMessageW(cartLangCombo, CB_SETCURSEL, std::min(9u, settings.cartLanguage), 0);
 
         settingsLabel(t.romFolderLabel, 210, 84);
         settingsControl(L"EDIT", settings.romFolder.empty() ? t.defaultFolderText : settings.romFolder.c_str(),
@@ -1055,7 +1264,7 @@ static void rebuildSettings() {
         settingsLabel(t.timingNote, 210, 185, 620, 48);
     } else {
         settingsLabel(t.hotkeysHeader, 210, 20);
-        settingsLabel(t.hotkeysBody, 210, 56, 620, 240);
+        settingsLabel(t.hotkeysBody, 210, 56, 620, 280);
     }
     InvalidateRect(settingsWindow, nullptr, TRUE);
 }
@@ -1308,19 +1517,17 @@ static LRESULT CALLBACK settingsProc(HWND h, UINT message, WPARAM w, LPARAM l) {
             if (id == 915 && value < 7) {
                 settings.language = value;
                 saveSettings();
-                if (window) {
-                    HMENU newMenu = makeMenu();
-                    if (!mainFullscreen) {
-                        SetMenu(window, newMenu);
-                        DrawMenuBar(window);
-                    }
-                    if (mainMenu) DestroyMenu(mainMenu);
-                    mainMenu = newMenu;
-                    if (!process) setIdleTitle();
-                    InvalidateRect(window, nullptr, TRUE);
-                }
+                refreshMainMenuBar();
+                if (!process) setIdleTitle();
+                if (window) InvalidateRect(window, nullptr, TRUE);
                 SetWindowTextW(h, tr().settingsWindowTitle);
                 rebuildSettings();
+                return 0;
+            }
+            if (id == 916 && value < 10) {
+                settings.cartLanguage = value;
+                saveSettings();
+                refreshMainMenuBar();
                 return 0;
             }
             if (id == 960 && value < input.controllers.size()) {
@@ -1509,6 +1716,26 @@ static LRESULT CALLBACK procedure(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
         } else if (id == EscapeFromChildCmd) {
             if (mainFullscreen) toggleMainFullscreen();
             else stop();
+        } else if (id == MediaPlayPause) {
+            sendMediaPulseToChild(1u << 13, 180); // BTN_PLAY -> GPG9 (KEY_P)
+        } else if (id == MediaStop) {
+            sendMediaPulseToChild(1u << 14, 180); // BTN_STOP -> GPG10 (KEY_S)
+        } else if (id == MediaPrev) {
+            sendMediaPulseToChild(1u << 11, 180); // BTN_REWIND -> GPG0 (KEY_B)
+        } else if (id == MediaNext) {
+            sendMediaPulseToChild(1u << 12, 180); // BTN_FORWARD -> GPG13 (KEY_N)
+        } else if (id == MediaSeekBack) {
+            sendMediaPulseToChild(1u << 11, 1500); // Hold BTN_REWIND for 1.5s seek
+        } else if (id == MediaSeekFwd) {
+            sendMediaPulseToChild(1u << 12, 1500); // Hold BTN_FORWARD for 1.5s seek
+        } else if (id >= CartLangBase && id < CartLangBase + 10) {
+            settings.cartLanguage = static_cast<unsigned>(id - CartLangBase);
+            saveSettings();
+            refreshMainMenuBar();
+            if (settingsWindow && settingsPage == 0) rebuildSettings();
+            if (process && !activeRomPath.empty()) {
+                launchRom(activeRomPath);
+            }
         } else if (id == 13) {
             showSettings(1);
         } else if (id == ExitApp || id == 14) {

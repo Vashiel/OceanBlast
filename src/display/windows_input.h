@@ -283,6 +283,7 @@ struct FrontendSettings {
     std::wstring lastRom;
     std::wstring savedController;
     unsigned language = 0;         // 0: EN (default), 1: DE, 2: ES, 3: IT, 4: NL, 5: FR, 6: TR
+    unsigned cartLanguage = 0;     // 0: Auto (UI), 1: Ask (Flag Menu), 2: EN, 3: DE, 4: ES, 5: IT, 6: NL, 7: FR, 8: TR, 9: Keep EEPROM
     unsigned controllerPreset = 0;
     PadMap padMap = standardMap;
     std::array<unsigned, 12> keyboardKeys{
@@ -325,6 +326,7 @@ struct FrontendSettings {
         lastRom = get(L"folders", L"last_rom");
         savedController = get(L"input", L"device");
         language = std::min(6u, GetPrivateProfileIntW(L"system", L"language", 0, path.c_str()));
+        cartLanguage = std::min(9u, GetPrivateProfileIntW(L"system", L"cart_language", 0, path.c_str()));
         soundEnabled = GetPrivateProfileIntW(L"audio", L"enabled", 1, path.c_str()) != 0;
         soundVolume = std::min(100u, GetPrivateProfileIntW(L"audio", L"volume", 100, path.c_str()));
         scaleIndex = std::min(2u, GetPrivateProfileIntW(L"video", L"scale", 1, path.c_str()));
@@ -361,6 +363,7 @@ struct FrontendSettings {
         put(L"video", L"smooth", std::to_wstring(smoothVideo ? 1 : 0));
         put(L"video", L"decoder", std::to_wstring(displayFormat));
         put(L"system", L"language", std::to_wstring(language));
+        put(L"system", L"cart_language", std::to_wstring(cartLanguage));
         put(L"system", L"timing", std::to_wstring(timingMode));
         put(L"system", L"nvram", std::to_wstring(keepNvram ? 1 : 0));
         put(L"system", L"fps_log", std::to_wstring(fpsLog ? 1 : 0));

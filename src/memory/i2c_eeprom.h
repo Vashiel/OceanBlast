@@ -10,6 +10,8 @@ public:
     I2cEeprom() { bytes.fill(0xff); }
     const std::array<uint8_t, 2048>& contents() const { return bytes; }
     void restore(const std::array<uint8_t, 2048>& image) { bytes = image; resetBus(); }
+    void setByte(size_t offset, uint8_t value) { if (offset < bytes.size()) bytes[offset] = value; }
+    uint8_t getByte(size_t offset) const { return offset < bytes.size() ? bytes[offset] : 0xff; }
     bool start(uint8_t addressByte) {
         dirty = 0; // A repeated START does not commit an unfinished page write.
         selected = (addressByte >> 1) >= 0x50 && (addressByte >> 1) <= 0x57;

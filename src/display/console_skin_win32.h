@@ -36,8 +36,8 @@ struct ConsoleSkin {
             {.104f,.352f,.046f,.062f,BTN_LEFT,0}, {.188f,.352f,.046f,.062f,BTN_RIGHT,0},
             {.807f,.258f,.067f,.094f,BTN_C,0}, {.746f,.358f,.067f,.099f,BTN_B,0},
             {.746f,.487f,.067f,.099f,BTN_A,0},
-            {.310f,.757f,.084f,.110f,BTN_REWIND,1}, {.408f,.753f,.083f,.109f,BTN_START,2},
-            {.510f,.753f,.083f,.109f,BTN_SELECT,3}, {.610f,.757f,.082f,.110f,BTN_FORWARD,4},
+            {.310f,.757f,.084f,.110f,BTN_REWIND,1}, {.408f,.753f,.083f,.109f,BTN_STOP,2},
+            {.510f,.753f,.083f,.109f,BTN_PLAY,3}, {.610f,.757f,.082f,.110f,BTN_FORWARD,4},
             {.436f,.875f,.034f,.051f,BTN_SELECT,0}, {.528f,.875f,.034f,.051f,BTN_START,0}
         }; return list;
     }
@@ -67,10 +67,13 @@ struct ConsoleSkin {
             Gdiplus::RectF r(width*.157f+dx*width*.003f,height*.362f+dy*height*.004f,width*.025f,height*.039f);
             graphics.FillEllipse(&knob,r); graphics.DrawEllipse(&edge,r);
         }
-        for(const auto& c:controls()) if(pressed&c.mask) {
-            Gdiplus::RectF r(c.x*width,c.y*height,c.w*width,c.h*height);
-            if(c.media || (c.mask&15)) { graphics.FillRectangle(&shade,r); graphics.DrawRectangle(&outline,r); }
-            else { graphics.FillEllipse(&shade,r); graphics.DrawEllipse(&outline,r); }
+        for(const auto& c:controls()) {
+            const uint32_t matchMask = c.mask | (c.media == 2 ? BTN_START : (c.media == 3 ? BTN_SELECT : 0));
+            if(pressed & matchMask) {
+                Gdiplus::RectF r(c.x*width,c.y*height,c.w*width,c.h*height);
+                if(c.media || (c.mask&15)) { graphics.FillRectangle(&shade,r); graphics.DrawRectangle(&outline,r); }
+                else { graphics.FillEllipse(&shade,r); graphics.DrawEllipse(&outline,r); }
+            }
         }
     }
 };

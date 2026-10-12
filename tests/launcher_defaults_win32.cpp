@@ -79,6 +79,27 @@ static void runControllerMappingChecks() {
           mapPad(stick, standardMap) == (BTN_UP | BTN_RIGHT) && firstNewControl(stick, idle) == 129);
 }
 
+static uint64_t controllerImageHash(HWND target) {
+    constexpr int width = 625, height = 215;
+    HDC screen = GetDC(target), buffer = CreateCompatibleDC(screen);
+    BITMAPINFO info{};
+    info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    info.bmiHeader.biWidth = width; info.bmiHeader.biHeight = -height;
+    info.bmiHeader.biPlanes = 1; info.bmiHeader.biBitCount = 32;
+    void* pixels = nullptr;
+    HBITMAP bitmap = CreateDIBSection(buffer, &info, DIB_RGB_COLORS, &pixels, nullptr, 0);
+    HGDIOBJ previous = SelectObject(buffer, bitmap);
+    BitBlt(buffer, 0, 0, width, height, screen, 210, 100, SRCCOPY);
+    GdiFlush();
+    uint64_t hash = 1469598103934665603ull;
+    for (int i = 0; i < width * height; ++i) {
+        hash ^= static_cast<const uint32_t*>(pixels)[i] & 0x00ffffff;
+        hash *= 1099511628211ull;
+    }
+    SelectObject(buffer, previous); DeleteObject(bitmap); DeleteDC(buffer); ReleaseDC(target, screen);
+    return hash;
+}
+
 static void CALLBACK inspect(HWND, UINT, UINT_PTR timer, DWORD) {
     using namespace oceanblast::launcher;
     KillTimer(nullptr, timer);
@@ -88,10 +109,11 @@ static void CALLBACK inspect(HWND, UINT, UINT_PTR timer, DWORD) {
     check("Launcher automatic ROM settings", SendMessageW(timingBox, CB_GETCURSEL, 0, 0) == 0);
     check("Launcher plain window", SendMessageW(windowModeBox, CB_GETCURSEL, 0, 0) == 2);
     check("Embedded OceanBlast logo and symbol loaded", bool(logo) && bool(symbol) && logo->GetWidth() > logo->GetHeight());
-    check("Main menu bar has File and Settings menus",
+    check("Main menu bar has File, Playback, and Settings menus",
           GetMenu(window) != nullptr &&
           GetMenuItemCount(GetSubMenu(GetMenu(window), 0)) == 5 &&
-          GetMenuItemCount(GetSubMenu(GetMenu(window), 1)) == 6);
+          GetMenuItemCount(GetSubMenu(GetMenu(window), 1)) == 9 &&
+          GetMenuItemCount(GetSubMenu(GetMenu(window), 2)) == 6);
 
     UpdateWindow(window);
     check("Launcher start screen preview rendered", capturePreview(window, L"build/launcher-startup-preview.png"));
@@ -104,6 +126,18 @@ static void CALLBACK inspect(HWND, UINT, UINT_PTR timer, DWORD) {
             UpdateWindow(settingsWindow);
             check("Launcher controller settings preview rendered",
                   capturePreview(settingsWindow, L"build/launcher-controls-preview.png"));
+            const auto savedPad = input.current;
+            input.current = {};
+            const RECT drawing{210, 100, 835, 315};
+            auto repaint = [&] { InvalidateRect(settingsWindow, &drawing, FALSE); UpdateWindow(settingsWindow); return controllerImageHash(settingsWindow); };
+            const uint64_t idleImage = repaint();
+            bool stable = true;
+            for (unsigned i = 0; i < 20; ++i) if (repaint() != idleImage) stable = false;
+            input.current.buttons[0] = true;
+            const bool highlightChanged = repaint() != idleImage;
+            input.current.buttons[0] = false;
+            check("Controller repaint is stable and release restores exact idle pixels", stable && highlightChanged && repaint() == idleImage);
+            input.current = savedPad;
         }
     }
     check("All 6 settings categories build cleanly", allPagesOk);
@@ -112,7 +146,9 @@ static void CALLBACK inspect(HWND, UINT, UINT_PTR timer, DWORD) {
     for (unsigned lang : {1u, 2u, 3u, 4u, 5u, 6u, 0u}) {
         showSettings(0);
         HWND langCombo = GetDlgItem(settingsWindow, 915);
-        if (!langCombo || SendMessageW(langCombo, CB_GETCOUNT, 0, 0) != 7) {
+        HWND cartLangCombo = GetDlgItem(settingsWindow, 916);
+        if (!langCombo || SendMessageW(langCombo, CB_GETCOUNT, 0, 0) != 7 ||
+            !cartLangCombo || SendMessageW(cartLangCombo, CB_GETCOUNT, 0, 0) != 10) {
             allLanguagesOk = false;
             break;
         }
@@ -123,7 +159,19 @@ static void CALLBACK inspect(HWND, UINT, UINT_PTR timer, DWORD) {
         GetWindowTextW(settingsWindow, title, 256);
         if (std::wstring(title) != kUiText[lang].settingsWindowTitle) allLanguagesOk = false;
     }
-    check("All 7 UI languages switch live and persist cleanly", allLanguagesOk && settings.language == 0);
+    check("All 7 UI languages and 10 cartridge language options switch live and persist cleanly", allLanguagesOk && settings.language == 0);
+
+    showSettings(0);
+    HWND cartridgeLanguage = GetDlgItem(settingsWindow, 916);
+    bool cartridgeModesSaved = true;
+    for (unsigned mode = 0; mode < 10; ++mode) {
+        SendMessageW(cartridgeLanguage, CB_SETCURSEL, mode, 0);
+        SendMessageW(settingsWindow, WM_COMMAND, MAKEWPARAM(916, CBN_SELCHANGE), reinterpret_cast<LPARAM>(cartridgeLanguage));
+        oceanblast::win::FrontendSettings saved;
+        saved.load();
+        if (settings.cartLanguage != mode || saved.cartLanguage != mode) cartridgeModesSaved = false;
+    }
+    check("All 10 cartridge language modes persist independently of UI language", cartridgeModesSaved && settings.language == 0);
 
     if (settingsWindow) DestroyWindow(settingsWindow);
 
