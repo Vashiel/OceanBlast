@@ -3,6 +3,7 @@
 #include <thread>
 #ifdef _WIN32
 #include <windows.h>
+#include <mmsystem.h>
 #endif
 
 namespace oceanblast {
@@ -11,8 +12,15 @@ public:
     using Clock = std::chrono::steady_clock;
     explicit HostPacer(bool enabled = true) {
 #ifdef _WIN32
-        if (enabled) timer = CreateWaitableTimerExW(nullptr, nullptr,
-            CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_MODIFY_STATE | SYNCHRONIZE);
+        if (enabled) {
+            timer = CreateWaitableTimerExW(nullptr, nullptr,
+                CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_MODIFY_STATE | SYNCHRONIZE);
+            highResolution_ = timer != nullptr;
+            if (!timer) {
+                timer = CreateWaitableTimerW(nullptr, FALSE, nullptr);
+                periodRequested_ = timeBeginPeriod(1) == TIMERR_NOERROR;
+            }
+        }
 #else
         (void)enabled;
 #endif
@@ -20,13 +28,14 @@ public:
     ~HostPacer() {
 #ifdef _WIN32
         if (timer) CloseHandle(timer);
+        if (periodRequested_) timeEndPeriod(1);
 #endif
     }
     HostPacer(const HostPacer&) = delete;
     HostPacer& operator=(const HostPacer&) = delete;
     bool highResolution() const {
 #ifdef _WIN32
-        return timer != nullptr;
+        return highResolution_;
 #else
         return false;
 #endif
@@ -47,6 +56,7 @@ public:
 private:
 #ifdef _WIN32
     HANDLE timer = nullptr;
+    bool highResolution_ = false, periodRequested_ = false;
 #endif
 };
 }

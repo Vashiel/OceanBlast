@@ -16,9 +16,7 @@ static bool savePreview(HWND w) {
         if (wcscmp(encoders[i].MimeType, L"image/png") == 0) { saved = image.Save(L"build/mp3-storage-preview.png", &encoders[i].Clsid, nullptr) == Gdiplus::Ok; break; } }
     SelectObject(memory, old); DeleteObject(bitmap); DeleteDC(memory); ReleaseDC(w, dc); return saved;
 }
-static void CALLBACK answerPrompt(HWND, UINT, UINT_PTR timer, DWORD) {
-    KillTimer(nullptr, timer);
-    EnumWindows([](HWND w, LPARAM) -> BOOL {
+static BOOL CALLBACK answerDialogWindow(HWND w, LPARAM) {
         DWORD pid = 0; GetWindowThreadProcessId(w, &pid);
         if (pid != GetCurrentProcessId()) return TRUE;
         wchar_t cls[80]{}; GetClassNameW(w, cls, 80);
@@ -30,7 +28,10 @@ static void CALLBACK answerPrompt(HWND, UINT, UINT_PTR timer, DWORD) {
             else SendMessageW(w, WM_COMMAND, answer, 0);
         }
         return TRUE;
-    }, 0);
+}
+static void CALLBACK answerPrompt(HWND, UINT, UINT_PTR timer, DWORD) {
+    KillTimer(nullptr, timer);
+    EnumWindows(answerDialogWindow, 0);
     if (creationNotice) SetTimer(nullptr, 0, 200, answerPrompt);
 }
 static void CALLBACK inspectManager(HWND, UINT, UINT_PTR timer, DWORD) {

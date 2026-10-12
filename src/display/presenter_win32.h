@@ -28,8 +28,30 @@ public:
         }
         release(view_); release(texture_); release(sampler_); release(pixel_); release(vertex_);
         release(target_); release(chain_); release(context_); release(device_);
+#ifdef OCEANBLAST_LEGACY_WINDOWS
+        if (compilerModule_) FreeLibrary(compilerModule_);
+        if (d3dModule_) FreeLibrary(d3dModule_);
+#endif
     }
     bool init(HWND window, unsigned width, unsigned height) {
+#ifdef OCEANBLAST_LEGACY_WINDOWS
+        // Optional dependencies: older installations can still start using GDI.
+        d3dModule_ = LoadLibraryW(L"d3d11.dll");
+        if (!d3dModule_) return false;
+        auto createDevice = reinterpret_cast<decltype(&D3D11CreateDeviceAndSwapChain)>(
+            reinterpret_cast<void*>(GetProcAddress(d3dModule_, "D3D11CreateDeviceAndSwapChain")));
+        for (const auto* name : {L"d3dcompiler_47.dll", L"d3dcompiler_43.dll"}) {
+            compilerModule_ = LoadLibraryW(name);
+            if (compilerModule_) break;
+        }
+        if (!compilerModule_ || !createDevice) return false;
+        auto compileShader = reinterpret_cast<decltype(&D3DCompile)>(
+            reinterpret_cast<void*>(GetProcAddress(compilerModule_, "D3DCompile")));
+        if (!compileShader) return false;
+#else
+        auto createDevice = D3D11CreateDeviceAndSwapChain;
+        auto compileShader = D3DCompile;
+#endif
         DXGI_SWAP_CHAIN_DESC desc{};
         desc.BufferDesc.Width = width; desc.BufferDesc.Height = height;
         desc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -37,8 +59,18 @@ public:
         desc.BufferCount = 2; desc.OutputWindow = window; desc.Windowed = TRUE;
         desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         D3D_FEATURE_LEVEL level;
-        HRESULT result = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+        HRESULT result = createDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
             D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0, D3D11_SDK_VERSION, &desc, &chain_, &device_, &level, &context_);
+#ifdef OCEANBLAST_LEGACY_WINDOWS
+        if (FAILED(result)) {
+            release(chain_); release(context_); release(device_);
+            desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+            desc.BufferCount = 1;
+            result = createDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+                D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0, D3D11_SDK_VERSION,
+                &desc, &chain_, &device_, &level, &context_);
+        }
+#endif
         if (FAILED(result)) return false;
         ID3D11Texture2D* back = nullptr;
         if (FAILED(chain_->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&back)))) return false;
@@ -50,9 +82,9 @@ public:
             "Texture2D image:register(t0); SamplerState pointSample:register(s0);"
             "float4 ps(V v):SV_TARGET { return float4(image.Sample(pointSample,v.uv).rgb,1); }";
         ID3DBlob *vs = nullptr, *ps = nullptr, *errors = nullptr;
-        result = D3DCompile(code, std::strlen(code), nullptr, nullptr, nullptr, "vs", "vs_4_0", 0, 0, &vs, &errors);
+        result = compileShader(code, std::strlen(code), nullptr, nullptr, nullptr, "vs", "vs_4_0", 0, 0, &vs, &errors);
         release(errors); if (FAILED(result)) return false;
-        result = D3DCompile(code, std::strlen(code), nullptr, nullptr, nullptr, "ps", "ps_4_0", 0, 0, &ps, &errors);
+        result = compileShader(code, std::strlen(code), nullptr, nullptr, nullptr, "ps", "ps_4_0", 0, 0, &ps, &errors);
         release(errors); if (FAILED(result)) { release(vs); return false; }
         result = device_->CreateVertexShader(vs->GetBufferPointer(), vs->GetBufferSize(), nullptr, &vertex_);
         if (SUCCEEDED(result)) result = device_->CreatePixelShader(ps->GetBufferPointer(), ps->GetBufferSize(), nullptr, &pixel_);
@@ -105,6 +137,9 @@ private:
         }
     }
     ID3D11Device* device_ = nullptr; ID3D11DeviceContext* context_ = nullptr;
+#ifdef OCEANBLAST_LEGACY_WINDOWS
+    HMODULE d3dModule_ = nullptr, compilerModule_ = nullptr;
+#endif
     IDXGISwapChain* chain_ = nullptr; ID3D11RenderTargetView* target_ = nullptr;
     ID3D11VertexShader* vertex_ = nullptr; ID3D11PixelShader* pixel_ = nullptr;
     ID3D11SamplerState* sampler_ = nullptr; ID3D11Texture2D* texture_ = nullptr;

@@ -80,7 +80,12 @@ int main(int argc, char* argv[]) {
     powerThrottling.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
     powerThrottling.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
     powerThrottling.StateMask = 0;
-    SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling, &powerThrottling, sizeof(powerThrottling));
+    // Optional on older Windows; a static import prevents Windows 7 startup.
+    using SetProcessInformationFn = BOOL (WINAPI*)(HANDLE, PROCESS_INFORMATION_CLASS, LPVOID, DWORD);
+    auto setProcessInformation = reinterpret_cast<SetProcessInformationFn>(
+        reinterpret_cast<void*>(GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetProcessInformation")));
+    if (setProcessInformation)
+        setProcessInformation(GetCurrentProcess(), ProcessPowerThrottling, &powerThrottling, sizeof(powerThrottling));
 #endif
     printBanner();
 
@@ -90,7 +95,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::string cartPath = argv[1];
-    size_t stepLimit = 500000;
+    uint64_t stepLimit = 500000;
     bool customSteps = false;
     bool trace = false;
     bool gui = false;
@@ -123,8 +128,8 @@ int main(int argc, char* argv[]) {
     size_t cpuStepsPerTick = 1;
     size_t executionBatch = 4096;
     bool preciseHostWait = true;
-    size_t snapshotInterval = 0;
-    size_t pcProfileInterval = 0, nextPcProfile = 0;
+    uint64_t snapshotInterval = 0;
+    uint64_t pcProfileInterval = 0, nextPcProfile = 0;
     std::map<std::pair<u32, u32>, uint64_t> pcProfile;
     std::string inputScriptPath;
     std::string recordFramesPath;
@@ -256,7 +261,7 @@ int main(int argc, char* argv[]) {
         std::cerr << "[Error] Automatic timing cannot be combined with an instruction ratio or MIPS limit.\n"; return 1;
     }
     if (gui && !customSteps) {
-        stepLimit = std::numeric_limits<size_t>::max();
+        stepLimit = std::numeric_limits<uint64_t>::max();
     }
     if (displayStride && (displayStride < (displayFormat == 1 ? 360u : 480u) || displayStride > 8192 || displayStride % 4)) {
         std::cerr << "[Error] Invalid display stride." << std::endl; return 1;
@@ -310,7 +315,8 @@ int main(int argc, char* argv[]) {
             return 1;
         }
     }
-    size_t nextInput = 0, nextSnapshot = snapshotInterval;
+    size_t nextInput = 0;
+    uint64_t nextSnapshot = snapshotInterval;
 
     std::cout << "[Loader] Opening digiBLAST Cartridge: " << cartPath << std::endl;
     if (!bus.loadCartridge(cartPath)) {
@@ -398,7 +404,7 @@ int main(int argc, char* argv[]) {
         std::cout << "[Video] Recording decoded LCD frames as 240x160 RGB24 at 30 fps.\n";
     }
 
-    size_t executedSteps = 0;
+    uint64_t executedSteps = 0;
     size_t peripheralPhase = 0;
     EmulationClock emulationClock;
     uint64_t guestTicks = 0, idleTicks = 0, guiTicks = 0;
@@ -515,17 +521,17 @@ int main(int argc, char* argv[]) {
     auto lastFrame = Clock::now(), lastStats = lastFrame;
     auto paceStart = lastFrame;
     auto nextRecordedFrame = lastFrame;
-    size_t paceSteps = 0;
+    uint64_t paceSteps = 0;
     uint64_t paceTicks = 0, statsTicks = 0;
-    size_t statsSteps = 0, presented = 0, changed = 0;
+    uint64_t statsSteps = 0, presented = 0, changed = 0;
     uint32_t previousHash = 0;
     u32 previousFb = 0;
     size_t previousStride = 0;
     unsigned previousHeight = 0;
     bool previousIs16bpp = false;
     bool haveHash = false, previousCaptureReady = false;
-    size_t nextDisplayProbe = 0;
-    size_t nextVideoProbe = 1000000000;
+    uint64_t nextDisplayProbe = 0;
+    uint64_t nextVideoProbe = 1000000000;
     bool videoDecoderRecognized = identifiedVideo;
     std::ofstream metrics;
     if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples,audio_submitted_frames,audio_queued_frames,audio_empty_queue_events,fclk,pclk,cpu_steps_per_tick,guest_seconds,speed_percent,idle_ticks,coherent_frames,partial_sweeps,synchronized_presentations,frame_capture_active,capture_ready,audio_played_frames,audio_remaining_frames,audio_pending_frames,audio_output_rate\n"; }
@@ -557,7 +563,7 @@ int main(int argc, char* argv[]) {
         }
         if (snapshotInterval && executedSteps == nextSnapshot) {
             saveSnapshot();
-            if (nextSnapshot > std::numeric_limits<size_t>::max() - snapshotInterval) snapshotInterval = 0;
+            if (nextSnapshot > std::numeric_limits<uint64_t>::max() - snapshotInterval) snapshotInterval = 0;
             else nextSnapshot += snapshotInterval;
         }
         if (gui && (display.paused || (autoTiming ? guestTicks - guiTicks >= 20000 : executedSteps % 50000 == 0))) {
@@ -678,11 +684,11 @@ int main(int argc, char* argv[]) {
         }
         if (executionBatch > 1 && enteredSdram && !cpu.isWaitingForInterrupt() && !debug && !trace && !traceRange && !faultLog &&
             !pcProfileInterval && !display.paused && stepLimit - executedSteps > 30) {
-            size_t budget = std::min<size_t>(executionBatch, stepLimit - executedSteps - 30);
-            if (nextInput < inputEvents.size()) budget = std::min(budget, inputEvents[nextInput].step - executedSteps);
-            if (snapshotInterval) budget = std::min(budget, nextSnapshot - executedSteps);
+            size_t budget = std::min<uint64_t>(executionBatch, stepLimit - executedSteps - 30);
+            if (nextInput < inputEvents.size()) budget = std::min<uint64_t>(budget, inputEvents[nextInput].step - executedSteps);
+            if (snapshotInterval) budget = std::min<uint64_t>(budget, nextSnapshot - executedSteps);
             if (automaticDisplay && displayProfile == DisplayProfile::CrazyJack)
-                budget = std::min(budget, nextDisplayProbe - executedSteps);
+                budget = std::min<uint64_t>(budget, nextDisplayProbe - executedSteps);
             if (gui && !autoTiming) budget = std::min(budget, size_t(50000 - executedSteps % 50000));
             if (!autoTiming && tickLimit != UINT64_MAX) {
                 const uint64_t remaining = tickLimit - guestTicks;
@@ -704,7 +710,7 @@ int main(int argc, char* argv[]) {
         u32 currentPC = cpu.getPC();
         if (pcProfileInterval && executedSteps == nextPcProfile) {
             ++pcProfile[{bus.getTtb(), currentPC & ~0xfffu}];
-            if (nextPcProfile > std::numeric_limits<size_t>::max() - pcProfileInterval) pcProfileInterval = 0;
+            if (nextPcProfile > std::numeric_limits<uint64_t>::max() - pcProfileInterval) pcProfileInterval = 0;
             else nextPcProfile += pcProfileInterval;
         }
 

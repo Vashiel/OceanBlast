@@ -853,18 +853,20 @@ static void setIdleTitle() {
     SetWindowTextW(window, tr().idleWindowTitle);
 }
 
+static BOOL CALLBACK closeChildWindow(HWND w, LPARAM p) {
+    DWORD owner = 0;
+    GetWindowThreadProcessId(w, &owner);
+    if (owner == static_cast<DWORD>(p)) PostMessageW(w, WM_CLOSE, 0, 0);
+    return TRUE;
+}
+
 static void stop() {
     if (process) {
         if (HWND child = findEmbeddedDisplay()) {
             SendMessageA(child, WM_CLOSE, 0, 0);
         }
         const DWORD pid = GetProcessId(process);
-        EnumWindows([](HWND w, LPARAM p) -> BOOL {
-            DWORD owner = 0;
-            GetWindowThreadProcessId(w, &owner);
-            if (owner == static_cast<DWORD>(p)) PostMessageW(w, WM_CLOSE, 0, 0);
-            return TRUE;
-        }, static_cast<LPARAM>(pid));
+        EnumWindows(closeChildWindow, static_cast<LPARAM>(pid));
         if (WaitForSingleObject(process, 500) != WAIT_OBJECT_0) {
             TerminateProcess(process, 0);
             WaitForSingleObject(process, 200);

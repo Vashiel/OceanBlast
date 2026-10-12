@@ -7,6 +7,9 @@ param(
     [ValidateRange(1,16)][int]$CpuStepsPerTick = 2,
     [ValidateSet('O2','O3')][string]$Optimization = 'O2',
     [ValidateSet('native','x86-64')][string]$Architecture = 'native',
+    [ValidateSet('x64','x86')][string]$Target = 'x64',
+    [switch]$LegacyWindows,
+    [string]$ResourceCompiler = 'windres',
     [switch]$Unity,
     [switch]$Gui,
     [switch]$Install,
@@ -32,11 +35,18 @@ if ($Unity) {
     $unityFlags = @('--param','inline-unit-growth=400','--param','large-unit-insns=100000','--param','max-inline-insns-single=1000','--param','max-inline-insns-auto=200')
 }
 $resObj = $outputRelative + '/oceanblast_res.o'
-$common = @('-std=c++17','-Wall','-Wextra',('-' + $Optimization),('-march=' + $Architecture),'-Isrc') + $unityFlags + $sources + @($resObj,'-lgdi32','-luser32','-lwinmm','-lcomdlg32','-lcomctl32','-lshell32','-lole32','-ldinput8','-ldxguid','-ld3d11','-ldxgi','-ld3dcompiler','-lgdiplus','-o',($outputRelative + '/oceanblast_profiled.exe'))
+$architectureFlags = @('-march=' + $Architecture)
+if ($Target -eq 'x86') { $architectureFlags = @('-m32','-march=i686','-msse2','-mfpmath=sse') }
+if ($LegacyWindows) { $architectureFlags += @('-DOCEANBLAST_LEGACY_WINDOWS','-D_WIN32_WINNT=0x0601','-DWINVER=0x0601') }
+$graphicsLibraries = @('-ld3d11','-ldxgi','-ld3dcompiler')
+if ($LegacyWindows) { $graphicsLibraries = @() }
+$common = @('-std=c++17','-Wall','-Wextra',('-' + $Optimization),'-Isrc') + $architectureFlags + $unityFlags + $sources + @($resObj,'-lgdi32','-luser32','-lwinmm','-lcomdlg32','-lcomctl32','-lshell32','-lole32','-ldinput8','-ldxguid','-lgdiplus') + $graphicsLibraries + @('-o',($outputRelative + '/oceanblast_profiled.exe'))
 $profileOption = $profileRoot.Replace('\','/')
 Push-Location $projectRoot
 try {
-    & windres src/display/oceanblast.rc -O coff -o $resObj
+    $resourceFlags = @()
+    if ($Target -eq 'x86') { $resourceFlags = @('-F','pe-i386') }
+    & $ResourceCompiler src/display/oceanblast.rc -O coff @resourceFlags -o $resObj
     if ($LASTEXITCODE) { throw 'Resource compilation failed.' }
     & $Compiler @common ('-fprofile-generate=' + $profileOption)
     if ($LASTEXITCODE) { throw 'Instrumented compilation failed.' }
@@ -68,7 +78,10 @@ try {
 } finally { Pop-Location }
 # Profiles and guest dumps remain in ignored build/. Installation is separate.
 if ($Install) {
-    $installPath = Join-Path $projectRoot 'bin/oceanblast.exe'
+    $installedName = 'oceanblast.exe'
+    if ($Target -eq 'x86') { $installedName = 'oceanblast-x86.exe' }
+    elseif ($LegacyWindows) { $installedName = 'oceanblast-legacy-x64.exe' }
+    $installPath = Join-Path $projectRoot ('bin/' + $installedName)
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $installPath) | Out-Null
     Copy-Item -LiteralPath $executable -Destination $installPath -Force
     Write-Output "Installed: $installPath"

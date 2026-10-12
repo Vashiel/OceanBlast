@@ -329,9 +329,9 @@ public:
         uint64_t next = std::min<uint64_t>(20000, timer4.ticksUntilExpiry());
         if (usbHostEnabled && usbHost.needsTicks()) next = std::min<uint64_t>(next, usbHost.ticksUntilEvent());
         if (dma2Active && (!dma2Paused || dma2Dst != 0x55000010)) {
-            next = std::min(next, dma2Timer);
+            next = std::min<uint64_t>(next, dma2Timer);
             if (audioCallback && dma2Timer > dma2NextAudioTimer)
-                next = std::min(next, dma2Timer - dma2NextAudioTimer);
+                next = std::min<uint64_t>(next, dma2Timer - dma2NextAudioTimer);
         }
         if (adcPending) next = std::min<uint64_t>(next, adcTimer);
         if (i2cPending) next = std::min<uint64_t>(next, i2cTimer);
