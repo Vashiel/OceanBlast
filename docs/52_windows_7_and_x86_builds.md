@@ -8,7 +8,7 @@ The standard installed launcher remains unchanged while compatibility candidates
 
 ## Compatibility Changes
 
-`SetProcessInformation` is resolved at runtime rather than imported at startup. Its power-throttling adjustment is skipped when unavailable. The compatibility presenter resolves Direct3D and shader compilation dynamically, tries the modern flip swap chain, then the older discard swap chain. Missing libraries or unsupported devices retain the GDI fallback. The standard profile retains its previous graphics-library linkage.
+`SetProcessInformation` is resolved at runtime rather than imported at startup. Its power-throttling adjustment is skipped when unavailable. The compatibility presenter resolves Direct3D and shader compilation dynamically, uses the Windows 7-compatible discard (blit) swap chain on all supported Windows versions. Missing libraries or unsupported devices retain the GDI fallback. The standard profile retains its previous graphics-library linkage.
 
 Windows 7 rejects the high-resolution waitable-timer flag. The host pacer falls back to a regular waitable timer and requests 1 ms multimedia timer resolution for its lifetime; shutdown restores the timer-resolution request. Modern Windows retains the high-resolution timer path.
 
@@ -39,14 +39,22 @@ The x86 launcher suite passes with exit code zero after configuring a 1024 x 768
 
 The same final x64 and x86 candidates each complete a 100,000,000-step GUI run on the Windows 11 host with exit code zero. This is a startup/execution smoke test, not complete gameplay acceptance.
 
+## Embedded Display Regression
+
+The initial compatibility packages could produce audio and successful DXGI presentation counts while the launcher LCD remained black on Windows 11. A same-ROM comparison showed visible output in the original release, black output in the dynamically loaded flip-chain compatibility build, and visible output with GDI. Presentation counts and a successful process exit therefore did not establish visible output.
+
+The compatibility presenter now uses `DXGI_SWAP_EFFECT_DISCARD` with one buffer and `Present(1, 0)` rather than selecting the modern flip chain. This retains synchronized Direct3D presentation and optional-library/GDI fallback support. The standard graphics profile retains its existing flip-chain behavior. The observed failure is specific to the tested dynamically loaded flip-chain launcher path; its lower-level driver/runtime cause has not been established.
+
+The visible-output regression check in `tests/windows_embedded_presentation.py` starts a cartridge through the real launcher and samples only the embedded LCD area on an unobstructed interactive desktop. The original compatibility x64 build fails with zero colored LCD pixels; the corrected PGO x64 and x86 builds show the Superstar Chefs title screen and pass. Rayman 3 also passes the visible-output check with corrected x64. Both corrected candidates complete another 100,000,000-step cartridge run in Windows 7 SP1 x64 with exit code zero. Process exit, presentation counters and framebuffer memory remain separate evidence.
+
 ## Tested Candidate Identity
 
-The compatibility candidates use `O3`, unity compilation and architecture-specific PGO data. The x64 profile trains on Superstar Chefs and Rayman 3; the x86 profile trains on Superstar Chefs. The guest tests above apply to these executable hashes:
+The compatibility candidates use `O3`, unity compilation and architecture-specific PGO data. Both corrected compatibility profiles train on Superstar Chefs. The guest tests above apply to these executable hashes:
 
 | Target | SHA-256 |
 | --- | --- |
-| x64 | `f413962d7a714e846f0d184e1c968ee48546225573fd84cad6c9528cd7b63737` |
-| x86 | `e0d2593f69e659f4ca372889f106bb03d4a339754a2c30c785185b5bbe75d7ae` |
+| x64 | `3b42bd3c3bd485f95d482790458d9b9c6f34557d79eb7a278003b69a76b9c212` |
+| x86 | `e0d17f5fdf3555a8ee1cce540a517f2bcd566591e133f0eb7f923cec80fe5a0d` |
 
 ## Other Host Platforms
 

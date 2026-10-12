@@ -57,20 +57,18 @@ public:
         desc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         desc.SampleDesc.Count = 1; desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         desc.BufferCount = 2; desc.OutputWindow = window; desc.Windowed = TRUE;
+#ifdef OCEANBLAST_LEGACY_WINDOWS
+        // Use the Windows 7-compatible blit chain throughout this profile.
+        // The dynamically loaded flip chain can present successfully while
+        // leaving the cross-process launcher surface black on newer Windows.
+        desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+        desc.BufferCount = 1;
+#else
         desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+#endif
         D3D_FEATURE_LEVEL level;
         HRESULT result = createDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
             D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0, D3D11_SDK_VERSION, &desc, &chain_, &device_, &level, &context_);
-#ifdef OCEANBLAST_LEGACY_WINDOWS
-        if (FAILED(result)) {
-            release(chain_); release(context_); release(device_);
-            desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-            desc.BufferCount = 1;
-            result = createDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-                D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0, D3D11_SDK_VERSION,
-                &desc, &chain_, &device_, &level, &context_);
-        }
-#endif
         if (FAILED(result)) return false;
         ID3D11Texture2D* back = nullptr;
         if (FAILED(chain_->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&back)))) return false;
