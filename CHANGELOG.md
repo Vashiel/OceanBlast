@@ -1,11 +1,13 @@
 # Changelog & Technical Investigation History
 
-This changelog records the chronological development, hardware reverse-engineering milestones, and empirical validation reports (`docs/00`–`docs/46`) for **OceanBlast**.
+This changelog records the chronological development, hardware reverse-engineering milestones, and empirical validation reports (`docs/00`–`docs/48`) for **OceanBlast**.
 
 ---
 
 ## 2026-10-12 — Runtime Build Profiles & Rayman 3 Performance
 
+* **[Controller Settings Repaint](docs/47_controller_settings_repaint.md):** Buffered the animated controller illustration and excluded child controls from parent drawing; all 18 Windows launcher checks pass.
+* **[MP3 Cartridge Firmware Probe](docs/48_mp3_cartridge_firmware_probe.md):** Identified the advertised 256-MB module and 16-MiB data image; a bounded boot reaches Linux and the splash, with an inaccessible data partition and a USB controller reset failure. MP3 playback remains unverified.
 * **[Runtime Build Profiles and Rayman 3 CPU Ratio](docs/46_runtime_build_profiles_and_rayman_ratio.md):**
   * Distinguished PGO gameplay builds from standard developer builds after controlled live comparisons showed that the developer build fell below the `60 MIPS` target and accumulated audio-queue underruns in *Superstar Chefs*.
   * Separated the developer output (`build/oceanblast-dev.exe`) from the installed launcher. `tools/build_profiled.ps1 -Install` now explicitly installs the profiled executable to `bin/oceanblast.exe`.

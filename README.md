@@ -44,7 +44,7 @@ Automatic per-cartridge settings are enabled by default (see [docs/45](docs/45_c
 
 All tested cartridges boot autonomously through the 4-KB S3C2410 Steppingstone SRAM, U-Boot 1.1.2 (`nidc` NAND ID & `checkbattery` ADC checks), and the embedded Linux 2.6.11 kernel without kernel panics or guest segmentation faults. Automatic per-cartridge CPU ratio presets (`2×`–`4×`) and the PGO unity build improve runtime pacing across the commercial game library; per-title frame rate and audio acceptance remain distinct compatibility measures.
 
-For the complete chronological engineering log and all 47 technical reports (`docs/00`–`docs/46`), see [**CHANGELOG.md**](CHANGELOG.md).
+For the complete chronological engineering log and all 49 technical reports (`docs/00`–`docs/48`), see [**CHANGELOG.md**](CHANGELOG.md).
 
 ### 1. Commercial Game Cartridges (11 / 11 Boot to Game Binary)
 

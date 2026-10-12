@@ -1428,7 +1428,24 @@ static LRESULT CALLBACK settingsProc(HWND h, UINT message, WPARAM w, LPARAM l) {
     if (message == WM_PAINT) {
         PAINTSTRUCT ps;
         HDC dc = BeginPaint(h, &ps);
-        drawController(dc);
+        RECT client{};
+        GetClientRect(h, &client);
+        HDC buffer = CreateCompatibleDC(dc);
+        HBITMAP bitmap = CreateCompatibleBitmap(dc, client.right, client.bottom);
+        if (buffer && bitmap) {
+            HGDIOBJ previous = SelectObject(buffer, bitmap);
+            FillRect(buffer, &client, GetSysColorBrush(COLOR_BTNFACE));
+            drawController(buffer);
+            BitBlt(dc, ps.rcPaint.left, ps.rcPaint.top,
+                   ps.rcPaint.right - ps.rcPaint.left, ps.rcPaint.bottom - ps.rcPaint.top,
+                   buffer, ps.rcPaint.left, ps.rcPaint.top, SRCCOPY);
+            SelectObject(buffer, previous);
+        } else {
+            FillRect(dc, &ps.rcPaint, GetSysColorBrush(COLOR_BTNFACE));
+            drawController(dc);
+        }
+        if (bitmap) DeleteObject(bitmap);
+        if (buffer) DeleteDC(buffer);
         EndPaint(h, &ps);
         return 0;
     }
@@ -1462,7 +1479,7 @@ static void showSettings(int page = 0) {
     AdjustWindowRect(&rect, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, FALSE);
     settingsWindow = CreateWindowW(
         wc.lpszClassName, tr().settingsWindowTitle,
-        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
+        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN,
         CW_USEDEFAULT, CW_USEDEFAULT,
         rect.right - rect.left, rect.bottom - rect.top,
         window, nullptr, wc.hInstance, nullptr);
