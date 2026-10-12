@@ -19,7 +19,7 @@ Live replays ran sequentially with GUI, sound, profiling, a plain 2x window and 
 
 All four measured sections sustain approximately 100% of their configured pacing targets and the bounded runs terminate normally. Rayman's 16-billion-step run includes scripted A presses and one manual Enter press during the story dialog. It is functional scene evidence, not a deterministic paired replay. The replay fixture continues dialogue confirmation and movement through the first level; it does not assert a fixed wall-time arrival.
 
-Rayman still displays a magenta background in the first level. The same defect appears in the existing project preview. It remains a graphics limitation, independently of the measured throughput and queue behavior. Wade's submission rate remains low and still requires hardware-speed calibration; reaching the pacing target does not resolve the original complaint of slow combat.
+Rayman displays a magenta background in the first level. The supplied [original-console composite capture at 2:55](https://www.youtube.com/watch?v=mP2FGHmUGh8&t=175s) shows a similarly magenta sky. This observation does not support classifying that color alone as an emulator defect. Composite output and handheld LCD output are different paths, so it is not a pixel-exact palette validation. Wade's submission rate remains low and still requires hardware-speed calibration; reaching the pacing target does not resolve the original complaint of slow combat.
 
 A separate early Crazy Jack replay samples the first 600 million steps every 20 million steps. The captured logo, console splash and publisher image are centered and decoded coherently. This does not prove every intermediate scanout is correct or dismiss previously reported startup artifacts.
 
@@ -37,13 +37,15 @@ A Sonic diagnostic run at manual ratio 4 produces more raw submissions, about 24
 
 One independently extracted Winx episode identifies as RV40, 240x160, at 15 fps according to `ffprobe`. This establishes the cadence of that episode only. A 15-fps source cannot supply 60 distinct frames per second; source cadence, incomplete guest rendering and audio starvation must be measured separately. These tests do not establish smooth, synchronized playback across all cartridges.
 
+The subsequent cartridge identity table enables native complete-frame capture for recognized video-only dumps independently of the CPU ratio. Combined game/video and unknown dumps retain the guest-metadata probe. This removes the recognition dependency for known pure-video cartridges; it does not establish their decoding speed or audio synchronization. Windows performance output additionally records played, remaining submitted and pending audio frames when the output driver reports a valid position.
+
 Dedicated media input is exercised during a Sonic episode using `tests/video_dedicated_media_controls.txt`. Play/Pause and held seek change the playback output, and Stop is followed by cessation of frame changes and temporary audio submission. A return to the episode selection screen is not established by this replay. GPIO/interrupt routing and host pulse behavior have separate ROM-free regression coverage.
 
 ## Remaining Compatibility Boundaries
 
-- Rayman first-level background rendering requires palette/render-path analysis.
+- Rayman's magenta sky also appears in the supplied hardware capture; other rendering and motion issues require their own comparison.
 - Wade combat cadence requires an original-hardware reference and scene-specific timing calibration.
 - Native RealVideo capture recognition must remain reliable across CPU ratios, process mappings and languages. Other video cartridges require their own playback and listening checks.
 - Sound quality and audiovisual synchronization require listening/reference acceptance; zero queue events alone cannot establish either.
 - The damaged international Winx combined image remains unmodified and unsupported where its filesystem cannot be read.
-- MP3 firmware expects USB/SCSI music storage. OHCI enumeration, persistent storage and original player playback remain unimplemented; see [MP3 Firmware](48_mp3_cartridge_firmware_probe.md).
+- The subsequent [MP3 implementation](51_mp3_storage_and_player.md) supplies USB/SCSI storage and a launcher manager. Broad decoder compatibility and physical USB sharing remain unverified or unsupported.

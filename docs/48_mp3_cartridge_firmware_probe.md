@@ -25,9 +25,11 @@ If the SCSI disk is missing, `memoryerror.sh` displays an MP3 storage accessibil
 
 ## Emulation Scope
 
-Preserving the original MP3 interface and playback software is useful independently of game compatibility. The next implementation boundary is OHCI enumeration and USB mass-storage transport exposing a persistent disk to the guest SCSI stack, followed by filesystem mounting and player startup. The gadget-side sharing path and I2C failures require separate validation. A virtual disk must isolate guest formatting from host files.
+The subsequent [MP3 storage implementation](51_mp3_storage_and_player.md) supplies OHCI enumeration, persistent USB/SCSI storage, a launcher storage manager and bounded original-player playback evidence. The boot limitations above describe the earlier unattached-storage probe. Physical USB gadget sharing and general MP3 decoding compatibility remain outside that evidence.
 
-Enlarging the NAND image to the advertised music capacity does not implement the firmware's USB/SCSI topology. The supplied image is useful for firmware analysis; a complete original music-storage image and working playback have not been established. Game and RealVideo timing remain independent compatibility work.
+Preserving the original MP3 interface and playback software is useful independently of game compatibility. This probe identified OHCI enumeration and USB mass-storage transport exposing a persistent disk to the guest SCSI stack as the required implementation boundary, followed by filesystem mounting and player startup. The subsequent implementation supplies that path. Gadget-side sharing and I2C failures require separate validation. A virtual disk must isolate guest formatting from host files.
+
+Enlarging the NAND image to the advertised music capacity does not implement the firmware's USB/SCSI topology. A complete original music-storage image has not been established; the subsequent playback evidence uses a separately reconstructed FAT16 store. Game and RealVideo timing remain independent compatibility work.
 
 ```powershell
 bin/oceanblast.exe "roms/hardware/MP3 player 256MB/MP3 player 256MB.bin" `

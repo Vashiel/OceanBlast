@@ -11,6 +11,7 @@ Bus::Bus() {
     steppingstone.resize(ADDR_STEPPINGSTONE_SIZE, 0);
     sdram.resize(ADDR_SDRAM_SIZE, 0);
     sdramPtr = sdram.data();
+    usbHost.reset();
     mmioRegs[0x4C000004] = 0x5c080;
     mmioRegs[0x4C000010] = 4;
     mmioRegs[0x4C000014] = 0;
@@ -47,6 +48,7 @@ bool Bus::saveEeprom(const std::string& path) const {
 }
 
 void Bus::reset() {
+    usbHost.reset();
     flushTlb();
     sdramPtr = sdram.data();
     std::fill(steppingstone.begin(), steppingstone.end(), 0);
@@ -545,6 +547,8 @@ void Bus::writeNandAddr(u8 addr) {
 
 u32 Bus::readMmio(u32 addr, bool guestAccess) {
     if (mmioProfiling && guestAccess) ++mmioAccesses[addr].reads;
+    if (usbHostEnabled && addr >= ADDR_USBHOST_BASE && addr < ADDR_USBHOST_BASE + 0x100)
+        return usbHost.read(addr - ADDR_USBHOST_BASE);
     switch (addr) {
         // NAND Flash Controller (0x4E000000)
         case 0x4E000000: return nfconf;
@@ -656,6 +660,11 @@ u32 Bus::readMmio(u32 addr, bool guestAccess) {
 
 void Bus::writeMmio(u32 addr, u32 val) {
     if (mmioProfiling) ++mmioAccesses[addr].writes;
+    if (usbHostEnabled && addr >= ADDR_USBHOST_BASE && addr < ADDR_USBHOST_BASE + 0x100) {
+        usbHost.write(addr - ADDR_USBHOST_BASE, val);
+        if (usbHost.irq()) requestIrq(26);
+        return;
+    }
     if (i2cLogging && addr >= ADDR_IIC_BASE && addr <= ADDR_IIC_BASE + 0x0c)
         std::cout << "[I2C WRITE] register=0x" << std::hex << addr << " value=0x" << val
                   << " control=0x" << mmioRegs[ADDR_IIC_BASE] << " status=0x" << mmioRegs[ADDR_IIC_BASE + 4]

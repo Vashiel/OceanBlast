@@ -1,6 +1,7 @@
 // Capture generated PCM without host playback. ROM and WAV contents stay local.
 #include "cpu/arm920t.h"
 #include "audio/resampler.h"
+#include "core/input_script.h"
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -10,12 +11,15 @@ static void le(std::ostream& out,uint32_t value,unsigned bytes) {
     for(unsigned i=0;i<bytes;++i)out.put(char(value>>(i*8)));
 }
 int main(int argc,char** argv) {
-    if(argc!=4 && argc!=5){std::cerr<<"Usage: capture_audio ROM STEPS OUTPUT.wav [CPU_STEPS_PER_PERIPHERAL_TICK]\n";return 1;}
+    if(argc<4 || argc>7){std::cerr<<"Usage: capture_audio ROM STEPS OUTPUT.wav [CPU_STEPS_PER_PERIPHERAL_TICK [USB_IMAGE [INPUT_SCRIPT]]]\n";return 1;}
     uint64_t limit=0;
     unsigned divider=1;
-    try{limit=std::stoull(argv[2]);if(argc==5)divider=std::stoul(argv[4]);}catch(...){return 1;}
+    try{limit=std::stoull(argv[2]);if(argc>=5)divider=std::stoul(argv[4]);}catch(...){return 1;}
     if(!limit||!divider||divider>16)return 1;
     Bus bus;if(!bus.loadCartridge(argv[1]))return 1;
+    if(argc>=6&&!bus.attachUsbStorage(argv[5]))return 1;
+    std::vector<InputEvent> input;size_t nextInput=0;
+    if(argc==7){std::ifstream script(argv[6]);std::string error;if(!script||!readInputScript(script,input,error))return 1;}
     ARM920T cpu(bus);cpu.reset();
     std::fstream wav(argv[3],std::ios::binary|std::ios::out|std::ios::trunc);
     std::ofstream events(std::string(argv[3])+".csv");
@@ -38,7 +42,10 @@ int main(int argc,char** argv) {
         for(auto sample:pcm)le(wav,uint16_t(sample),2);
         bytes+=pcm.size()*2;
     });
-    for(;step<limit&&!cpu.isHalted()&&!overflow;++step)cpu.step(step%divider==0?1:0);
+    for(;step<limit&&!cpu.isHalted()&&!overflow;++step) {
+        if(nextInput<input.size()&&step==input[nextInput].step)bus.setButtonMask(input[nextInput++].mask);
+        cpu.step(step%divider==0?1:0);
+    }
     wav.seekp(4);le(wav,uint32_t(36+bytes),4);wav.seekp(40);le(wav,uint32_t(bytes),4);
     wav.flush();events.flush();
     std::cout<<"Captured "<<bytes/4<<" stereo frames; "<<step<<" steps.\n";

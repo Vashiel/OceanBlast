@@ -3,6 +3,7 @@
 #include "i2c_eeprom.h"
 #include "timer4.h"
 #include "clock_tree.h"
+#include "usb_ohci.h"
 #include "../display/frame_latch.h"
 #include <vector>
 #include <string>
@@ -59,6 +60,7 @@ public:
     const IrqDiagnostics& getIrqDiagnostics() const { return irqDiagnostics; }
     uint64_t getTimer4Expirations() const { return timer4.getExpirations(); }
     bool loadEeprom(const std::string& path);
+    bool attachUsbStorage(const std::string& path) { usbHostEnabled = usbHost.attach(path); return usbHostEnabled; }
     bool saveEeprom(const std::string& path) const;
     void setEepromByte(size_t offset, u8 value) { eeprom.setByte(offset, value); }
     u8 getEepromByte(size_t offset) const { return eeprom.getByte(offset); }
@@ -300,9 +302,14 @@ public:
         // Register writes handle subpending/mask changes; tick reasserts after
         // the guest clears the main source while the empty level remains active.
         if (uart0TxLevelActive && !(regSrcpnd & (1u << 28))) updateUart0TxInterrupt();
+        if (usbHostEnabled && usbHost.irq() && !(regSrcpnd & (1u << 26))) requestIrq(26);
         // Ratio execution also calls tick with no elapsed time. Preserve the
         // level-triggered UART check, but do not revisit timed devices then.
         if (!cycles) return;
+        if (usbHostEnabled && usbHost.needsTicks()) {
+            usbHost.advance(cycles, sdramPtr, ADDR_SDRAM_SIZE, ADDR_SDRAM_BASE);
+            if (usbHost.irq() && !(regSrcpnd & (1u << 26))) requestIrq(26);
+        }
         if (timer4.isRunning() && timer4.advance(cycles)) requestIrq(14);
         if (dma2Active && (!dma2Paused || dma2Dst != 0x55000010)) {
             if (cycles >= dma2Timer) {
@@ -320,6 +327,7 @@ public:
     // Bound idle advancement by the first modeled event, including PCM capture.
     uint64_t ticksUntilEvent() const {
         uint64_t next = std::min<uint64_t>(20000, timer4.ticksUntilExpiry());
+        if (usbHostEnabled && usbHost.needsTicks()) next = std::min<uint64_t>(next, usbHost.ticksUntilEvent());
         if (dma2Active && (!dma2Paused || dma2Dst != 0x55000010)) {
             next = std::min(next, dma2Timer);
             if (audioCallback && dma2Timer > dma2NextAudioTimer)
@@ -353,6 +361,8 @@ public:
     u32  getFramebufferSize() const;
 
 private:
+    UsbOhci usbHost;
+    bool usbHostEnabled = false;
     bool hostFrameEnabled = false, hostNativeVideo = false;
     u32 hostFrameBase = 0, hostFrameSize = 0;
     FrameLatch hostFrameCapture;

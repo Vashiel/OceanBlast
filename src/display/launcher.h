@@ -14,6 +14,7 @@
 #include <objidl.h>
 #include <gdiplus.h>
 #include "windows_input.h"
+#include "../core/mp3_storage.h"
 #include <algorithm>
 #include <cstdio>
 #include <filesystem>
@@ -61,7 +62,8 @@ enum {
     MediaNext = 213,
     MediaSeekBack = 214,
     MediaSeekFwd = 215,
-    CartLangBase = 220
+    CartLangBase = 220,
+    ManageMp3Storage = 240
 };
 
 struct UiText {
@@ -876,6 +878,8 @@ static void stop() {
     if (window) InvalidateRect(window, nullptr, TRUE);
 }
 
+#include "mp3_manager_win32.h"
+
 static void toggleMainFullscreen() {
     if (!window) return;
     LONG style = GetWindowLongW(window, GWL_STYLE);
@@ -916,6 +920,14 @@ static bool launchRom(const std::wstring& romFile) {
         return false;
     }
     stop();
+    const bool mp3 = isMp3Rom(romFile);
+    if (mp3) {
+        const bool existed = std::filesystem::exists(musicStoragePath());
+        if (!createMusicStorage(window)) return false;
+        try { oceanblast::Mp3Storage storage(musicStoragePath()); }
+        catch (const std::exception& error) { musicError(window, error); return false; }
+        if (!existed) importMusic(window);
+    }
     activeRomPath = romFile;
     settings.lastRom = romFile;
     if (settings.romFolder.empty()) {
@@ -927,6 +939,7 @@ static bool launchRom(const std::wstring& romFile) {
     const int scale = static_cast<int>(settings.scaleIndex) + 2;
     std::wstring command = L"\"" + executable + L"\" \"" + romFile + L"\" --gui --scale " + std::to_wstring(scale);
     command += L" --parent-hwnd " + std::to_wstring(reinterpret_cast<uintptr_t>(window));
+    if (mp3) command += L" --usb-storage \"" + musicStoragePath().wstring() + L"\"";
     if (settings.windowMode == 0) command += L" --window-mode skin";
     else command += L" --window-mode plain";
     if (settings.windowMode == 1 && !mainFullscreen) toggleMainFullscreen();
@@ -1052,6 +1065,8 @@ static HMENU makeMenu() {
         std::wstring item = std::wstring(t.categories[i]) + L"...";
         AppendMenuW(cfg, MF_STRING, SettingsBase + i, item.c_str());
     }
+    AppendMenuW(cfg, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(cfg, MF_STRING, ManageMp3Storage, L"MP3 Storage...");
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(file), t.menuFile);
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(playback), t.menuPlayback);
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(cfg), t.menuSettings);
@@ -1709,6 +1724,8 @@ static LRESULT CALLBACK procedure(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
         } else if (id == RestartRom) {
             if (!activeRomPath.empty()) launchRom(activeRomPath);
             else if (!settings.lastRom.empty()) launchRom(settings.lastRom);
+        } else if (id == ManageMp3Storage) {
+            showMusicManager();
         } else if (id == StopRom || id == 12) {
             stop();
         } else if (id == ToggleFullscreenCmd) {

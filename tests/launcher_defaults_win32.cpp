@@ -113,7 +113,8 @@ static void CALLBACK inspect(HWND, UINT, UINT_PTR timer, DWORD) {
           GetMenu(window) != nullptr &&
           GetMenuItemCount(GetSubMenu(GetMenu(window), 0)) == 5 &&
           GetMenuItemCount(GetSubMenu(GetMenu(window), 1)) == 9 &&
-          GetMenuItemCount(GetSubMenu(GetMenu(window), 2)) == 6);
+          GetMenuItemCount(GetSubMenu(GetMenu(window), 2)) == 8 &&
+          GetMenuState(GetSubMenu(GetMenu(window), 2), ManageMp3Storage, MF_BYCOMMAND) != UINT(-1));
 
     UpdateWindow(window);
     check("Launcher start screen preview rendered", capturePreview(window, L"build/launcher-startup-preview.png"));

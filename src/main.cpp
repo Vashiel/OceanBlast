@@ -50,6 +50,7 @@ void printUsage(const char* progName) {
     std::cout << "  --snapshot-interval <N> Save framebuffer/state every N instructions\n"
               << "  --exit-on-limit         Close GUI after the instruction budget is exhausted\n"
               << "  --nvram <path>          Load/save a separate 2048-byte EEPROM image\n"
+              << "  --usb-storage <path>    Experimental writable USB disk image (existing file only)\n"
               << "  --cart-language <auto|ask|en|de|es|it|nl|fr|tr|keep> Cartridge/video language\n"
               << "  --pc-profile <N>        Sample execution pages every N instructions\n"
               << "  --i2c-log               Trace I2C register writes and byte completions\n"
@@ -102,7 +103,7 @@ int main(int argc, char* argv[]) {
     bool faultLog = false;
     bool i2cLog = false;
     bool mmioProfile = false;
-    std::string nvramPath;
+    std::string nvramPath, usbStoragePath;
     std::string cartLanguageMode;
     bool simpleAluExecution = true;
     bool fpa11Execution = true;
@@ -163,6 +164,8 @@ int main(int argc, char* argv[]) {
             mmioProfile = true;
         } else if (arg == "--nvram" && i + 1 < argc) {
             nvramPath = argv[++i];
+        } else if (arg == "--usb-storage" && i + 1 < argc) {
+            usbStoragePath = argv[++i];
         } else if (arg == "--cart-language" && i + 1 < argc) {
             cartLanguageMode = argv[++i];
             if (cartLanguageMode != "auto" && cartLanguageMode != "ask" && cartLanguageMode != "menu" &&
@@ -315,6 +318,15 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    if (!usbStoragePath.empty()) {
+        std::error_code error;
+        if (!std::filesystem::is_regular_file(usbStoragePath, error) || error || !bus.attachUsbStorage(usbStoragePath)) {
+            std::cerr << "[Error] USB storage requires an existing writable sector-aligned image file.\n";
+            return 1;
+        }
+        std::cout << "[USB] Experimental mass-storage image attached; guest writes persist.\n";
+    }
+
     // Inspect Cartridge Header & Boot Structure
     auto cartInfo = oceanblast::CartParser::parse(bus.getCartNand());
     oceanblast::CartParser::printInfo(cartInfo);
@@ -357,7 +369,11 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    bus.enableHostFrameCapture(gui && coherentFrames && !displayStride && displayFormat == 0);
+    const auto* cartridgeIdentity = identifyCartridge(bus.getCartNand().size(), cartridgeCrc);
+    const bool identifiedVideo = cartridgeIdentity && cartridgeIdentity->video;
+    bus.enableHostFrameCapture(gui && coherentFrames && !displayStride && displayFormat == 0, identifiedVideo);
+    if (gui && coherentFrames && identifiedVideo && !displayStride && displayFormat == 0)
+        std::cout << "[Display] Identified video cartridge: complete native video sweeps enabled.\n";
 
     if (sound) {
         if (audio.init(audioRate, 2)) {
@@ -510,9 +526,9 @@ int main(int argc, char* argv[]) {
     bool haveHash = false, previousCaptureReady = false;
     size_t nextDisplayProbe = 0;
     size_t nextVideoProbe = 1000000000;
-    bool videoDecoderRecognized = false;
+    bool videoDecoderRecognized = identifiedVideo;
     std::ofstream metrics;
-    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples,audio_submitted_frames,audio_queued_frames,audio_empty_queue_events,fclk,pclk,cpu_steps_per_tick,guest_seconds,speed_percent,idle_ticks,coherent_frames,partial_sweeps,synchronized_presentations,frame_capture_active,capture_ready\n"; }
+    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples,audio_submitted_frames,audio_queued_frames,audio_empty_queue_events,fclk,pclk,cpu_steps_per_tick,guest_seconds,speed_percent,idle_ticks,coherent_frames,partial_sweeps,synchronized_presentations,frame_capture_active,capture_ready,audio_played_frames,audio_remaining_frames,audio_pending_frames,audio_output_rate\n"; }
     while (!cpu.isHalted() && executedSteps < stepLimit && guestTicks < tickLimit) {
         if (gui && coherentFrames && displayFormat == 0 && !displayStride &&
             !videoDecoderRecognized && executedSteps >= nextVideoProbe) {
@@ -625,7 +641,16 @@ int main(int argc, char* argv[]) {
                       << (display.usesSyncedPresentation() ? " | VSync" : " | GDI")
                       << (display.paused ? " | PAUSE" : "");
                 display.setTitle(title.str());
-                if (metrics) { metrics << executedSteps << ',' << seconds << ',' << presented / seconds << ',' << changed / seconds << ',' << mips << ',' << cpu.getPC() << ',' << getActiveFbPhys() << ',' << bus.getAudioSampleRate() << ',' << audio.getDroppedSamples() << ',' << audio.getSubmittedFrames() << ',' << audio.getQueuedFrames() << ',' << audio.getEmptyQueueEvents() << ',' << bus.getCpuClock() << ',' << bus.getPeripheralClock() << ',' << cpuStepsPerTick << ',' << double(guestTicks) / EmulationClock::ticksPerSecond << ',' << speed << ',' << idleTicks << ',' << bus.getHostFrameCapture().completed() << ',' << bus.getHostFrameCapture().abandoned() << ',' << display.presentedFrames() << ',' << bus.hostFrameCaptureActive() << ',' << bus.getHostFrameCapture().ready() << '\n'; metrics.flush(); }
+                if (metrics) {
+                    uint64_t playedFrames = 0;
+                    const bool positionValid = audio.getPlayedFrames(playedFrames);
+                    metrics << executedSteps << ',' << seconds << ',' << presented / seconds << ',' << changed / seconds << ',' << mips << ',' << cpu.getPC() << ',' << getActiveFbPhys() << ',' << bus.getAudioSampleRate() << ',' << audio.getDroppedSamples() << ',' << audio.getSubmittedFrames() << ',' << audio.getQueuedFrames() << ',' << audio.getEmptyQueueEvents() << ',' << bus.getCpuClock() << ',' << bus.getPeripheralClock() << ',' << cpuStepsPerTick << ',' << double(guestTicks) / EmulationClock::ticksPerSecond << ',' << speed << ',' << idleTicks << ',' << bus.getHostFrameCapture().completed() << ',' << bus.getHostFrameCapture().abandoned() << ',' << display.presentedFrames() << ',' << bus.hostFrameCaptureActive() << ',' << bus.getHostFrameCapture().ready() << ',';
+                    if (positionValid) metrics << playedFrames;
+                    metrics << ',';
+                    if (positionValid) metrics << (audio.getSubmittedFrames() > playedFrames ? audio.getSubmittedFrames() - playedFrames : 0);
+                    metrics << ',' << audio.getPendingFrames() << ',' << audio.getSampleRate() << '\n';
+                    metrics.flush();
+                }
                 lastStats = now; statsSteps = executedSteps; statsTicks = guestTicks; presented = changed = 0;
             }
             if (display.snapshot) {

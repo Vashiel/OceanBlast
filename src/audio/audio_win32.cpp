@@ -71,6 +71,7 @@ bool Audio::init(int sampleRate, int channels) {
     m_currentBuffer = 0;
     m_droppedSamples = 0;
     m_submittedFrames = m_emptyQueueEvents = 0;
+    m_positionType = m_lastPosition = 0; m_positionWrap = 0;
     m_queueEmptyReported = false;
     m_resampler.reset();
     m_pendingSamples.clear();
@@ -89,6 +90,28 @@ uint64_t Audio::getQueuedFrames() const {
             frames += header->dwBufferLength / (sizeof(int16_t) * m_channels);
     }
     return frames;
+}
+
+bool Audio::getPlayedFrames(uint64_t& frames) const {
+    if (!m_initialized || !m_hWaveOut) return false;
+    MMTIME position{}; position.wType = TIME_SAMPLES;
+    if (waveOutGetPosition(static_cast<HWAVEOUT>(m_hWaveOut), &position, sizeof(position)) != MMSYSERR_NOERROR) return false;
+    uint32_t raw;
+    if (position.wType == TIME_SAMPLES) raw = position.u.sample;
+    else if (position.wType == TIME_BYTES) raw = position.u.cb;
+    else if (position.wType == TIME_MS) raw = position.u.ms;
+    else return false;
+    if (m_positionType && m_positionType != position.wType) return false;
+    m_positionType = position.wType;
+    if (raw < m_lastPosition) {
+        if (m_lastPosition - raw < 0x80000000u) return false;
+        m_positionWrap += uint64_t(1) << 32;
+    }
+    m_lastPosition = raw;
+    const uint64_t total = m_positionWrap + raw;
+    frames = position.wType == TIME_SAMPLES ? total : position.wType == TIME_BYTES ?
+        total / (sizeof(int16_t) * m_channels) : total * m_sampleRate / 1000;
+    return true;
 }
 
 void Audio::observeQueue() {
@@ -233,6 +256,7 @@ Audio::Audio() : m_initialized(false), m_hWaveOut(nullptr), m_sampleRate(22050),
 Audio::~Audio() {}
 bool Audio::init(int, int) { return false; }
 uint64_t Audio::getQueuedFrames() const { return 0; }
+bool Audio::getPlayedFrames(uint64_t&) const { return false; }
 void Audio::observeQueue() {}
 void Audio::writeSamples(const int16_t*, size_t, int) {}
 void Audio::close() {}

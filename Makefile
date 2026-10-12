@@ -20,11 +20,14 @@ HEADERS = src/core/types.h \
           src/core/cartridge_settings.h \
           src/core/cartridge_language.h \
           src/core/button_pulses.h \
+          src/core/mp3_storage.h \
           src/cpu/arm920t.h \
           src/memory/bus.h \
           src/memory/i2c_eeprom.h \
           src/memory/timer4.h \
           src/memory/clock_tree.h \
+          src/memory/usb_mass_storage.h \
+          src/memory/usb_ohci.h \
           src/cartridge/cart_parser.h \
           src/display/display.h \
           src/display/framebuffer.h \
@@ -33,6 +36,7 @@ HEADERS = src/core/types.h \
           src/display/presenter_win32.h \
           src/display/console_skin_win32.h \
           src/display/launcher.h \
+          src/display/mp3_manager_win32.h \
           src/display/windows_input.h \
           src/display/input_mapping.h \
           src/audio/audio.h \
@@ -63,6 +67,8 @@ $(TARGET): $(OBJS) $(RES_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(RES_OBJ) $(LDFLAGS)
 
 test: build/frame_latch.exe build/emulation_timing.exe build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
+	./build/mp3_storage.exe
+	./build/usb_storage.exe
 	./build/cartridge_settings.exe
 	./build/cartridge_loading.exe
 	./build/frame_latch.exe
@@ -119,9 +125,26 @@ clean:
 
 .PHONY: all clean test
 
+test: build/usb_storage.exe
+
+test: build/mp3_storage.exe
+
+build/mp3_storage.exe: tests/mp3_storage.cpp src/core/mp3_storage.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+build/usb_storage.exe: tests/usb_storage.cpp src/memory/usb_ohci.h src/memory/usb_mass_storage.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+
 build/sample_native.exe: tools/sample_native.cpp
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $<
+
+build/sdl_surface_probe.exe: tools/sdl_surface_probe.cpp src/cpu/arm920t.cpp src/memory/bus.cpp $(HEADERS)
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
 
 build/probe_host_wait.exe: tools/probe_host_wait.cpp src/core/host_pacer.h
 	@mkdir -p build
@@ -171,13 +194,22 @@ build/console_skin_win32.exe: tests/console_skin_win32.cpp src/display/display_w
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^) $(LDFLAGS)
 
-test-windows: build/display_height_win32.exe build/console_skin_win32.exe build/launcher_defaults_win32.exe
+test-windows: build/display_height_win32.exe build/console_skin_win32.exe build/launcher_defaults_win32.exe build/audio_output_win32.exe build/mp3_manager_win32.exe
+	./build/mp3_manager_win32.exe
+	./build/audio_output_win32.exe
 	./build/launcher_defaults_win32.exe
 	./build/display_height_win32.exe
 	./build/console_skin_win32.exe
 	./build/console_skin_win32.exe --gdi
 
 .PHONY: test-windows
+
+build/audio_output_win32.exe: tests/audio_output_win32.cpp src/audio/audio_win32.cpp src/audio/audio.h src/audio/resampler.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^) -lwinmm
+
+# USB bus integration participates in every memory-backed regression target.
+build/cpu_regression.exe build/input_test.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe build/runtime_probe.exe build/capture_audio.exe build/frame_latch.exe build/emulation_timing.exe: src/memory/usb_ohci.h src/memory/usb_mass_storage.h
 
 build/cartridge_settings.exe: tests/cartridge_settings.cpp src/core/cartridge_settings.h src/core/cartridge_language.h
 	@mkdir -p build
@@ -189,6 +221,10 @@ build/cartridge_loading.exe: tests/cartridge_loading.cpp src/memory/bus.cpp $(HE
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
 
-build/launcher_defaults_win32.exe: tests/launcher_defaults_win32.cpp src/display/launcher.h src/display/windows_input.h src/display/input_mapping.h $(RES_OBJ)
+build/launcher_defaults_win32.exe: tests/launcher_defaults_win32.cpp src/display/launcher.h src/display/mp3_manager_win32.h src/core/mp3_storage.h src/display/windows_input.h src/display/input_mapping.h $(RES_OBJ)
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ tests/launcher_defaults_win32.cpp $(RES_OBJ) $(LDFLAGS)
+
+build/mp3_manager_win32.exe: tests/mp3_manager_win32.cpp src/display/launcher.h src/display/mp3_manager_win32.h src/core/mp3_storage.h src/display/windows_input.h src/display/input_mapping.h $(RES_OBJ)
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ tests/mp3_manager_win32.cpp $(RES_OBJ) $(LDFLAGS)

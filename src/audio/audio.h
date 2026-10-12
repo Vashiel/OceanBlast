@@ -24,6 +24,8 @@ public:
     int getChannels() const { return m_channels; }
     uint64_t getDroppedSamples() const { return m_droppedSamples; }
     uint64_t getQueuedFrames() const;
+    bool getPlayedFrames(uint64_t& frames) const;
+    size_t getPendingFrames() const { return m_pendingSamples.size() / m_channels; }
     uint64_t getSubmittedFrames() const { return m_submittedFrames; }
     uint64_t getEmptyQueueEvents() const { return m_emptyQueueEvents; }
 
@@ -51,6 +53,8 @@ private:
     uint64_t m_submittedFrames = 0, m_emptyQueueEvents = 0;
     bool m_queueEmptyReported = false;
     bool m_preroll = false;
+    mutable uint32_t m_positionType = 0, m_lastPosition = 0;
+    mutable uint64_t m_positionWrap = 0;
     void observeQueue();
 };
 
