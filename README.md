@@ -40,11 +40,11 @@ Automatic per-cartridge settings are enabled by default (see [docs/45](docs/45_c
 
 ---
 
-## Cartridge Compatibility Overview (2026-10-11)
+## Cartridge Compatibility Overview (2026-10-12)
 
-All tested cartridges boot autonomously through the 4-KB S3C2410 Steppingstone SRAM, U-Boot 1.1.2 (`nidc` NAND ID & `checkbattery` ADC checks), and the embedded Linux 2.6.11 kernel without kernel panics or guest segmentation faults. Automatic per-cartridge CPU ratio presets (`2×` / `3×`) and the PGO unity build enable full-speed execution across the commercial game library.
+All tested cartridges boot autonomously through the 4-KB S3C2410 Steppingstone SRAM, U-Boot 1.1.2 (`nidc` NAND ID & `checkbattery` ADC checks), and the embedded Linux 2.6.11 kernel without kernel panics or guest segmentation faults. Automatic per-cartridge CPU ratio presets (`2×`–`4×`) and the PGO unity build improve runtime pacing across the commercial game library; per-title frame rate and audio acceptance remain distinct compatibility measures.
 
-For the complete chronological engineering log and all 46 technical reports (`docs/00`–`docs/45`), see [**CHANGELOG.md**](CHANGELOG.md).
+For the complete chronological engineering log and all 47 technical reports (`docs/00`–`docs/46`), see [**CHANGELOG.md**](CHANGELOG.md).
 
 ### 1. Commercial Game Cartridges (11 / 11 Boot to Game Binary)
 
@@ -57,7 +57,7 @@ For the complete chronological engineering log and all 46 technical reports (`do
 | **Gormiti: Lotta Oscura** `[G] (IT)` | Yes | Intro & Title / Start Screen | Plays (Auto 3×) | 32 MB NAND; Auto 3× preset ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/28](docs/28_cartridge_register_audit.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
 | **Gormiti: Masters of the Gorm Island** `[G] (IT)` | Yes | Main Menu & In-Game Level/HUD | Plays (Auto 3×) | 16 MB NAND; Auto 3× preset ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/28](docs/28_cartridge_register_audit.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
 | **Pitfall: The Lost Expedition** `[G] (EN)` | Yes | Intro, Title & Gameplay | Smooth at Auto 3× | Native 12-bpp LCD444; Auto 3× preset & GBA `KEY_1/2/4/5/CTRL` input ([docs/21](docs/21_pitfall_original_hardware_reference.md), [docs/34](docs/34_automatic_cartridge_settings.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
-| **Rayman 3** `[G] (M10)` | Yes | Intro, Title (20–28 FPS) & In-Game | Smooth at Auto 3× ([docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) | Auto 3× (`60 MIPS`) + PGO unity build achieves `100%` real-time speed & zero post-boot audio underruns ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
+| **Rayman 3** `[G] (M10)` | Yes | Intro and title; about `30 FPS` in the measured interval | Auto 4×; averaged `100%` emulated speed, with brief samples down to `97%` | Four empty audio-queue observations and zero dropped samples in the 35-second capture; see [docs/46](docs/46_runtime_build_profiles_and_rayman_ratio.md) |
 | **Spider-Man: Mysterio's Menace** `[G] (EN)` | Yes | Main Menu, Story & In-Game | Plays (Auto 3×) | Auto 3× preset & full GBA `KEY_1/2/4/5/CTRL` input ([docs/12](docs/12_game_cartridge_compatibility.md), [docs/18](docs/18_manual_cartridge_validation.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
 | **Superstar Chefs** `[G] (EN)` | Yes | Menus (31–40 FPS) & Level (~16–22 FPS) | Smooth at Auto 3× ([docs/44](docs/44_superstar_chefs_analysis_and_fix.md)) | Hardware FPA11 (`cp1`/`cp2`) + Auto 3× cuts `InitAudio` loading (`14 -> 3 s`) & prevents `480×320` + `AddChannel` collapse at `100%` speed ([docs/44](docs/44_superstar_chefs_analysis_and_fix.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
 | **Wade Hixton's Counter Punch** `[G] (EN)` | Yes | Intro, Menus & First Fight | Smooth at Auto 3× | `GPH8 = 1` removes 16-bpp shadow blit (`-50%` frame work); Auto 3× preset & `KEY_2` (`GPF5`) fix ([docs/41](docs/41_wade_binary_and_s3c2410fb_analysis.md), [docs/42](docs/42_wade_gph8_lcd_mode.md), [docs/45](docs/45_cartridge_presets_gpio_keys_and_tlb_invalidation.md)) |
@@ -100,9 +100,9 @@ The Nikko digiBLAST hardware is built around the Samsung S3C2410A / OCEAN-L-20 p
 ```bash
 make
 ```
-Or build a Profile-Guided Optimization (PGO) unity binary:
+This creates a developer executable at `build/oceanblast-dev.exe`; it leaves the installed launcher untouched. Build and install a Profile-Guided Optimization (PGO) unity binary for normal gameplay:
 ```powershell
-& .\tools\build_profiled.ps1 -Roms @("path\to\cartridge.bin") -Steps 2100000000 -CpuStepsPerTick 3 -Optimization O3 -Unity
+& .\tools\build_profiled.ps1 -Roms @("path\to\cartridge.bin") -Steps 2100000000 -CpuStepsPerTick 3 -Optimization O3 -Unity -Install
 ```
 
 ### Running ROM-Free Regression Suites

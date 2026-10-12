@@ -1,6 +1,15 @@
 # Changelog & Technical Investigation History
 
-This changelog records the chronological development, hardware reverse-engineering milestones, and empirical validation reports (`docs/00`–`docs/45`) for **OceanBlast**.
+This changelog records the chronological development, hardware reverse-engineering milestones, and empirical validation reports (`docs/00`–`docs/46`) for **OceanBlast**.
+
+---
+
+## 2026-10-12 — Runtime Build Profiles & Rayman 3 Performance
+
+* **[Runtime Build Profiles and Rayman 3 CPU Ratio](docs/46_runtime_build_profiles_and_rayman_ratio.md):**
+  * Distinguished PGO gameplay builds from standard developer builds after controlled live comparisons showed that the developer build fell below the `60 MIPS` target and accumulated audio-queue underruns in *Superstar Chefs*.
+  * Separated the developer output (`build/oceanblast-dev.exe`) from the installed launcher. `tools/build_profiled.ps1 -Install` now explicitly installs the profiled executable to `bin/oceanblast.exe`.
+  * Raised the automatic *Rayman 3* preset from ratio `3` to `4` after a same-host live comparison increased presented frame rate from `17.7` to `30.3 FPS` in the measured intro/title interval while sustaining `100%` emulated speed.
 
 ---
 

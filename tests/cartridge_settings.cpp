@@ -5,7 +5,7 @@ int main() {
     int failures = 0;
     auto check = [&](const char* name, bool ok) { std::cout << (ok ? "PASS " : "FAIL ") << name << '\n'; failures += !ok; };
     check("Pitfall automatic ratio", resolveCartridgeSettings(17301504,0xd1d6118f,true,false,1,false).cpuStepsPerTick == 3);
-    check("Rayman 3 automatic ratio", resolveCartridgeSettings(17301504,0xe3e1953e,true,false,1,false).cpuStepsPerTick == 3);
+    check("Rayman 3 automatic ratio", resolveCartridgeSettings(17301504,0xe3e1953e,true,false,1,false).cpuStepsPerTick == 4);
     check("Chefs automatic ratio", resolveCartridgeSettings(17301504,0x93209877,true,false,1,false).cpuStepsPerTick == 3);
     check("Wade automatic ratio", resolveCartridgeSettings(17301504,0xeba2a2c3,true,false,1,false).cpuStepsPerTick == 3);
     check("Crazy Jack automatic ratio", resolveCartridgeSettings(17301504,0x9bce041a,true,false,1,false).cpuStepsPerTick == 2);

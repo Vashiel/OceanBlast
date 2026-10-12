@@ -8,6 +8,7 @@ param(
     [ValidateSet('O2','O3')][string]$Optimization = 'O2',
     [switch]$Unity,
     [switch]$Gui,
+    [switch]$Install,
     [ValidateSet('legacy','auto')][string]$Timing = 'legacy'
 )
 $ErrorActionPreference = 'Stop'
@@ -65,4 +66,10 @@ try {
     if ($LASTEXITCODE) { throw 'Profile-guided compilation failed.' }
 } finally { Pop-Location }
 # Profiles and guest dumps remain in ignored build/. Installation is separate.
+if ($Install) {
+    $installPath = Join-Path $projectRoot 'bin/oceanblast.exe'
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $installPath) | Out-Null
+    Copy-Item -LiteralPath $executable -Destination $installPath -Force
+    Write-Output "Installed: $installPath"
+}
 Write-Output $executable

@@ -2,7 +2,7 @@ CXX ?= g++
 WINDRES ?= windres
 CXXFLAGS = -std=c++17 -Wall -Wextra -O3 -march=native -g -Isrc
 
-TARGET = bin/oceanblast.exe
+TARGET = build/oceanblast-dev.exe
 
 SRCS = src/main.cpp \
        src/memory/bus.cpp \
@@ -57,7 +57,7 @@ $(RES_OBJ): src/display/oceanblast.rc assets/oceanblast-logo.png assets/oceanbla
 	$(WINDRES) src/display/oceanblast.rc -O coff -o $@
 
 $(TARGET): $(OBJS) $(RES_OBJ)
-	@mkdir -p bin
+	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(RES_OBJ) $(LDFLAGS)
 
 test: build/frame_latch.exe build/emulation_timing.exe build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
