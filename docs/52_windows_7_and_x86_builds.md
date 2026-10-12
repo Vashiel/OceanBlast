@@ -58,4 +58,22 @@ The compatibility candidates use `O3`, unity compilation and architecture-specif
 
 ## Other Host Platforms
 
+## Rayman 3 Audio and Host Contention
+
+Sequential Windows 11 GUI/audio replays compare the published compatibility builds at ratio 4, with the same cartridge, input script (`tests/rayman_gameplay_confirm.txt`) and 4,800,000,000-step limit. The software-emulated Windows 7 VM is either paused or active. No builds or training runs execute during these comparisons. Mean speed covers samples from guest second 15 onward; empty-queue observations are cumulative over each run.
+
+| Build | VM | Mean pacing speed | Minimum pacing speed | Empty audio queues | Dropped samples |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Published x86 | Paused | 100.00% | 99.10% | 0 | 0 |
+| Published x86 | Active | 89.87% | 73.60% | 161 | 0 |
+| Published x64 | Paused | 100.00% | 98.28% | 2 | 0 |
+| Published x64 | Active | 100.22% | 91.94% | 12 | 0 |
+| Experimental x86, two-cartridge PGO | Paused | 100.11% | 98.15% | 5 | 0 |
+
+The experiment reproduces x86 audio starvation under host CPU contention. Increasing audio buffers would not supply missing sustained CPU throughput. The two-cartridge PGO candidate does not improve queue stability and is not adopted. Prefer x64 on a 64-bit host and pause software VM tests during gameplay; retain the published x86 build and cartridge ratio.
+
+All five final framebuffer hashes match (`6e9cd43540b45576bd05244ffa950ca0a93b1ffac568131c4343c062d7986248`). This supports equivalent final guest output, not listening acceptance or original-hardware timing. These bounded tests use standalone GUI execution, not the embedded launcher path, and do not establish complete Rayman compatibility. Queue observations are diagnostics rather than an audible quality score.
+
+Raw metrics: [x86 paused](validation/2026-10-12_rayman_x86_release_audio.csv), [x86 active](validation/2026-10-12_rayman_x86_vm_active_audio.csv), [x64 paused](validation/2026-10-12_rayman_x64_release_audio.csv), [x64 active](validation/2026-10-12_rayman_x64_vm_active_audio.csv), [experimental x86](validation/2026-10-12_rayman_x86_mixed_audio.csv).
+
 The CPU, memory and cartridge components are largely separate from Windows presentation. Non-Windows display and audio currently contain inactive stubs rather than usable gameplay backends. Linux and macOS releases need real window/audio/input implementations, a portable launcher/storage workflow, platform-specific packaging and runtime tests. No Linux or macOS release is currently validated.
