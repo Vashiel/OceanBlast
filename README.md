@@ -26,6 +26,18 @@ The goal of this project is digital preservation, architectural documentation, a
 
 ---
 
+## MP3 Cartridge Preview
+
+| **Original MP3 Player** | **Music Storage Manager** |
+| :---: | :---: |
+| <img src="assets/preview/mp3_player.gif" alt="Original MP3 player running a generated playback test" width="380" /> | <img src="assets/preview/mp3_storage.png" alt="MP3 storage manager with import, rename, delete and remove-storage controls" width="520" /> |
+
+Load the MP3 firmware cartridge to create a separate **256-MB music store**. Import music from your computer, then use **Settings → MP3 Storage...** to add, rename or delete tracks, check free space, or remove the entire store. Storage lives in `sessions/mp3-storage.img` beside the executable; source music and the cartridge dump remain unchanged.
+
+The animation shows a generated test track in the original player. **MP3 support remains experimental:** some encodings fail, and audio fidelity and synchronization still need validation. See [MP3 storage, player workflow and technical limits](docs/51_mp3_storage_and_player.md).
+
+---
+
 ## Quick Start & Windows Launcher
 
 > **Prebuilt Windows Binaries:** Ready-to-run Windows 64-bit builds (`oceanblast.exe` + skin assets) are available on the [**GitHub Releases**](https://github.com/Vashiel/OceanBlast/releases) page.
@@ -122,7 +134,7 @@ make test-windows
 bin/oceanblast.exe <path_to_cartridge_dump.bin> [--steps <N>] [--gui] [--window-mode <plain|skin>] [--fullscreen] [--scale <2|3|4>] [--sound] [--clock-mips <N>] [--profile]
 ```
 
-### Default Controls (Configurable in `Einstellungen → Steuerung`)
+### Default Controls (Configurable in **Settings → Controls**)
 | Console Button | Hardware Line | Default Controller Binding | Host Keyboard Key |
 | :--- | :--- | :--- | :--- |
 | **D-Pad** | `GPF2` / `GPF7` / `GPF3` / `GPF6` | `D-Pad (POV Hat)` or `Left Stick` | `Arrow Keys` |

@@ -4,9 +4,10 @@ This changelog records the chronological development, hardware reverse-engineeri
 
 ---
 
-## 2026-10-12 — MP3 Storage and Player Integration
+## v0.3.0-alpha — 2026-10-12 — MP3 Storage and Player Integration
 
 * **[MP3 Storage and Original Player](docs/51_mp3_storage_and_player.md):** Added an opt-in OHCI/USB mass-storage device backed by a separate writable image. First MP3-cartridge launch offers a 256-MB FAT16 store and music import; **Settings → MP3 Storage...** provides import, rename, deletion and free-space reporting. Transactional edits preserve the existing image on failure and refuse concurrent guest writers. The original player boots with the attached store; generated legacy MP3 playback has bounded PCM evidence, while broader decoder compatibility remains experimental.
+* Added MP3 player and storage-manager previews to the project homepage, with the complete workflow and limitations linked above. Windows release builds use an optimized PGO unity build targeting baseline x86-64; local developer profiles may still use `-march=native`.
 * Known video-only cartridge identities enable native complete-frame capture independently of the selected CPU ratio. Combined game/video cartridges retain the existing guest-metadata probe. Windows audio diagnostics now distinguish played frames, remaining submitted frames and pending samples; these metrics do not themselves correct audiovisual synchronization.
 * Corrected the Rayman background classification after the supplied original-console recording showed a similarly magenta sky. This is a reference observation, not a palette change or hardware-speed claim.
 
