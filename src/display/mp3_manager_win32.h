@@ -29,7 +29,12 @@ static bool createMusicStorage(HWND owner) {
     if (std::filesystem::exists(musicStoragePath())) return true;
     if (MessageBoxW(owner, L"The MP3 cartridge needs a 256 MB storage image.\nCreate it now?",
                     L"MP3 Storage", MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON1) != IDYES) return false;
-    try { oceanblast::Mp3Storage::create(musicStoragePath()); return true; }
+    try {
+        oceanblast::Mp3Storage::create(musicStoragePath());
+        auto message = L"Storage created in:\n" + musicStoragePath().wstring();
+        MessageBoxW(owner, message.c_str(), L"MP3 Storage", MB_OK | MB_ICONINFORMATION);
+        return true;
+    }
     catch (const std::exception& error) { musicError(owner, error); return false; }
 }
 static bool importMusic(HWND owner) {
@@ -89,6 +94,14 @@ static LRESULT CALLBACK musicProcedure(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
                 }
                 refreshMusic();
             } catch (const std::exception& error) { musicError(w, error); }
+        } else if (id == 307) {
+            if (MessageBoxW(w, L"Remove the entire MP3 storage image and all music stored in it?\nYour original MP3 files and cartridge dump will remain unchanged.",
+                L"Remove MP3 Storage", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES) return 0;
+            try {
+                if (!std::filesystem::remove(musicStoragePath())) throw std::runtime_error("Storage was not found.");
+                if (statusBox) SetWindowTextW(statusBox, L"MP3 storage removed. The next MP3 launch will offer to create a new store.");
+                DestroyWindow(w);
+            } catch (const std::exception& error) { musicError(w, error); }
         } else if (id == IDOK || id == IDCANCEL) DestroyWindow(w);
         return 0;
     }
@@ -126,6 +139,7 @@ static void showMusicManager() {
     control(L"BUTTON", L"Rename", WS_TABSTOP | BS_PUSHBUTTON, 388, 327, 100, 26, 302);
     control(L"BUTTON", L"Delete", WS_TABSTOP | BS_PUSHBUTTON, 500, 327, 108, 26, 303);
     control(L"BUTTON", L"Add MP3 files...", WS_TABSTOP | BS_PUSHBUTTON, 16, 371, 160, 30, 301);
+    control(L"BUTTON", L"Remove Storage...", WS_TABSTOP | BS_PUSHBUTTON, 190, 371, 160, 30, 307);
     control(L"BUTTON", L"Close", WS_TABSTOP | BS_DEFPUSHBUTTON, 500, 371, 108, 30, IDOK);
     EnableWindow(window, FALSE); if (settingsWindow) EnableWindow(settingsWindow, FALSE);
     ShowWindow(musicWindow, SW_SHOW); refreshMusic();

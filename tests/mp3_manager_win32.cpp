@@ -4,6 +4,7 @@
 static int failures = 0;
 static void check(const char* name, bool ok) { std::cout << (ok ? "PASS " : "FAIL ") << name << '\n'; failures += !ok; }
 static int answer = IDNO;
+static bool creationNotice = false;
 static bool savePreview(HWND w) {
     RECT rc{}; GetWindowRect(w, &rc); HDC dc = GetDC(w), memory = CreateCompatibleDC(dc);
     HBITMAP bitmap = CreateCompatibleBitmap(dc, rc.right - rc.left, rc.bottom - rc.top);
@@ -17,11 +18,20 @@ static bool savePreview(HWND w) {
 }
 static void CALLBACK answerPrompt(HWND, UINT, UINT_PTR timer, DWORD) {
     KillTimer(nullptr, timer);
-    EnumThreadWindows(GetCurrentThreadId(), [](HWND w, LPARAM) -> BOOL {
+    EnumWindows([](HWND w, LPARAM) -> BOOL {
+        DWORD pid = 0; GetWindowThreadProcessId(w, &pid);
+        if (pid != GetCurrentProcessId()) return TRUE;
         wchar_t cls[80]{}; GetClassNameW(w, cls, 80);
-        if (std::wstring(cls) == L"#32770") SendMessageW(w, WM_COMMAND, answer, 0);
+        if (std::wstring(cls) == L"#32770") {
+            if (GetDlgItem(w, IDOK)) {
+                PostMessageW(w, WM_COMMAND, IDOK, 0);
+                creationNotice = false;
+            }
+            else SendMessageW(w, WM_COMMAND, answer, 0);
+        }
         return TRUE;
     }, 0);
+    if (creationNotice) SetTimer(nullptr, 0, 200, answerPrompt);
 }
 static void CALLBACK inspectManager(HWND, UINT, UINT_PTR timer, DWORD) {
     using namespace oceanblast::launcher;
@@ -43,7 +53,12 @@ static void CALLBACK inspectManager(HWND, UINT, UINT_PTR timer, DWORD) {
     check("Canceling deletion preserves the track", oceanblast::Mp3Storage(musicStoragePath()).tracks().size() == 1);
     answer = IDYES; SetTimer(nullptr, 0, 100, answerPrompt); SendMessageW(musicWindow, WM_COMMAND, 303, 0);
     check("Confirmed deletion updates the list and image", oceanblast::Mp3Storage(musicStoragePath()).tracks().empty() && SendMessageW(musicList, LB_GETCOUNT, 0, 0) == 0);
-    SendMessageW(musicWindow, WM_COMMAND, IDOK, 0);
+    check("Remove entire storage action is available", IsWindowEnabled(GetDlgItem(musicWindow, 307)));
+    answer = IDNO; SetTimer(nullptr, 0, 100, answerPrompt); SendMessageW(musicWindow, WM_COMMAND, 307, 0);
+    check("Canceling removal preserves the whole store", musicWindow && std::filesystem::exists(musicStoragePath()));
+    answer = IDYES; SetTimer(nullptr, 0, 100, answerPrompt); SendMessageW(musicWindow, WM_COMMAND, 307, 0);
+    check("Confirmed removal deletes the image and closes management", !musicWindow && !std::filesystem::exists(musicStoragePath()));
+    check("Removing storage preserves the original source MP3", std::filesystem::file_size(musicStoragePath().parent_path() / "Test.mp3") == 16);
 }
 static std::filesystem::path testFolder;
 static void CALLBACK inspect(HWND, UINT, UINT_PTR timer, DWORD) {
@@ -51,13 +66,14 @@ static void CALLBACK inspect(HWND, UINT, UINT_PTR timer, DWORD) {
     KillTimer(nullptr, timer); folder = testFolder.wstring();
     answer = IDNO; SetTimer(nullptr, 0, 100, answerPrompt);
     check("No cancels initial storage creation", !createMusicStorage(window) && !std::filesystem::exists(musicStoragePath()));
-    answer = IDYES; SetTimer(nullptr, 0, 100, answerPrompt);
+    answer = IDYES; creationNotice = true; SetTimer(nullptr, 0, 100, answerPrompt);
     check("Yes creates a reusable 256 MB image", createMusicStorage(window) && std::filesystem::file_size(musicStoragePath()) == oceanblast::Mp3Storage::capacity);
     auto track = testFolder / "Test.mp3"; { std::ofstream f(track); f << "test mp3 payload"; }
     oceanblast::Mp3Storage(musicStoragePath()).add({track});
     SetTimer(nullptr, 0, 200, inspectManager);
     SendMessageW(window, WM_COMMAND, ManageMp3Storage, 0);
     check("Closing management restores the launcher", !musicWindow && IsWindowEnabled(window));
+    oceanblast::Mp3Storage::create(musicStoragePath());
     // Optional private-ROM integration; the child captures argv instead of booting.
     const auto rom = std::filesystem::absolute("roms/hardware/MP3 player 256MB/MP3 player 256MB.bin");
     if (std::filesystem::exists(rom)) {

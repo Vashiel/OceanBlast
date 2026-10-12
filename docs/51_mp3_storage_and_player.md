@@ -2,11 +2,13 @@
 
 ## Launcher Workflow
 
-The recognized `MP3 player 256MB` firmware cartridge requires a separate writable music store. On first launch, OceanBlast asks **“The MP3 cartridge needs a 256 MB storage image. Create it now?”** Choosing **No** cancels that launch. Choosing **Yes** creates `sessions/mp3-storage.img` beside the installed executable and immediately opens the MP3 file picker. Canceling the picker keeps an empty, reusable store; it does not cancel storage creation.
+The recognized `MP3 player 256MB` firmware cartridge requires a separate writable music store. On first launch, OceanBlast asks **“The MP3 cartridge needs a 256 MB storage image. Create it now?”** Choosing **No** cancels that launch. Choosing **Yes** creates `sessions/mp3-storage.img` beside the installed executable, displays **“Storage created in:”** with its full path, and then opens the MP3 file picker. Canceling the picker keeps an empty, reusable store; it does not cancel storage creation.
 
 Subsequent launches attach the same image without another creation prompt. Recognition uses the original dump's exact byte count and CRC-32 (`17,301,504`, `b048a789`), rather than its filename. Other cartridges are not automatically given a USB disk.
 
 **Settings → MP3 Storage...** opens the music directory and free-space display. **Add MP3 files...** accepts multiple files. Selecting a track fills the filename field; **Rename** preserves its audio data, and **Delete** asks for confirmation. Names retain the `.mp3` extension. File selection copies data into the virtual store and leaves the computer's source files intact.
+
+**Remove Storage...** deletes the entire music-storage image after a separate confirmation, with **No** selected by default. It leaves the original MP3 source files and cartridge dump intact. The manager closes after successful removal; the next MP3 launch offers to create a new store.
 
 The emulator must be stopped before editing storage. The manager refuses an image held open by a writer. Each operation edits a temporary image copy and replaces the original only after successful writes. Failed reads, duplicate names, insufficient capacity and invalid names therefore preserve the previous store. An existing creation destination or transaction file is not overwritten. The launcher does not expose physical disks as USB storage.
 
