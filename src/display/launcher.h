@@ -1514,23 +1514,26 @@ static LRESULT CALLBACK settingsProc(HWND h, UINT message, WPARAM w, LPARAM l) {
             rebuildSettings();
             return 0;
         }
-        if (id == 901) { DestroyWindow(h); return 0; }
-        if (id == 910) { chooseRomFolder(); rebuildSettings(); return 0; }
-        if (id == 911) { browseRom(h, false); rebuildSettings(); return 0; }
-        if (id == 912) {
+        if (id == 901 && event == BN_CLICKED) { DestroyWindow(h); return 0; }
+        if (id == 910 && event == BN_CLICKED) { chooseRomFolder(); rebuildSettings(); return 0; }
+        if (id == 911 && event == BN_CLICKED) { browseRom(h, false); rebuildSettings(); return 0; }
+        if (id == 912 && event == BN_CLICKED) {
             if (settings.lastRom.empty()) browseRom(h, true);
             else launchRom(settings.lastRom);
             rebuildSettings();
             return 0;
         }
-        if (id == 913) { stop(); rebuildSettings(); return 0; }
-        if (id == 914) {
+        if (id == 913 && event == BN_CLICKED) { stop(); rebuildSettings(); return 0; }
+        if (id == 914 && event == BN_CLICKED) {
             settings.keepNvram = SendMessageW(reinterpret_cast<HWND>(l), BM_GETCHECK, 0, 0) == BST_CHECKED;
             saveSettings();
             return 0;
         }
         if (event == CBN_SELCHANGE) {
-            const auto value = static_cast<unsigned>(SendMessageW(reinterpret_cast<HWND>(l), CB_GETCURSEL, 0, 0));
+            const auto selection = SendMessageW(reinterpret_cast<HWND>(l), CB_GETCURSEL, 0, 0);
+            const auto count = SendMessageW(reinterpret_cast<HWND>(l), CB_GETCOUNT, 0, 0);
+            if (selection < 0 || selection >= count) return 0;
+            const auto value = static_cast<unsigned>(selection);
             if (id == 915 && value < 7) {
                 settings.language = value;
                 saveSettings();
@@ -1575,15 +1578,22 @@ static LRESULT CALLBACK settingsProc(HWND h, UINT message, WPARAM w, LPARAM l) {
                 rebuildSettings();
                 return 0;
             }
-            if (id == 972) settings.videoAspect = value;
-            if (id == 975) settings.windowMode = value;
-            if (id == 976) settings.scaleIndex = value;
-            if (id == 977) settings.displayFormat = value;
-            if (id == 978) settings.timingMode = value;
+            unsigned* setting = nullptr;
+            switch (id) {
+            case 972: setting = &settings.videoAspect; break;
+            case 975: setting = &settings.windowMode; break;
+            case 976: setting = &settings.scaleIndex; break;
+            case 977: setting = &settings.displayFormat; break;
+            case 978: setting = &settings.timingMode; break;
+            }
+            if (!setting || *setting == value) return 0;
+            *setting = value;
             saveSettings();
             if (window) InvalidateRect(window, nullptr, FALSE);
             return 0;
         }
+        // Focus, dropdown-open and other control notifications are not edits.
+        if (event != BN_CLICKED) return 0;
         if (id == 961) {
             const auto key = input.key();
             input.refresh();
@@ -1606,17 +1616,28 @@ static LRESULT CALLBACK settingsProc(HWND h, UINT message, WPARAM w, LPARAM l) {
             SetFocus(h);
             return 0;
         }
-        if (id == 970) settings.soundEnabled = SendMessageW(reinterpret_cast<HWND>(l), BM_GETCHECK, 0, 0) == BST_CHECKED;
-        if (id == 973) settings.integerScale = SendMessageW(reinterpret_cast<HWND>(l), BM_GETCHECK, 0, 0) == BST_CHECKED;
-        if (id == 974) settings.smoothVideo = SendMessageW(reinterpret_cast<HWND>(l), BM_GETCHECK, 0, 0) == BST_CHECKED;
-        if (id == 979) settings.fpsLog = SendMessageW(reinterpret_cast<HWND>(l), BM_GETCHECK, 0, 0) == BST_CHECKED;
-        if (id == 965) settings.debugLog = SendMessageW(reinterpret_cast<HWND>(l), BM_GETCHECK, 0, 0) == BST_CHECKED;
+        bool* setting = nullptr;
+        switch (id) {
+        case 970: setting = &settings.soundEnabled; break;
+        case 973: setting = &settings.integerScale; break;
+        case 974: setting = &settings.smoothVideo; break;
+        case 979: setting = &settings.fpsLog; break;
+        case 965: setting = &settings.debugLog; break;
+        }
+        if (!setting) return 0;
+        const bool checked = SendMessageW(reinterpret_cast<HWND>(l), BM_GETCHECK, 0, 0) == BST_CHECKED;
+        if (*setting == checked) return 0;
+        *setting = checked;
         saveSettings();
         if (window) InvalidateRect(window, nullptr, FALSE);
         return 0;
     }
     if (message == WM_HSCROLL) {
-        settings.soundVolume = static_cast<unsigned>(SendMessageW(reinterpret_cast<HWND>(l), TBM_GETPOS, 0, 0));
+        HWND slider = reinterpret_cast<HWND>(l);
+        if (!slider || GetParent(slider) != h || GetDlgCtrlID(slider) != 971) return 0;
+        const auto volume = static_cast<unsigned>(SendMessageW(slider, TBM_GETPOS, 0, 0));
+        if (volume > 100 || settings.soundVolume == volume) return 0;
+        settings.soundVolume = volume;
         saveSettings();
         return 0;
     }

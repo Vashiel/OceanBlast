@@ -369,7 +369,9 @@ struct FrontendSettings {
         put(L"system", L"fps_log", std::to_wstring(fpsLog ? 1 : 0));
         put(L"system", L"debug_log", std::to_wstring(debugLog ? 1 : 0));
         const std::wstring devKey = activeControllerKey.empty() ? std::wstring(L"keyboard") : activeControllerKey;
-        put(L"input", L"device", devKey);
+        // A temporary fallback owns its mapping, but must not replace the
+        // user's preferred device when an unrelated setting is saved.
+        put(L"input", L"device", savedController.empty() ? devKey : savedController);
         const auto section = L"controller-" + devKey;
         put(section.c_str(), L"preset", std::to_wstring(controllerPreset));
         for (unsigned i = 0; i < 12; ++i) {

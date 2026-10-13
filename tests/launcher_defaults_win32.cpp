@@ -1,4 +1,5 @@
 #include "display/launcher.h"
+#include <fstream>
 #include <iostream>
 #include <vector>
 
@@ -79,6 +80,109 @@ static void runControllerMappingChecks() {
           mapPad(stick, standardMap) == (BTN_UP | BTN_RIGHT) && firstNewControl(stick, idle) == 129);
 }
 
+static void runControllerPreferenceChecks() {
+    using oceanblast::win::FrontendSettings;
+    FrontendSettings preferred;
+    preferred.savedController = L"preferred-pad";
+    preferred.padMap[4] = 9;
+    check("Preferred controller mapping saved", preferred.save(L"preferred-pad"));
+
+    FrontendSettings fallback;
+    fallback.load();
+    fallback.loadControllerFor(L"fallback-pad");
+    fallback.padMap[4] = 23;
+    fallback.soundVolume = 37;
+    check("Fallback controller settings saved", fallback.save(L"fallback-pad"));
+    FrontendSettings restored;
+    restored.load();
+    check("Fallback controller does not replace preferred device or mapping",
+          restored.savedController == L"preferred-pad" && restored.padMap[4] == 9 && restored.soundVolume == 37);
+    restored.loadControllerFor(L"fallback-pad");
+    check("Fallback mapping is stored under its own device", restored.padMap[4] == 23);
+
+    fallback.loadControllerFor(L"keyboard");
+    check("Keyboard fallback settings saved", fallback.save(L"keyboard"));
+    restored.load();
+    check("Keyboard fallback preserves disconnected preferred device", restored.savedController == L"preferred-pad");
+    fallback.savedController = L"keyboard";
+    check("Explicit keyboard selection saved", fallback.save(L"keyboard"));
+    restored.load();
+    check("Explicit device selection replaces preference", restored.savedController == L"keyboard");
+
+    FrontendSettings firstRun;
+    check("First-run active controller saved", firstRun.save(L"fallback-pad"));
+    restored.load();
+    check("First-run active controller becomes preference", restored.savedController == L"fallback-pad");
+}
+
+static std::string settingsBytes() {
+    std::ifstream file(std::filesystem::path(oceanblast::win::settingsPath()), std::ios::binary);
+    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+}
+
+static bool freshProcessReadsAudioSettings() {
+    wchar_t executable[32768]{};
+    if (!GetModuleFileNameW(nullptr, executable, 32768)) return false;
+    std::wstring command = L"\"" + std::wstring(executable) + L"\" --check-saved-audio";
+    STARTUPINFOW startup{};
+    startup.cb = sizeof(startup);
+    PROCESS_INFORMATION child{};
+    if (!CreateProcessW(executable, command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW,
+                        nullptr, nullptr, &startup, &child)) return false;
+    CloseHandle(child.hThread);
+    const DWORD wait = WaitForSingleObject(child.hProcess, 5000);
+    DWORD exitCode = 1;
+    if (wait == WAIT_OBJECT_0) GetExitCodeProcess(child.hProcess, &exitCode);
+    else TerminateProcess(child.hProcess, 2);
+    CloseHandle(child.hProcess);
+    return wait == WAIT_OBJECT_0 && exitCode == 0;
+}
+
+static void runSettingsNotificationChecks() {
+    using namespace oceanblast::launcher;
+    const auto original = settings;
+    auto unchanged = [&](unsigned message, WPARAM w, HWND sender) {
+        settings.soundVolume = 37;
+        settings.save(input.key());
+        const auto before = settingsBytes();
+        // An unrelated notification must not persist other pending state.
+        settings.soundVolume = 83;
+        SendMessageW(settingsWindow, message, w, reinterpret_cast<LPARAM>(sender));
+        return !before.empty() && settingsBytes() == before;
+    };
+
+    showSettings(0);
+    check("Opening a dropdown does not save settings",
+          unchanged(WM_COMMAND, MAKEWPARAM(915, CBN_DROPDOWN), GetDlgItem(settingsWindow, 915)));
+    check("Navigation focus does not save settings",
+          unchanged(WM_COMMAND, MAKEWPARAM(900, LBN_SETFOCUS), GetDlgItem(settingsWindow, 900)));
+    check("Read-only field focus does not save settings",
+          unchanged(WM_COMMAND, MAKEWPARAM(0, EN_KILLFOCUS), FindWindowExW(settingsWindow, nullptr, L"EDIT", nullptr)));
+
+    showSettings(2);
+    check("Checkbox focus does not change or save audio settings",
+          unchanged(WM_COMMAND, MAKEWPARAM(970, BN_SETFOCUS), GetDlgItem(settingsWindow, 970)));
+    check("Unknown combo notifications do not save settings",
+          unchanged(WM_COMMAND, MAKEWPARAM(9999, CBN_SELCHANGE), GetDlgItem(settingsWindow, 971)));
+    check("Unrelated horizontal scroll does not change or save volume",
+          unchanged(WM_HSCROLL, SB_ENDSCROLL, GetDlgItem(settingsWindow, 970)));
+
+    SendMessageW(GetDlgItem(settingsWindow, 970), BM_SETCHECK, BST_UNCHECKED, 0);
+    SendMessageW(settingsWindow, WM_COMMAND, MAKEWPARAM(970, BN_CLICKED),
+                 reinterpret_cast<LPARAM>(GetDlgItem(settingsWindow, 970)));
+    oceanblast::win::FrontendSettings restored;
+    restored.load();
+    check("Actual checkbox click changes and persists audio setting", !settings.soundEnabled && !restored.soundEnabled);
+    HWND volume = GetDlgItem(settingsWindow, 971);
+    SendMessageW(volume, TBM_SETPOS, TRUE, 62);
+    SendMessageW(settingsWindow, WM_HSCROLL, TB_THUMBPOSITION, reinterpret_cast<LPARAM>(volume));
+    restored.load();
+    check("Volume slider change persists", settings.soundVolume == 62 && restored.soundVolume == 62);
+    check("Fresh process reads audio edits without an extra INI flush", freshProcessReadsAudioSettings());
+    settings = original;
+    saveSettings();
+}
+
 static uint64_t controllerImageHash(HWND target) {
     constexpr int width = 625, height = 215;
     HDC screen = GetDC(target), buffer = CreateCompatibleDC(screen);
@@ -143,6 +247,8 @@ static void CALLBACK inspect(HWND, UINT, UINT_PTR timer, DWORD) {
     }
     check("All 6 settings categories build cleanly", allPagesOk);
 
+    runSettingsNotificationChecks();
+
     bool allLanguagesOk = true;
     for (unsigned lang : {1u, 2u, 3u, 4u, 5u, 6u, 0u}) {
         showSettings(0);
@@ -179,10 +285,17 @@ static void CALLBACK inspect(HWND, UINT, UINT_PTR timer, DWORD) {
     PostMessageW(window, WM_CLOSE, 0, 0);
 }
 
-int main() {
+int main(int argc, char** argv) {
+    if (argc == 2 && std::string(argv[1]) == "--check-saved-audio") {
+        oceanblast::win::FrontendSettings saved;
+        saved.load();
+        return !saved.soundEnabled && saved.soundVolume == 62 ? 0 : 1;
+    }
     SetEnvironmentVariableW(L"OCEANBLAST_SETTINGS_PATH", L"build/test_windows_settings.ini");
     DeleteFileW(L"build/test_windows_settings.ini");
     runControllerMappingChecks();
+    runControllerPreferenceChecks();
+    DeleteFileW(L"build/test_windows_settings.ini");
     SetTimer(nullptr, 0, 200, inspect);
     const int result = oceanblast::launcher::run();
     DeleteFileW(L"build/test_windows_settings.ini");
