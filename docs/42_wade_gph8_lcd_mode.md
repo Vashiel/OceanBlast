@@ -57,6 +57,12 @@ Decoding the 12-bpp HUD captures from `frame_5320000000.raw` (`266` s) through `
 
 Eliminating the 16-bpp TV-Out shadow surface reduces the guest work in the active fight by **2.25 million step calls per frame (`50.0%`)**, doubling the fight frame rate at ratio 4 from `17.8` fps to `35.6` fps (matching the old ratio-8 speed at ratio 4). Moreover, at `2.25` million step calls per frame (`144` million per 64-frame counter unit), the workload lies below the `2.88` million cycles/frame ceiling of a 180 MHz scalar ARM920T core at `62.5` fps (`0.80` s minimum at `CPI = 1` vs. the programmed `1.024` s target).
 
+### Current Automatic Preset and Frame Budget
+
+The current automatic Wade preset is ratio `3`: its legacy timing model allocates `60` million CPU step calls per modeled second. If the measured Rocco-fight workload remains near `2.25` million calls per frame, that budget supports about `60 / 2.25 = 26.7` game frames per modeled second before any frame wait. The game's `vblank_wait()` requests a minimum of `16` ms per frame, or at most `62.5` frames per second; reaching that limit with the measured work would require roughly `140.6` million step calls per second. Reaching 100% of the preset's pacing target therefore establishes delivery of the selected instruction allowance, not delivery of the game's frame-time target.
+
+This calculation is scene-specific. Step calls include exception entry and are not exact retired instructions; game work can vary with scene and input. Host image submissions are also not one-to-one game frames. At the programmed `180` MHz FCLK, `2.25` million instructions would fit within a `16` ms frame only if the effective CPI were at most `2.88 / 2.25 = 1.28`; cache misses and memory waits have not been calibrated. Neither the game's limiter nor this bound establishes the original console's achieved frame rate. The next internal measurement is complete game-frame counter changes and estimated CPU cycles across a fixed fight interval in both legacy and register-clock timing modes, with the same inputs and scene boundaries.
+
 ### 2. Byte-Verified Function Attribution (`275..284` s)
 
 Running `tools/attribute_guest_functions.py` over the active fight interval (`275..284` s, `713,577` total PC samples) produces the [12-bpp SDL attribution](validation/2026-10-10_wade_gph8_sdl_functions.json) (`596,078 / 596,078` samples byte-verified `identical`) and the [12-bpp `Wade` executable attribution](validation/2026-10-10_wade_gph8_executable_functions.json) (`66,511 / 66,511` samples byte-verified `identical`):
