@@ -23,7 +23,7 @@ inline const CartridgeIdentity* identifyCartridge(size_t size, uint32_t crc) {
         {17301504, 0x93209877u, "Superstar Chefs", 3, false},
         {69206016, 0x2f88baafu, "Totally Spies!: Volume 1 (IT Video)", 3, true},
         {69206016, 0x93e46afbu, "Totally Spies!: Volume 1 (Video)", 3, true},
-        {17301504, 0xeba2a2c3u, "Wade Hixton's Counter Punch", 3, false},
+        {17301504, 0xeba2a2c3u, "Wade Hixton's Counter Punch", 6, false},
         {17301504, 0xb048a789u, "MP3 player 256MB", 3, false},
         {34603008, 0x6b5ca82eu, "Winx Club + 5 Atari Games (IT ES)", 3, false},
         {34603008, 0xeb1d8fdau, "Winx Club + 5 Atari Games", 3, false},

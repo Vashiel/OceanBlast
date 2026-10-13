@@ -1,0 +1,3 @@
+session,ratio,host_pacing,guest_window_seconds,samples,mean_mips,min_mips,max_mips,empty_queue_delta,notes
+battery,4,disabled,275-295,22,74.999,51.95,81.9,27,GUI and sound; low-power session
+mains,4,disabled,275-295,12,131.777,123.62,139.39,0,GUI and sound; unpaced audio overflowed

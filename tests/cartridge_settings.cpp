@@ -9,7 +9,7 @@ int main() {
     check("Pitfall automatic ratio", resolveCartridgeSettings(17301504,0xd1d6118f,true,false,1,false).cpuStepsPerTick == 3);
     check("Rayman 3 automatic ratio", resolveCartridgeSettings(17301504,0xe3e1953e,true,false,1,false).cpuStepsPerTick == 4);
     check("Chefs automatic ratio", resolveCartridgeSettings(17301504,0x93209877,true,false,1,false).cpuStepsPerTick == 3);
-    check("Wade automatic ratio", resolveCartridgeSettings(17301504,0xeba2a2c3,true,false,1,false).cpuStepsPerTick == 3);
+    check("Wade automatic ratio", resolveCartridgeSettings(17301504,0xeba2a2c3,true,false,1,false).cpuStepsPerTick == 6);
     check("MP3 firmware automatic ratio", resolveCartridgeSettings(17301504,0xb048a789,true,false,1,false).cpuStepsPerTick == 3);
     check("Localized video identities enable complete sweeps", oceanblast::identifyCartridge(69206016,0x2f88baaf)->video && oceanblast::identifyCartridge(69206016,0xa870766e)->video);
     check("Crazy Jack automatic ratio", resolveCartridgeSettings(17301504,0x9bce041a,true,false,1,false).cpuStepsPerTick == 2);
