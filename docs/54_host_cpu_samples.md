@@ -24,3 +24,17 @@ The sampler also recorded 39 Wade and 69 Superstar Chefs PCs outside the executa
 In Wade, the largest resolved functions are `ARM920T::stepARM` (23.4%), `ARM920T::step` (16.8%), `executeSimpleDataProcessing` (11.0%), `Bus::translate` (11.0%), `runLegacyInstructions` (7.4%), `executeSingleDataTransfer` (5.7%), `Bus::tick` (5.0%), and `Bus::readInstruction` (4.5%). In Superstar Chefs, `stepARM` (26.0%), `executeSimpleDataProcessing` (17.3%), `step` (16.0%), `Bus::tick` (7.5%), `runLegacyInstructions` (6.8%), `Bus::translate` (6.3%), and `Bus::readInstruction` (3.8%) lead. Percentages attribute the sampled host PC to one innermost resolved function; inlining can move code between source groups, so these are not exclusive hardware costs.
 
 The primary host work is therefore ARM execution and decoding, followed by guest address translation, peripheral ticking, and instruction fetch. A display optimization alone cannot substantially raise these two scene throughputs. The data supports benchmarking the ARM execution path and TLB/address-translation path first, while preserving identical guest state and actual gameplay behavior. It does not justify changing the emulated CPU ratio or claim that either game's speed matches original hardware.
+
+## Source-line resolution
+
+The optional `--top-lines` report resolves the same samples to source lines. It narrows the next benchmark targets without adding instrumentation to the guest hot path:
+
+| Source location | Wade fight | Superstar Chefs | Operation |
+| --- | ---: | ---: | --- |
+| `src/memory/bus.h:112` | 6.5% | 4.0% | Direct-mapped TLB hit check (`valid` and virtual page match) |
+| `src/memory/bus.h:111` | 2.2% | 1.1% | TLB entry lookup |
+| `src/memory/bus.h:304` | 2.8% | 4.5% | Per-tick UART0 TX level-interrupt reassert check |
+| `src/memory/bus.h:115` | 0.7% | — | User-mode TLB page-permission check |
+| `src/memory/bus.h:105` | 0.7% | — | MMU-disabled fast-path check |
+
+These shares are percentages of all in-module samples for the named scene, not cycle costs. The UART check is a plausible optimization target because it is reached from the repeated peripheral tick path. A deferred-reassertion candidate preserved guest-state and framebuffer hashes in paired runs, but its throughput advantage was not repeatable under the observed host load; the candidate was discarded. No behavioral or default-timing change is justified by this measurement. The TLB hit path remains the clearest next target for isolated, paired benchmarking.

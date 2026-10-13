@@ -23,7 +23,18 @@ def image_base(executable: Path) -> int:
     return struct.unpack_from("<Q", optional, 24)[0]
 
 
-def resolve(addr2line: Path, executable: Path, addresses: list[int]) -> dict[int, tuple[str, str]]:
+def project_location(location: str) -> str:
+    match = re.search(r"(?:^|[/\\])src[/\\].+", location)
+    if match:
+        return match.group(0).lstrip("/\\").replace("\\", "/")
+    if re.match(r"^(?:[A-Za-z]:[/\\]|[/\\])", location):
+        path, separator, line = location.rpartition(":")
+        name = Path(path).name or "unknown"
+        return f"external/{name}:{line}" if separator else f"external/{name}"
+    return location
+
+
+def resolve(addr2line: Path, executable: Path, addresses: list[int]) -> dict[int, tuple[str, str, str]]:
     resolved = {}
     for start in range(0, len(addresses), 100):
         chunk = addresses[start : start + 100]
@@ -39,12 +50,13 @@ def resolve(addr2line: Path, executable: Path, addresses: list[int]) -> dict[int
             for function, location in frames:
                 match = re.search(r"src[/\\](cpu|memory|core|display|audio)[/\\]", location)
                 if match:
-                    resolved[current] = (match.group(1), function)
+                    resolved[current] = (match.group(1), function, project_location(location))
                     return
                 if re.search(r"src[/\\]main\.cpp", location):
-                    resolved[current] = ("main", function)
+                    resolved[current] = ("main", function, project_location(location))
                     return
-            resolved[current] = ("runtime_or_unknown", frames[0][0] if frames else "??")
+            function, location = frames[0] if frames else ("??", "??:0")
+            resolved[current] = ("runtime_or_unknown", function, location)
 
         index = 0
         while index < len(lines):
@@ -68,6 +80,7 @@ def main() -> None:
     parser.add_argument("executable", type=Path)
     parser.add_argument("samples", type=Path)
     parser.add_argument("--addr2line", type=Path, default=Path("addr2line"))
+    parser.add_argument("--top-lines", action="store_true", help="also aggregate samples by resolved source line")
     args = parser.parse_args()
     with args.samples.open(newline="") as source:
         counts = {int(row["module_offset"], 16): int(row["samples"]) for row in csv.DictReader(source)}
@@ -75,10 +88,12 @@ def main() -> None:
     symbols = resolve(args.addr2line, args.executable, [base + offset for offset in counts])
     categories = Counter()
     functions = Counter()
+    lines = Counter()
     for offset, count in counts.items():
-        category, function = symbols.get(base + offset, ("runtime_or_unknown", "??"))
+        category, function, location = symbols.get(base + offset, ("runtime_or_unknown", "??", "??:0"))
         categories[category] += count
         functions[(category, function)] += count
+        lines[location] += count
     total = sum(counts.values())
     print(f"In-module samples: {total}")
     print("Category,samples,percent")
@@ -87,6 +102,10 @@ def main() -> None:
     print("\nTop functions:")
     for (category, function), count in functions.most_common(25):
         print(f"{count:5d} {count * 100 / total:5.1f}% {category:18s} {function}")
+    if args.top_lines:
+        print("\nTop source lines:")
+        for location, count in lines.most_common(40):
+            print(f"{count:5d} {count * 100 / total:5.1f}% {location}")
 
 
 if __name__ == "__main__":
