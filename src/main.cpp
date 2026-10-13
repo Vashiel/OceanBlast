@@ -27,6 +27,17 @@
 
 using namespace oceanblast;
 
+struct HostCostTimer {
+    using Clock = std::chrono::steady_clock;
+    uint64_t* total;
+    Clock::time_point begin;
+    HostCostTimer(bool enabled, uint64_t& destination)
+        : total(enabled ? &destination : nullptr), begin(enabled ? Clock::now() : Clock::time_point{}) {}
+    ~HostCostTimer() {
+        if (total) *total += std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - begin).count();
+    }
+};
+
 
 void printBanner() {
     std::cout << "=================================================" << std::endl;
@@ -47,6 +58,7 @@ void printUsage(const char* progName) {
               << "  --host-wait <timer|sleep> GUI pacing wait (default high-resolution timer when supported)\n"
               << "  --audio-rate <Hz> Host output rate (default 22050)\n"
               << "  --profile          Write GUI performance.csv, including audio rate and dropped samples\n";
+    std::cout << "  --host-cost-profile <start-step>  Write host_cost.csv from this instruction step\n";
     std::cout << "  --snapshot-interval <N> Save framebuffer/state every N instructions\n"
               << "  --exit-on-limit         Close GUI after the instruction budget is exhausted\n"
               << "  --nvram <path>          Load/save a separate 2048-byte EEPROM image\n"
@@ -120,6 +132,8 @@ int main(int argc, char* argv[]) {
     bool traceRange = false;
     u32 traceStart = 0, traceEnd = 0;
     bool profile = false;
+    bool hostCostProfile = false;
+    uint64_t hostCostStartStep = 0;
     double clockMips = 20.0; // Timer/DMA model currently assumes 20M instructions/s.
     bool explicitClock = false;
     bool autoTiming = false;
@@ -188,6 +202,9 @@ int main(int argc, char* argv[]) {
             exitOnLimit = true;
         } else if (arg == "--profile") {
             profile = true;
+        } else if (arg == "--host-cost-profile" && i + 1 < argc) {
+            hostCostProfile = true;
+            hostCostStartStep = std::stoull(argv[++i]);
         } else if (arg == "--snapshot-interval" && i + 1 < argc) {
             snapshotInterval = std::stoull(argv[++i]);
         } else if (arg == "--input-script" && i + 1 < argc) {
@@ -535,7 +552,14 @@ int main(int argc, char* argv[]) {
     bool videoDecoderRecognized = identifiedVideo;
     std::ofstream metrics;
     if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples,audio_submitted_frames,audio_queued_frames,audio_empty_queue_events,fclk,pclk,cpu_steps_per_tick,guest_seconds,speed_percent,idle_ticks,coherent_frames,partial_sweeps,synchronized_presentations,frame_capture_active,capture_ready,audio_played_frames,audio_remaining_frames,audio_pending_frames,audio_output_rate\n"; }
+    bool hostCostRunning = false;
+    Clock::time_point hostCostBegin;
+    uint64_t hostCpuNs = 0, hostUiNs = 0, hostWaitNs = 0;
     while (!cpu.isHalted() && executedSteps < stepLimit && guestTicks < tickLimit) {
+        if (hostCostProfile && !hostCostRunning && executedSteps >= hostCostStartStep) {
+            hostCostRunning = true;
+            hostCostBegin = Clock::now();
+        }
         if (gui && coherentFrames && displayFormat == 0 && !displayStride &&
             !videoDecoderRecognized && executedSteps >= nextVideoProbe) {
             if (findGuestExport(bus, "RV40toYUV420Transform")) {
@@ -567,6 +591,7 @@ int main(int argc, char* argv[]) {
             else nextSnapshot += snapshotInterval;
         }
         if (gui && (display.paused || (autoTiming ? guestTicks - guiTicks >= 20000 : executedSteps % 50000 == 0))) {
+            HostCostTimer uiCost(hostCostRunning, hostUiNs);
             guiTicks = guestTicks;
             display.processEvents();
             if (!display.isOpen()) {
@@ -670,7 +695,10 @@ int main(int argc, char* argv[]) {
                 const auto target = paceStart + std::chrono::duration_cast<Clock::duration>(
                     std::chrono::duration<double>(autoTiming ? double(guestTicks - paceTicks) / EmulationClock::ticksPerSecond : (executedSteps - paceSteps) / (clockMips * 1000000.0)));
                 const auto current = Clock::now();
-                if (target > current) hostPacer.waitUntil(target);
+                if (target > current) {
+                    HostCostTimer waitCost(hostCostRunning, hostWaitNs);
+                    hostPacer.waitUntil(target);
+                }
                 else if (current - target > std::chrono::milliseconds(250)) { paceStart = current; paceSteps = executedSteps; paceTicks = guestTicks; }
             }
         }
@@ -690,6 +718,8 @@ int main(int argc, char* argv[]) {
             if (automaticDisplay && displayProfile == DisplayProfile::CrazyJack)
                 budget = std::min<uint64_t>(budget, nextDisplayProbe - executedSteps);
             if (gui && !autoTiming) budget = std::min(budget, size_t(50000 - executedSteps % 50000));
+            if (hostCostProfile && !hostCostRunning && executedSteps < hostCostStartStep)
+                budget = std::min<uint64_t>(budget, hostCostStartStep - executedSteps);
             if (!autoTiming && tickLimit != UINT64_MAX) {
                 const uint64_t remaining = tickLimit - guestTicks;
                 // Do not batch across the last peripheral-time boundary.
@@ -697,6 +727,7 @@ int main(int argc, char* argv[]) {
                 budget = std::min<uint64_t>(budget, stepsToLimit);
             }
             if (budget) {
+                HostCostTimer cpuCost(hostCostRunning, hostCpuNs);
                 if (autoTiming) {
                     const uint64_t guiDeadline = gui && guiTicks <= UINT64_MAX - 20000 ? guiTicks + 20000 : UINT64_MAX;
                     executedSteps += runClockedInstructions(cpu, bus, emulationClock, budget,
@@ -789,18 +820,32 @@ int main(int argc, char* argv[]) {
             cpu.dumpState();
         }
         if (autoTiming) {
+            HostCostTimer cpuCost(hostCostRunning, hostCpuNs);
             const u32 fclk = cpu.getExecutionClock();
             cpu.step(0);
             const uint64_t amount = emulationClock.advance(cpu.getLastCycles(), fclk);
             bus.tick(amount);
             guestTicks = emulationClock.elapsedTicks();
         } else {
+            HostCostTimer cpuCost(hostCostRunning, hostCpuNs);
             const bool advance = peripheralPhase == 0;
             cpu.step(advance ? 1 : 0);
             guestTicks += advance;
             if (++peripheralPhase == cpuStepsPerTick) peripheralPhase = 0;
         }
         executedSteps++;
+    }
+
+    if (hostCostProfile && hostCostRunning) {
+        const uint64_t totalNs = std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - hostCostBegin).count();
+        const uint64_t uiNs = hostUiNs > hostWaitNs ? hostUiNs - hostWaitNs : 0;
+        const uint64_t accountedNs = hostCpuNs + hostUiNs;
+        const uint64_t otherNs = totalNs > accountedNs ? totalNs - accountedNs : 0;
+        std::ofstream cost("host_cost.csv");
+        cost << "start_step,end_step,host_total_ms,cpu_and_bus_ms,ui_excluding_wait_ms,host_wait_ms,other_ms\n"
+             << hostCostStartStep << ',' << executedSteps << ',' << totalNs / 1000000.0 << ','
+             << hostCpuNs / 1000000.0 << ',' << uiNs / 1000000.0 << ','
+             << hostWaitNs / 1000000.0 << ',' << otherNs / 1000000.0 << '\n';
     }
 
     if (autoTiming) saveSnapshot();

@@ -70,6 +70,7 @@ All tested cartridges boot autonomously through the 4-KB S3C2410 Steppingstone S
 For development results and the technical reports, see [**CHANGELOG.md**](CHANGELOG.md).
 
 The [reviewed-build runtime validation](docs/50_runtime_acceptance.md) records actual gameplay scenes, paired build results, video capture limitations and unresolved graphics/audio issues.
+The [host execution cost measurement](docs/53_host_execution_costs.md) separates guest CPU and bus work from GUI processing and pacing in reproducible Wade and Superstar Chefs runs.
 
 ### 1. Commercial Game Cartridges (11 / 11 Boot to Game Binary)
 
