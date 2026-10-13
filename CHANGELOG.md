@@ -8,6 +8,7 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 * **[Frontend Settings Persistence](docs/55_frontend_settings_persistence.md):** Focus and dropdown-open notifications no longer save settings or reload the embedded game layout. Saving another option preserves the preferred controller when a temporary fallback device is active. Regression checks cover notification filtering, separate controller mappings and actual audio edits.
 * **[Host Fast-Path Candidate Validation](docs/56_host_fast_path_candidates.md):** Isolated candidate comparisons preserve guest-state evidence and distinguish timing variation from a repeatable throughput gain. GUI comparisons support reversed repeated pairs, isolated frontend preferences, process CPU time and a fixed-scene cost interval.
+* **[TLB Permission-Tag Candidate Checks](docs/57_tlb_permission_tag_candidates.md):** ROM-free probes identify cached-permission, subpage and cold/cached translation inconsistencies. A corrected isolated candidate passes the bounded probes and CPU/timing/UART regressions; production adoption and throughput improvement remain unverified.
 * **[Host Execution Costs](docs/53_host_execution_costs.md)** and **[CPU Sample Profile](docs/54_host_cpu_samples.md):** Measured ARM execution, address translation and peripheral work dominate the tested Wade and Superstar Chefs scenes; GUI work is a small fraction of the measured main-thread time.
 
 ---
