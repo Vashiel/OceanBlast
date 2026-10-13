@@ -44,8 +44,8 @@ The animation shows a generated test track in the original player. **MP3 support
 
 | Package | Intended platform | Validation |
 | --- | --- | --- |
-| [Windows 7–11 x64](https://github.com/Vashiel/OceanBlast/releases/download/v0.3.0-alpha/oceanblast-v0.3.0-alpha-windows7-11-x64.zip) | Windows 7 SP1 and newer, 64-bit | Windows 7 SP1 x64 regression checks and Windows 11 GUI smoke test |
-| [Windows 7–11 x86](https://github.com/Vashiel/OceanBlast/releases/download/v0.3.0-alpha/oceanblast-v0.3.0-alpha-windows7-11-x86.zip) | Windows 7 SP1 and newer, 32-bit application; SSE2 required | Windows 7 x64 / WoW64 and Windows 11 GUI smoke test; 32-bit Windows OS unverified |
+| [Windows 7â€“11 x64](https://github.com/Vashiel/OceanBlast/releases/download/v0.3.0-alpha/oceanblast-v0.3.0-alpha-windows7-11-x64.zip) | Windows 7 SP1 and newer, 64-bit | Windows 7 SP1 x64 regression checks and Windows 11 GUI smoke test |
+| [Windows 7â€“11 x86](https://github.com/Vashiel/OceanBlast/releases/download/v0.3.0-alpha/oceanblast-v0.3.0-alpha-windows7-11-x86.zip) | Windows 7 SP1 and newer, 32-bit application; SSE2 required | Windows 7 x64 / WoW64 and Windows 11 GUI smoke test; 32-bit Windows OS unverified |
 
 The original `win64.zip` remains available as the earlier Windows 11-tested build. Keep x86 and x64 installations in separate folders and preserve existing `sessions` storage when upgrading. Compatibility tests do not establish game speed or audio fidelity; see [Windows compatibility build results](docs/52_windows_7_and_x86_builds.md).
 
