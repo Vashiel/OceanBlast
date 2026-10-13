@@ -71,6 +71,7 @@ For development results and the technical reports, see [**CHANGELOG.md**](CHANGE
 
 The [reviewed-build runtime validation](docs/50_runtime_acceptance.md) records actual gameplay scenes, paired build results, video capture limitations and unresolved graphics/audio issues.
 The [host execution cost measurement](docs/53_host_execution_costs.md) separates guest CPU and bus work from GUI processing and pacing in reproducible Wade and Superstar Chefs runs.
+The [host CPU sample profile](docs/54_host_cpu_samples.md) identifies the ARM execution, memory translation and peripheral functions active inside that cost.
 
 ### 1. Commercial Game Cartridges (11 / 11 Boot to Game Binary)
 

@@ -1,0 +1,7 @@
+cartridge,sample_duration_s,window_start_step,group,in_module_samples,group_samples,group_percent,top_function,top_function_samples,top_function_percent,outside_module_samples,failed_samples
+Wade Hixton's Counter Punch,16,7000000000,cpu,8750,5952,68.0,ARM920T::stepARM,2050,23.4,39,0
+Wade Hixton's Counter Punch,16,7000000000,memory,8750,2108,24.1,Bus::translate,961,11.0,39,0
+Wade Hixton's Counter Punch,16,7000000000,core,8750,651,7.4,runLegacyInstructions,651,7.4,39,0
+Superstar Chefs,20,1000000000,cpu,10926,7633,69.9,ARM920T::stepARM,2841,26.0,69,0
+Superstar Chefs,20,1000000000,memory,10926,2497,22.9,Bus::tick,816,7.5,69,0
+Superstar Chefs,20,1000000000,core,10926,744,6.8,runLegacyInstructions,743,6.8,69,0

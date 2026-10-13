@@ -559,6 +559,7 @@ int main(int argc, char* argv[]) {
         if (hostCostProfile && !hostCostRunning && executedSteps >= hostCostStartStep) {
             hostCostRunning = true;
             hostCostBegin = Clock::now();
+            std::cout << "[HostCost] Sampling window starts at step " << executedSteps << std::endl;
         }
         if (gui && coherentFrames && displayFormat == 0 && !displayStride &&
             !videoDecoderRecognized && executedSteps >= nextVideoProbe) {

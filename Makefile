@@ -142,6 +142,10 @@ build/sample_native.exe: tools/sample_native.cpp
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
+build/sample_host_cpu.exe: tools/sample_host_cpu.cpp
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $< -lwinmm
+
 build/sdl_surface_probe.exe: tools/sdl_surface_probe.cpp src/cpu/arm920t.cpp src/memory/bus.cpp $(HEADERS)
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
