@@ -36,7 +36,7 @@ The CPU/DMA and input suites also pass. Four new DMA checks cover the initial so
 
 ## Blank images
 
-The user identified `Crazy Jack [G] (EN).bin`. At 1.2 billion instructions, both comparison runs have LCDSADDR1 selecting `0x302a0000`, 16-bit mode, and only 283 nonzero bytes of its 76,800-byte active buffer. Fixing the DMA pointer errors did not restore gameplay images. A near-empty guest framebuffer needs investigation of the guest game/driver path; RGB565 decoding alone does not establish the cause.
+The `Crazy Jack [G] (EN).bin` comparison reaches 1.2 billion instructions with LCDSADDR1 selecting `0x302a0000`, 16-bit mode, and only 283 nonzero bytes of its 76,800-byte active buffer. Fixing the DMA pointer errors did not restore gameplay images. A near-empty guest framebuffer needs investigation of the guest game/driver path; RGB565 decoding alone does not establish the cause.
 
 The debug run loads the game assets, attempts to open `/dev/misc/eeprom` twice and logs `No I2C adapter attached`. It subsequently calls signal-mask/signal-suspend syscalls and spends the end of the run in kernel idle code. The I2C model currently NACKs every transfer. This is an incomplete peripheral model and a candidate for investigation, not a demonstrated cause of the blank image. Do not ACK arbitrary device addresses or invent EEPROM contents to hide the error. Identify the cartridge's expected board devices, address/protocol and initialization data before implementing them. Blank-frame compatibility is still unresolved.
 

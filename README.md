@@ -30,11 +30,11 @@ The goal of this project is digital preservation, architectural documentation, a
 
 | **Original MP3 Player** | **Music Storage Manager** |
 | :---: | :---: |
-| <img src="assets/preview/mp3_player.gif" alt="Original MP3 player running a generated playback test" width="380" /> | <img src="assets/preview/mp3_storage.png" alt="MP3 storage manager with import, rename, delete and remove-storage controls" width="520" /> |
+| <img src="assets/preview/mp3_player.gif" alt="Original MP3 player playing a synthetic test tone" width="380" /> | <img src="assets/preview/mp3_storage.png" alt="MP3 storage manager with import, rename, delete and remove-storage controls" width="520" /> |
 
 Load the MP3 firmware cartridge to create a separate **256-MB music store**. Import music from your computer, then use **Settings → MP3 Storage...** to add, rename or delete tracks, check free space, or remove the entire store. Storage lives in `sessions/mp3-storage.img` beside the executable; source music and the cartridge dump remain unchanged.
 
-The animation shows a generated test track in the original player. **MP3 support remains experimental:** some encodings fail, and audio fidelity and synchronization still need validation. See [MP3 storage, player workflow and technical limits](docs/51_mp3_storage_and_player.md).
+The animation shows a synthetic test tone in the original player. **MP3 support remains experimental:** some encodings fail, and audio fidelity and synchronization still need validation. See [MP3 storage, player workflow and technical limits](docs/51_mp3_storage_and_player.md).
 
 ---
 
