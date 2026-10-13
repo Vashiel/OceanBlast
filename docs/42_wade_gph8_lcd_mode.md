@@ -63,6 +63,22 @@ The current automatic Wade preset is ratio `3`: its legacy timing model allocate
 
 This calculation is scene-specific. Step calls include exception entry and are not exact retired instructions; game work can vary with scene and input. Host image submissions are also not one-to-one game frames. At the programmed `180` MHz FCLK, `2.25` million instructions would fit within a `16` ms frame only if the effective CPI were at most `2.88 / 2.25 = 1.28`; cache misses and memory waits have not been calibrated. Neither the game's limiter nor this bound establishes the original console's achieved frame rate. The next internal measurement is complete game-frame counter changes and estimated CPU cycles across a fixed fight interval in both legacy and register-clock timing modes, with the same inputs and scene boundaries.
 
+### Game Boy Advance Video Reference
+
+A [recorded Game Boy Advance playthrough on the MiSTer FPGA GBA core](https://www.youtube.com/watch?v=1lI49kjX91c&t=219s) shows the first Rocco McScrub fight with the round counter visible. Paused at the displayed YouTube timestamps, the counter reads:
+
+| Video time | Counter |
+| --- | ---: |
+| `3:39` | `89` |
+| `3:44` | `84` |
+| `3:49` | `80` |
+| `3:54` | `75` |
+| `3:59` | `70` |
+
+The uninterrupted `89 -> 75` interval spans `14` counter units in `15` video seconds (`0.93` units/s); `89 -> 70` spans `19` units in `20` video seconds (`0.95` units/s). The one-second timestamp resolution and the unknown timing of each transition within a displayed second limit precision. Both intervals are consistent with approximately one counter unit per second. If the GBA version also decrements once per 64 game frames, this corresponds to approximately `60` game frames/s, near the GBA's `59.73` Hz refresh rate; the 64-frame relationship has been verified in the digiBLAST executable, not independently in the GBA binary.
+
+For the comparable digiBLAST Rocco fight in this document, OceanBlast takes `9` modeled seconds for `89 -> 84` at ratio 4 in native LCD mode. The GBA recording takes approximately `5` video seconds across that interval. The ratio is therefore roughly `1.8`, subject to one-second sampling and differences between the two releases. This establishes a useful external gameplay-cadence reference, **not** the achieved frame rate of a real digiBLAST. In particular, a GBA video alone cannot justify changing OceanBlast's digiBLAST CPU clock or automatic preset. The next comparison should align a longer uninterrupted fight interval in both versions and determine whether the digiBLAST software's `16` ms frame limiter is reached under a calibrated cycle model.
+
 ### 2. Byte-Verified Function Attribution (`275..284` s)
 
 Running `tools/attribute_guest_functions.py` over the active fight interval (`275..284` s, `713,577` total PC samples) produces the [12-bpp SDL attribution](validation/2026-10-10_wade_gph8_sdl_functions.json) (`596,078 / 596,078` samples byte-verified `identical`) and the [12-bpp `Wade` executable attribution](validation/2026-10-10_wade_gph8_executable_functions.json) (`66,511 / 66,511` samples byte-verified `identical`):
