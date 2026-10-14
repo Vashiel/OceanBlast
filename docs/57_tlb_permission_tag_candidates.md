@@ -2,7 +2,7 @@
 
 The [host CPU samples](54_host_cpu_samples.md) identify the TLB hit path as a possible optimization target. Encoding access permissions in precomputed read/write tags can reduce checks on a permitted hit. This remains a performance hypothesis; the candidates below were checked for correctness before throughput measurement.
 
-The baseline is revision `81cac21`. Three isolated candidates replace `TlbEntry`'s virtual-page, AP and valid fields with read/write tags and a physical page base. No candidate changes were adopted in the production CPU or bus sources.
+The baseline is revision `81cac21`. Four isolated candidates replace `TlbEntry`'s virtual-page, AP and valid fields with read/write tags and a physical page base. No candidate changes were adopted in the production CPU or bus sources.
 
 ## Cached permissions and subpages
 
@@ -33,6 +33,14 @@ The third candidate preserves unrestricted tags for the synthetic kernel fallbac
 These bounded checks establish neither complete MMU fidelity nor a throughput improvement. Domain-control and system/ROM protection semantics need their own architectural review; preserving the existing coarse-table type-3 handling does not validate it against hardware. The candidate is ready for further correctness checks and controlled performance comparison, not a claim of perfect emulation.
 
 The candidate also fills translation entries before returning a permission fault, whereas the baseline fills them only after a permitted access. This is another behavioral change to review independently of tag-comparison speed. A comparison against a correctness-equivalent reference is needed to separate the cost of permission fixes from the benefit of precomputed tags.
+
+## Preserving cold-fault cache behavior
+
+The fourth candidate moves every descriptor-based TLB fill after the cold permission check. It therefore preserves the baseline's existing entry when a forbidden translation collides with that entry's TLB index. The added collision probe caches an allowed section, attempts a forbidden section at the same index, changes the first section's RAM permissions without invalidation, and confirms that the original cached permission remains effective.
+
+An additional large-page probe repeats the same descriptor in all sixteen second-level slots and checks each 4-KB slice across user, privileged and user mode. It verifies translated offsets and read/write permissions in all four 16-KB permission regions. The existing `(pa & ~0xFFF)` calculation already retains the 4-KB slice offset; these measurements do not identify a new large-page addressing defect.
+
+Both additional checks, the five previous diagnostic scenarios, and the CPU/timing/UART regression suites pass with the fourth isolated candidate. The section-fault and small-page rights corrections still differ from the original baseline. Throughput must therefore be measured separately against a correctness-equivalent reference; restoring cold-fault fill behavior alone does not isolate tag-comparison speed.
 
 ## Reproduction and adoption gate
 

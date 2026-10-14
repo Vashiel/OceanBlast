@@ -5,6 +5,40 @@ int main() {
     constexpr u32 va = 0x40000000, ttb = 0x30100000;
     {
         Bus b; Bus::MmuFault fault;
+        b.write32PhysSlow(ttb + 0x1000, 0x30000c02);
+        b.write32PhysSlow(ttb + 0x1020, 0x30200402); // Same TLB index, AP=1.
+        b.setTtb(ttb); b.setMmuEnabled(true); b.setUserMode(true);
+        bool retained = b.translate(va, &fault) == 0x30000000 && fault == Bus::MmuFault::NONE;
+        b.translate(va + 0x800000, &fault);
+        retained = retained && fault == Bus::MmuFault::SECTION_PERMISSION_FAULT;
+        b.write32PhysSlow(ttb + 0x1000, 0x30000402); // No invalidation of the cached AP=3 entry.
+        retained = retained && b.translate(va, &fault) == 0x30000000 && fault == Bus::MmuFault::NONE;
+        std::cout << "cold-permission-fault-preserves-colliding-entry=" << retained << '\n';
+    }
+    {
+        Bus b; Bus::MmuFault fault;
+        constexpr u32 largeVa = 0x41000000, pageTable = 0x3010c000, largePa = 0x30400000;
+        b.write32PhysSlow(ttb + 0x1040, pageTable | 1);
+        for (unsigned i = 0; i < 16; ++i)
+            b.write32PhysSlow(pageTable + i * 4, largePa | 1 | (3 << 4) | (2 << 6) | (1 << 8));
+        b.setTtb(ttb); b.setMmuEnabled(true); b.setUserMode(true);
+        bool correct = true;
+        for (bool user : {true, false, true}) {
+            b.setUserMode(user);
+            for (unsigned slice = 0; slice < 16; ++slice) for (bool write : {false, true}) {
+                const unsigned ap = 3 - slice / 4;
+                const bool allowed = !user || ap == 3 || (ap == 2 && !write);
+                const u32 offset = slice * 0x1000 + 0x3c0;
+                const u32 result = b.translate(largeVa + offset, &fault, write);
+                correct = correct && (allowed
+                    ? result == largePa + offset && fault == Bus::MmuFault::NONE
+                    : result == UINT32_MAX && fault == Bus::MmuFault::PAGE_PERMISSION_FAULT);
+            }
+        }
+        std::cout << "large-page-slices-and-mode-permissions=" << correct << '\n';
+    }
+    {
+        Bus b; Bus::MmuFault fault;
         b.write32PhysSlow(ttb + 0x1000, 0x30000402); // Section, AP=1.
         b.setTtb(ttb); b.setMmuEnabled(true);
         b.translate(va, &fault); // Prime a privileged-only TLB entry.

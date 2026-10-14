@@ -4,6 +4,12 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ---
 
+## 2026-10-14 — TLB Cold-Fault and Large-Page Checks
+
+* **[TLB Permission-Tag Candidate Checks](docs/57_tlb_permission_tag_candidates.md):** The fourth isolated candidate preserves existing TLB entries on denied cold translations. Additional ROM-free probes cover colliding entries and all sixteen large-page slices across privilege transitions. The targeted diagnostics and CPU/timing/UART suites pass; performance and gameplay acceptance remain separate checks.
+
+---
+
 ## 2026-10-13 — Frontend Preferences and Host-Cost Validation
 
 * **[Frontend Settings Persistence](docs/55_frontend_settings_persistence.md):** Focus and dropdown-open notifications no longer save settings or reload the embedded game layout. Saving another option preserves the preferred controller when a temporary fallback device is active. Regression checks cover notification filtering, separate controller mappings and actual audio edits.
