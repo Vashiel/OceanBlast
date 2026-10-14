@@ -51,3 +51,9 @@ Build a PGO executable from representative game cartridges and install it:
 ```
 
 The installed launcher applies the per-cartridge automatic ratio. Explicit CPU-ratio command-line options and manual launcher settings continue to override automatic selection.
+
+## Profile Counter Paths
+
+GCC can embed the absolute project path in a counter filename below the profile-data directory. In deeply nested Windows checkouts this duplicates the path and can exceed the file API's path limit. Training may finish with exit code zero while reporting `Cannot open` for its counter file; the subsequent `-Werror=missing-profile` build then correctly fails.
+
+`tools/build_profiled.ps1` passes `-fprofile-prefix-path` with the project root to both compiler phases. Counter names retain the relative output path instead of duplicating the absolute checkout path. On the tested MinGW compiler the prefix must preserve Windows backslashes to match the working-directory prefix. A small generation/execution/profile-use check in the previously failing deep directory confirms that the shortened counter file is written and loaded without missing-profile errors. This compiler-path correction does not establish emulator throughput or gameplay quality.

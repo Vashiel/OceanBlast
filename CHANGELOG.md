@@ -7,6 +7,7 @@ This changelog records development, hardware reverse-engineering milestones and 
 ## 2026-10-14 — TLB Cold-Fault and Large-Page Checks
 
 * **[TLB Permission-Tag Candidate Checks](docs/57_tlb_permission_tag_candidates.md):** The fourth isolated candidate preserves existing TLB entries on denied cold translations. Additional ROM-free probes cover colliding entries and all sixteen large-page slices across privilege transitions. The targeted diagnostics and CPU/timing/UART suites pass; performance and gameplay acceptance remain separate checks.
+* **[Runtime Build Profiles](docs/46_runtime_build_profiles_and_rayman_ratio.md):** Shortened GCC counter filenames in deep Windows project paths using the same project prefix during profile generation and use. A bounded compiler check verifies that the profile is saved and loaded successfully.
 
 ---
 

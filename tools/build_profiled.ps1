@@ -42,6 +42,10 @@ $graphicsLibraries = @('-ld3d11','-ldxgi','-ld3dcompiler')
 if ($LegacyWindows) { $graphicsLibraries = @() }
 $common = @('-std=c++17','-Wall','-Wextra',('-' + $Optimization),'-Isrc') + $architectureFlags + $unityFlags + $sources + @($resObj,'-lgdi32','-luser32','-lwinmm','-lcomdlg32','-lcomctl32','-lshell32','-lole32','-ldinput8','-ldxguid','-lgdiplus') + $graphicsLibraries + @('-o',($outputRelative + '/oceanblast_profiled.exe'))
 $profileOption = $profileRoot.Replace('\','/')
+# Keep the counter filename relative to the project rather than embedding its
+# full path again below profileRoot. Both compiler phases use the same prefix.
+$profileSourcePrefix = $projectRoot
+$common += @('-fprofile-prefix-path=' + $profileSourcePrefix)
 Push-Location $projectRoot
 try {
     $resourceFlags = @()

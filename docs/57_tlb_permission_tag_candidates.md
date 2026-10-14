@@ -42,6 +42,8 @@ An additional large-page probe repeats the same descriptor in all sixteen second
 
 Both additional checks, the five previous diagnostic scenarios, and the CPU/timing/UART regression suites pass with the fourth isolated candidate. The section-fault and small-page rights corrections still differ from the original baseline. Throughput must therefore be measured separately against a correctness-equivalent reference; restoring cold-fault fill behavior alone does not isolate tag-comparison speed.
 
+A separate PGO test executable passes one bounded Superstar Chefs startup comparison against the installed PGO baseline: 1.2 billion steps, ratio 3, the same input fixture and a blank EEPROM. CPU, SDRAM, snapshot and framebuffer hashes all match. Elapsed times are 10.588 s and 10.556 s; process CPU times are 9.234 s and 9.266 s. This single pair establishes startup state equivalence, not a repeatable throughput gain or gameplay acceptance. Both executables use native x64 PGO builds; their training profiles are not established as identical. The [records](validation/2026-10-14_tlb_tags_chefs_startup.csv) retain the exact executable and cartridge hashes.
+
 ## Reproduction and adoption gate
 
 [The ROM-free diagnostic](../tools/probe_tlb_permissions.cpp) prints observations rather than treating the baseline's known limitations as passing regressions. Build and run it against the current bus implementation:
