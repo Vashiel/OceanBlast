@@ -43,4 +43,18 @@ Changing the interval and increasing the execution batch from 4,096 to 65,536 ha
 
 The completed measurements support continued work on ARM execution and address translation. They do not establish a major GUI bottleneck, an INI-cache failure, or faster gameplay from these candidates. The [runtime build-profile notes](46_runtime_build_profiles_and_rayman_ratio.md) explain why normal developer and PGO gameplay builds require separate acceptance checks.
 
+## TLB permission-tag hit path
+
+The candidate stores valid VPN bits and per-subpage read/write permission bits in precomputed tags. The reference uses the same MMU corrections and tag population, but checks the tag key and cached permission separately; only the TLB-hit decision differs. Both native x64 unity builds use GCC `-O3 -march=native`, with no PGO. Six headless pairs replay Wade's ratio-6 fight fixture for 8.5 billion steps, split across two three-pair batches. Each batch reverses the executable order on alternate pairs:
+
+| Measure | Reference median | Candidate median | Paired result |
+| --- | ---: | ---: | --- |
+| Elapsed time | 119.148 s | 118.368 s | Candidate faster in 4 of 6 pairs |
+| Process CPU time | 115.859 s | 113.141 s | Candidate lower in 5 of 6 pairs |
+| CPU-time-based throughput | 73.366 MIPS | 75.128 MIPS | Candidate higher in 5 of 6 pairs |
+| Wall-time-based throughput | 71.359 MIPS | 71.835 MIPS | Candidate higher in 4 of 6 pairs |
+
+CPU-time-based throughput is the 8.5-billion-step limit divided by the process CPU time; the comparison script's MIPS column uses wall time.
+
+All twelve runs produced identical final CPU, SDRAM, framebuffer and snapshot-state hashes. Median process CPU time is 2.35% lower for the candidate, but one of six pairs reverses that result; an exact one-sided sign test gives p=0.109, so the direction is not significant at the 5% level. Wall time also varies substantially between batches, and the two batches do not control CPU affinity or operating frequency. These results suggest a possible small host-side gain but do not establish one, and they do not establish faster gameplay. The tag path remains experimental and is not enabled in production. A controlled paced GUI check would still be required before claiming a gameplay improvement. The [raw Wade fight results](validation/2026-10-14_tlb_tags_wade_fight.csv) include per-run timings and executable, ROM, and guest-state hashes.
 PGO comparisons also need matching architecture options. An installed `-march=native` executable and a portable `-march=x86-64` executable can have different host instruction sequences even when all guest-state hashes match. Their timing difference cannot be attributed to a frontend correction alone. Profile generation and profile use must agree on the architecture options; reusing a profile across these targets can cause GCC to reject mismatched control-flow counters.
