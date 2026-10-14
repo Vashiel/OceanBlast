@@ -1,0 +1,9 @@
+variant,symbol,code_bytes,address_mod_64,prologue_register_pushes,recorded_stack_reserve,direct_alu_call_sites
+reference,oceanblast::ARM920T::executeSimpleDataProcessing(unsigned int),1681,16,8,,
+reference,oceanblast::ARM920T::executeSimpleDataProcessing(unsigned int) [clone .part.0],1643,16,7,,
+reference,oceanblast::ARM920T::step(unsigned long long),14878,0,8,0x148,0
+reference,oceanblast::ARM920T::stepARM(unsigned int),12519,16,8,0x88,2
+alu-immediate,bool oceanblast::ARM920T::executeSimpleDataProcessing<false>(unsigned int),1640,16,8,,
+alu-immediate,bool oceanblast::ARM920T::executeSimpleDataProcessing<true>(unsigned int),1275,0,8,,
+alu-immediate,oceanblast::ARM920T::step(unsigned long long),14878,0,8,0x148,0
+alu-immediate,oceanblast::ARM920T::stepARM(unsigned int),13549,16,8,0x98,2

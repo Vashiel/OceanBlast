@@ -1,0 +1,63 @@
+--- a/src/cpu/arm920t.cpp
++++ b/src/cpu/arm920t.cpp
+@@ -442,6 +442,27 @@
+     return true;
+ }
+ 
++
++// Classify only bits represented in the key. Full-word checks below retain
++// control-register, swap and coprocessor distinctions within these classes.
++static constexpr std::array<u8, 4096> makeArmDecodeClasses() {
++    std::array<u8, 4096> result{};
++    for (u32 key = 0; key < result.size(); ++key) {
++        const u32 instr = ((key & 0xff0u) << 16) | ((key & 15u) << 4);
++        u8 kind = (instr >> 25) & 7;
++        if (kind == 0 && (instr & 0x90) == 0x90) {
++            if (instr & 0x60) kind = 8; // Halfword transfer family.
++            else if (!(instr & (1u << 24))) kind = 9; // Multiply family.
++            else kind = 10; // Swap or general data-processing fallback.
++        } else if (kind == 7 && (instr & (1u << 24))) {
++            kind = 11; // Software interrupt.
++        }
++        result[key] = kind;
++    }
++    return result;
++}
++static constexpr auto armDecodeClasses = makeArmDecodeClasses();
++
+ void ARM920T::stepARM(u32 instr) {
+     u32 pc = r[15];
+     if (debugLogging) {
+@@ -531,15 +552,16 @@
+ 
+     // Select the major instruction class before examining overlapping
+     // encodings. Loads and branches avoid the control/multiply comparisons.
+-    switch ((instr >> 25) & 7) {
++    const u32 decodeKey = ((instr >> 16) & 0xff0u) | ((instr >> 4) & 15u);
++    switch (armDecodeClasses[decodeKey]) {
++        case 8: executeHalfwordTransfer(instr); return;
++        case 9: executeMultiply(instr); return;
++        case 10:
++            if ((instr & 0x0FB00FF0) == 0x01000090) executeSwap(instr);
++            else executeDataProcessing(instr);
++            return;
++        case 11: executeSWI(instr); return;
+         case 0:
+-            if ((instr & 0x90) == 0x90) {
+-                if (instr & 0x60) executeHalfwordTransfer(instr);
+-                else if (!(instr & (1u << 24))) executeMultiply(instr);
+-                else if ((instr & 0x0FB00FF0) == 0x01000090) executeSwap(instr);
+-                else executeDataProcessing(instr);
+-                return;
+-            }
+             if (simpleAluExecution && executeSimpleDataProcessing(instr)) return;
+             if ((instr & 0x01900000) == 0x01000000) {
+                 if ((instr & 0x0FFFFFF0) == 0x012FFF10 || (instr & 0x0FFFFFF0) == 0x012FFF30) executeBX(instr);
+@@ -564,7 +586,6 @@
+             break;
+         }
+         case 7:
+-            if ((instr & 0x0F000000) == 0x0F000000) { executeSWI(instr); return; }
+             if ((instr & 0x0F000010) == 0x0E000010 && ((instr >> 8) & 15) == 15) { executeCP15(instr); return; }
+             if (fpa11Execution && ((instr >> 8) & 15) == 1 && executeFPA11Operation(instr)) return;
+             break;

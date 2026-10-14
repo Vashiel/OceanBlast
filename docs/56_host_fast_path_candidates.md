@@ -58,3 +58,56 @@ CPU-time-based throughput is the 8.5-billion-step limit divided by the process C
 
 All twelve runs produced identical final CPU, SDRAM, framebuffer and snapshot-state hashes. Median process CPU time is 2.35% lower for the candidate, but one of six pairs reverses that result; an exact one-sided sign test gives p=0.109, so the direction is not significant at the 5% level. Wall time also varies substantially between batches, and the two batches do not control CPU affinity or operating frequency. These results suggest a possible small host-side gain but do not establish one, and they do not establish faster gameplay. The tag path remains experimental and is not enabled in production. A controlled paced GUI check would still be required before claiming a gameplay improvement. The [raw Wade fight results](validation/2026-10-14_tlb_tags_wade_fight.csv) include per-run timings and executable, ROM, and guest-state hashes.
 PGO comparisons also need matching architecture options. An installed `-march=native` executable and a portable `-march=x86-64` executable can have different host instruction sequences even when all guest-state hashes match. Their timing difference cannot be attributed to a frontend correction alone. Profile generation and profile use must agree on the architecture options; reusing a profile across these targets can cause GCC to reject mismatched control-flow counters.
+
+## ARM instruction class table
+
+This candidate replaces the outer ARM instruction classification with a 4,096-byte `constexpr` class table indexed by bits 27:20 and 7:4. It uses class numbers and the existing handlers rather than a table of function pointers. Full-instruction checks for BX, MRS, MSR, SWP, CP15 and FPA11 remain in their existing paths. The existing condition check, Thumb decoder, instruction fetch, IRQ boundaries and peripheral timing are retained. This is a classification experiment, not a replacement ARM core or a change to the instruction set's exception semantics.
+
+The [candidate patch](validation/2026-10-14_arm_class_table.patch) is based on production revision `bf52cb5fc033493d2894b8f4871793a0127109b8`; it does not include the experimental TLB changes above. Both executables use GCC 16.2.0, the same native x64 `-O3 -g` unity build and no PGO. The benchmark parent and child processes use Windows affinity mask 4. Operating frequency and background load are not fixed.
+
+The [ROM-free classification check](validation/2026-10-14_arm_class_equivalence.cpp) compares all 4,096 keys with 256 variations of omitted bits per key: 1,048,576 comparisons pass. It can be compiled independently with a C++17 compiler. The candidate also passes all 55 CPU regression, 76 execution-timing and 12 UART-interrupt checks. These checks establish compatibility with the tested baseline paths; they do not independently prove complete ARM920T correctness.
+
+One Wade ratio-6 pair replays 8.5 billion steps with `tests/wade_ratio6_fight.txt` and a zero-filled 2,048-byte EEPROM:
+
+| Measure | Reference | Class-table candidate |
+| --- | ---: | ---: |
+| Elapsed time | 199.2922 s | 201.8997 s |
+| Process CPU time | 196.7812 s | 199.2969 s |
+| Wall-time throughput | 42.651 MIPS | 42.100 MIPS |
+
+Final CPU, SDRAM, snapshot and framebuffer hashes match. The decoded final framebuffer shows the Rocco fight with a round counter of 73; its SHA-256 is `b6099539a7e6af759e1a067dcfc06b17e8db0323b5fcb432c44a9712a365ccf6`. Candidate CPU time is 1.28% higher in this pair. One pair cannot establish a repeatable regression, but it supplies no evidence of a gain. The candidate is discarded and remains outside production. The [raw Wade records](validation/2026-10-14_arm_class_wade.csv) retain the binary and cartridge hashes.
+
+Two earlier Superstar Chefs ratio-2 pairs each run for 3 billion steps with `tests/chefs_auto_confirm.txt`; its first input is at step 1.4 billion, so a 1.2-billion-step run would miss that input sequence. All paired guest hashes match. Reference/candidate CPU times are 68.9062/86.6875 s and 50.3906/84.5938 s. Both candidates take more CPU time, with substantial variation in the reference. The third pair was interrupted and is excluded from the [completed records](validation/2026-10-14_arm_class_chefs.csv).
+
+Subsequent performance candidates use Wade as the primary scene. Superstar Chefs is a regression check after a candidate demonstrates a reproducible Wade improvement. These measurements concern this particular class table in front of existing handlers; they do not rule out specialized instruction handlers or a translated-block execution engine.
+
+## Immediate/register ALU specialization
+
+The [second candidate](validation/2026-10-14_alu_immediate.patch) starts from the same production baseline, without the class table. `executeSimpleDataProcessing<bool Immediate>` has two direct template instances: the existing major-0 path calls `<false>`, and major 1 calls `<true>`. Compile-time branching selects either immediate rotation or register shifting. Opcode and flag handling, PC operand semantics, fallback guards, fetch and exception boundaries remain in their existing paths. No function-pointer dispatch or decoded-instruction cache is introduced.
+
+Both executables use the same build and affinity settings as the class-table pair. The candidate passes all 55 CPU regression, 76 execution-timing and 12 UART-interrupt checks. One Wade ratio-6 pair covers the same 8.5-billion-step fight replay and blank EEPROM:
+
+| Measure | Reference | ALU candidate |
+| --- | ---: | ---: |
+| Elapsed time | 191.4311 s | 199.0050 s |
+| Process CPU time | 189.1250 s | 196.5625 s |
+| Wall-time throughput | 44.402 MIPS | 42.712 MIPS |
+
+All four paired guest hashes match, including the same final Rocco fight framebuffer recorded above. CPU time is 3.93% higher for the candidate. This single pair establishes no performance benefit and cannot attribute the difference specifically to branches, code layout or operating-frequency variation. The candidate is discarded; no Superstar Chefs follow-up or GUI performance claim is made. The [raw Wade records](validation/2026-10-14_alu_immediate_wade.csv) preserve the measured pair.
+
+These two experiments do not establish that the interpreter is generally optimal or incorrect. Further changes need a closer comparison of the generated hot code and measured execution costs. Function-level sample shares alone do not distinguish decoding work, register spills, branch misses and cache effects; their relative contribution remains unmeasured here.
+
+### Generated code observations
+
+Function ranges from the x64 PE exception table (`.pdata`) and disassembly provide [static code observations](validation/2026-10-14_alu_assembly.csv) for the same reference and ALU executables:
+
+| Function property | Reference | ALU candidate |
+| --- | ---: | ---: |
+| `step` code range | 14,878 bytes | 14,878 bytes |
+| `step` prologue stack reservation | 0x148 bytes | 0x148 bytes |
+| `stepARM` code range | 12,519 bytes | 13,549 bytes |
+| `stepARM` prologue stack reservation | 0x88 bytes | 0x98 bytes |
+| `stepARM` register pushes | 8 | 8 |
+| `stepARM` start address modulo 64 | 16 | 16 |
+
+Both `stepARM` versions contain two direct ALU call sites. The reference calls GCC's 1,643-byte `executeSimpleDataProcessing` partial clone; the candidate calls the 1,640-byte register and 1,275-byte immediate template instances. The specialization therefore does not eliminate these calls. Although the individual immediate handler is smaller, the caller is larger and reserves more stack space. These observations do not prove additional dynamically executed spills, cache misses or the cause of the measured timing difference. The next useful comparison is to map exact host-PC samples onto the decoder, ALU call boundaries and their generated instruction paths.

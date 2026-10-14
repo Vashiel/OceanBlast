@@ -1,0 +1,54 @@
+--- a/src/cpu/arm920t.cpp
++++ b/src/cpu/arm920t.cpp
+@@ -347,10 +347,12 @@
+ 
+ // Immediate and constant-shift register ALU operations need no general decoder.
+ // Fetch, condition checks and peripheral/exception boundaries remain in step().
++template<bool Immediate>
+ bool ARM920T::executeSimpleDataProcessing(u32 instr) {
+     if ((instr & 0x0c000000) != 0 || ((instr >> 12) & 15) == 15) return false;
+-    const bool immediate = (instr & (1u << 25)) != 0;
+-    if (!immediate && (instr & (1u << 4))) return false;
++    if constexpr (!Immediate) {
++        if (instr & (1u << 4)) return false;
++    }
+     const u32 opcode = (instr >> 21) & 15;
+     const bool flags = (instr & (1u << 20)) != 0;
+     // Control-register encodings (TST/TEQ/CMP/CMN without S bit) use the general path.
+@@ -361,7 +363,7 @@
+     u32 op2;
+     bool carry = (cpsr & FLAG_C) != 0;
+     const bool arithmeticCarry = carry;
+-    if (immediate) {
++    if constexpr (Immediate) {
+         const u32 rotation = ((instr >> 8) & 15) * 2;
+         const u32 value = instr & 255;
+         op2 = rotation ? (value >> rotation) | (value << (32 - rotation)) : value;
+@@ -540,7 +542,7 @@
+                 else executeDataProcessing(instr);
+                 return;
+             }
+-            if (simpleAluExecution && executeSimpleDataProcessing(instr)) return;
++            if (simpleAluExecution && executeSimpleDataProcessing<false>(instr)) return;
+             if ((instr & 0x01900000) == 0x01000000) {
+                 if ((instr & 0x0FFFFFF0) == 0x012FFF10 || (instr & 0x0FFFFFF0) == 0x012FFF30) executeBX(instr);
+                 else if ((instr & 0x0FBF0FFF) == 0x010F0000) executeMRS(instr);
+@@ -551,7 +553,7 @@
+             }
+             return;
+         case 1:
+-            if (simpleAluExecution && executeSimpleDataProcessing(instr)) return;
++            if (simpleAluExecution && executeSimpleDataProcessing<true>(instr)) return;
+             if ((instr & 0x0FB0F000) == 0x0320F000) executeMSR(instr);
+             else executeDataProcessing(instr);
+             return;
+--- a/src/cpu/arm920t.h
++++ b/src/cpu/arm920t.h
+@@ -75,6 +75,7 @@
+     void writeFpaDouble(u32 reg, double val);
+     bool executeFPA11DataTransfer(u32 instruction);
+     bool executeFPA11Operation(u32 instruction);
++    template<bool Immediate>
+     bool executeSimpleDataProcessing(u32 instruction);
+     bool cycleTiming = false, waitingForInterrupt = false;
+     uint32_t lastCycles = 1;
