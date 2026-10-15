@@ -25,6 +25,8 @@ HEADERS = src/core/types.h \
           src/cpu/arm920t.h \
           src/cpu/arm920t_state.h \
           src/memory/bus.h \
+          src/memory/address_map.h \
+          src/memory/arm920t_mmu.h \
           src/memory/i2c_eeprom.h \
           src/memory/timer4.h \
           src/memory/clock_tree.h \
@@ -69,6 +71,7 @@ $(TARGET): $(OBJS) $(RES_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(RES_OBJ) $(LDFLAGS)
 
 test: build/frame_latch.exe build/emulation_timing.exe build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
+	./build/mmu_translation.exe
 	./build/mp3_storage.exe
 	./build/usb_storage.exe
 	./build/cartridge_settings.exe
@@ -229,6 +232,13 @@ test: build/cartridge_loading.exe
 build/cartridge_loading.exe: tests/cartridge_loading.cpp src/memory/bus.cpp $(HEADERS)
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
+
+test: build/mmu_translation.exe
+build/mmu_translation.exe: tests/mmu_translation.cpp src/memory/arm920t_mmu.h src/memory/address_map.h src/core/types.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+build/cpu_regression.exe build/input_test.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe build/runtime_probe.exe build/capture_audio.exe build/frame_latch.exe build/emulation_timing.exe build/scene_work_probe.exe build/codec_probe.exe: src/memory/arm920t_mmu.h src/memory/address_map.h
 
 build/launcher_defaults_win32.exe: tests/launcher_defaults_win32.cpp src/display/launcher.h src/display/mp3_manager_win32.h src/core/mp3_storage.h src/display/windows_input.h src/display/input_mapping.h $(RES_OBJ)
 	@mkdir -p build

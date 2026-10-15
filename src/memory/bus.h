@@ -1,5 +1,6 @@
 #pragma once
 #include "../core/types.h"
+#include "arm920t_mmu.h"
 #include "i2c_eeprom.h"
 #include "timer4.h"
 #include "clock_tree.h"
@@ -15,33 +16,6 @@
 #include <map>
 
 namespace oceanblast {
-
-// S3C2410 Memory Map
-constexpr u32 ADDR_STEPPINGSTONE_BASE = 0x00000000;
-constexpr u32 ADDR_STEPPINGSTONE_SIZE = 4096; // 4 KB internal boot SRAM
-
-constexpr u32 ADDR_SDRAM_BASE         = 0x30000000;
-constexpr u32 ADDR_SDRAM_SIZE         = 32 * 1024 * 1024; // 32 MB SDRAM
-
-// S3C2410 MMIO Peripheral Bases
-constexpr u32 ADDR_MEMCON_BASE        = 0x48000000;
-constexpr u32 ADDR_USBHOST_BASE       = 0x49000000;
-constexpr u32 ADDR_INTCON_BASE        = 0x4A000000;
-constexpr u32 ADDR_DMA_BASE           = 0x4B000000;
-constexpr u32 ADDR_CLKCON_BASE        = 0x4C000000;
-constexpr u32 ADDR_LCDCON_BASE        = 0x4D000000;
-constexpr u32 ADDR_NANDCON_BASE       = 0x4E000000;
-constexpr u32 ADDR_UART_BASE          = 0x50000000;
-constexpr u32 ADDR_TIMER_BASE         = 0x51000000;
-constexpr u32 ADDR_USBD_BASE          = 0x52000000;
-constexpr u32 ADDR_WDT_BASE           = 0x53000000;
-constexpr u32 ADDR_IIC_BASE           = 0x54000000;
-constexpr u32 ADDR_IIS_BASE           = 0x55000000;
-constexpr u32 ADDR_GPIO_BASE          = 0x56000000;
-constexpr u32 ADDR_RTC_BASE           = 0x57000000;
-constexpr u32 ADDR_ADC_BASE           = 0x58000000;
-constexpr u32 ADDR_SPI_BASE           = 0x59000000;
-constexpr u32 ADDR_SDI_BASE           = 0x5A000000;
 
 class Bus {
 public:
@@ -75,52 +49,24 @@ public:
     }
 
     // MMU / Virtual Memory Translation
-    enum class MmuFault {
-        NONE = 0,
-        SECTION_TRANSLATION_FAULT = 0x5,
-        PAGE_TRANSLATION_FAULT = 0x7,
-        SECTION_DOMAIN_FAULT = 0x9,
-        PAGE_DOMAIN_FAULT = 0xB,
-        SECTION_PERMISSION_FAULT = 0xD,
-        PAGE_PERMISSION_FAULT = 0xF,
-    };
+    using MmuFault = Arm920TMmu::MmuFault;
 
-    void setUserMode(bool um) { if (userMode != um) instructionPage = UINT32_MAX; userMode = um; }
-    bool isUserMode() const { return userMode; }
+    void setUserMode(bool um) { if (mmu.isUserMode() != um) instructionPage = UINT32_MAX; mmu.setUserMode(um); }
+    bool isUserMode() const { return mmu.isUserMode(); }
 
     void flushTlb() const;
-    inline void flushTlbEntry(u32 va) const {
-        instructionPage = UINT32_MAX;
-        tlb[(va >> 12) & (TLB_SIZE - 1)].valid = false;
+    void flushTlbEntry(u32 va) const { instructionPage = UINT32_MAX; mmu.flushTlbEntry(va); }
+    void setMmuEnabled(bool en) { instructionPage = UINT32_MAX; mmu.setEnabled(en); }
+    void setTtb(u32 val) { instructionPage = UINT32_MAX; mmu.setTtb(val); }
+    u32 getTtb() const { return mmu.getTtb(); }
+    void setDacr(u32 val) { instructionPage = UINT32_MAX; mmu.setDacr(val); }
+    bool isMmuEnabled() const { return mmu.isEnabled(); }
+
+    u32 translateSlow(u32 va, MmuFault* fault, bool isWrite) const {
+        return mmu.translateSlow(va, sdramPtr, fault, isWrite);
     }
-    void setMmuEnabled(bool en) { mmuEnabled = en; flushTlb(); }
-    void setTtb(u32 val) { ttb = val; flushTlb(); }
-    u32  getTtb() const { return ttb; }
-    void setDacr(u32 val) { dacr = val; instructionPage = UINT32_MAX; }
-    bool isMmuEnabled() const { return mmuEnabled; }
-
-    u32  translateSlow(u32 va, MmuFault* fault, bool isWrite) const;
-
-    inline u32 translate(u32 va, MmuFault* fault = nullptr, bool isWrite = false) const {
-        if (!mmuEnabled) {
-            if (fault) *fault = MmuFault::NONE;
-            return va;
-        }
-        u32 vpn = va >> 12;
-        u32 idx = vpn & (TLB_SIZE - 1);
-        const TlbEntry& entry = tlb[idx];
-        if (entry.valid && entry.vpn == vpn) {
-            if (userMode) {
-                u32 ap = entry.ap;
-                if (ap == 0 || ap == 1 || (ap == 2 && isWrite)) {
-                    if (fault) *fault = MmuFault::PAGE_PERMISSION_FAULT;
-                    return 0xFFFFFFFF;
-                }
-            }
-            if (fault) *fault = MmuFault::NONE;
-            return entry.paBase | (va & 0xFFF);
-        }
-        return translateSlow(va, fault, isWrite);
+    u32 translate(u32 va, MmuFault* fault = nullptr, bool isWrite = false) const {
+        return mmu.translate(va, sdramPtr, fault, isWrite);
     }
 
     // Physical (translated) memory access slow paths
@@ -374,23 +320,9 @@ private:
     u32  buttonMask = 0;
     void requestIrq(u32 bit);
     void updateExtInterrupts();
-    // S3C2410 / ARM920T MMU State
-    bool mmuEnabled = false;
-    bool userMode = false;
-    u32  ttb = 0;
-    u32  dacr = 0;
+    Arm920TMmu mmu;
     mutable MmuFault lastFault = MmuFault::NONE;
-    mutable u32      lastFaultAddr = 0;
-
-    struct TlbEntry {
-        u32 vpn = 0xFFFFFFFF;
-        u32 paBase = 0;
-        u8  ap = 0;
-        bool valid = false;
-    };
-    static constexpr size_t TLB_SIZE = 2048;
-    mutable std::array<TlbEntry, TLB_SIZE> tlb = {};
-    mutable bool tlbEmpty = true;
+    mutable u32 lastFaultAddr = 0;
     mutable u32 instructionPage = UINT32_MAX;
     const u8* instructionPointer = nullptr;
 
