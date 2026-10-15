@@ -23,3 +23,11 @@ One normal GCC `-O3 -march=native` unity pair runs the first 1.2 billion Superst
 CPU, SDRAM, framebuffer and snapshot-state hashes match. Throughput is about 10.1% higher in this pair and process CPU time about 9.2% lower. The [raw records](validation/2026-10-15_phase_batches.csv) include executable and cartridge hashes.
 
 The simpler phase bookkeeping is retained. These measurements do not establish a repeatable gain across hosts, ratios or compiler profiles, and do not predict a PGO gameplay improvement. No repeated pairs or gameplay sweeps were added.
+
+## Local PGO build
+
+A native x64 `-O3` unity PGO build was generated from the source at `e962027`, using Superstar Chefs and Rayman 3 training runs of 2.1 billion instructions each at ratio 3. Training and compilation belong to build preparation, not gameplay acceptance. The PGO build consumed substantially more time than expected; future small changes should reuse a suitable installed build for baseline checks and explicitly budget profile generation and both compiler phases rather than automatically repeat this training workload.
+
+One short Superstar Chefs GUI/audio run uses fresh settings and EEPROM, no input, ratio 3 and a 1.2-billion-instruction limit. The title menu was inspected after execution stopped. The [recorded intervals](validation/2026-10-15_phase_batches_pgo_title.csv) hold the 60-MIPS pacing target with zero empty audio queues and zero dropped samples. Final SDRAM and framebuffer hashes match the earlier state/scheduler title run. Listening quality, later gameplay and performance gain over the previous PGO executable were not tested.
+
+The tested executable, SHA-256 `5a83fcb8c93b1fac14c3941ab4d5e89a86243b2774f4cb3c8c37eaf09700429d`, replaces the local `bin/oceanblast.exe`. The previous executable, SHA-256 `97203e3e51264a569bc6b36e39ecf87ab1184e63f6c07a24e11571166462a666`, is preserved in ignored `build/launcher-backup-2026-10-15/oceanblast.exe`. Existing sessions and frontend preferences were not changed. This is a local native Windows build; it is not an ARM build or a new published release package.

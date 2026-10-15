@@ -4,7 +4,7 @@ Updated: 2026-10-15. All milestones below are planned, not completed validation.
 
 ## Goal and priorities
 
-Improve usable game performance on weaker CPUs while preserving the working cartridge compatibility. Keep the current interpreter as a reference and evolve the existing implementation in small, reviewable steps. A target CPU has not yet been selected, so this roadmap makes no minimum-hardware or universal full-speed promise.
+Improve usable game performance on weaker CPUs while preserving the working cartridge compatibility. Keep the current interpreter as a reference and evolve the existing implementation in small, reviewable steps. The requested target is a 2018 device with a 32-bit ARM processor; its exact model, operating system and application ABI still need confirmation. This roadmap makes no minimum-hardware or universal full-speed promise.
 
 Current measurements place most host cost in CPU execution and memory translation. This makes execution architecture a higher priority than frontend cleanup. Existing throughput and gameplay observations remain build-, host- and scene-specific; see [runtime acceptance](docs/50_runtime_acceptance.md), [host costs](docs/53_host_execution_costs.md) and [candidate experiments](docs/56_host_fast_path_candidates.md).
 
@@ -31,6 +31,8 @@ Break milestones into independently reviewable tasks. The following are default 
 
 Before starting, name the expected result, scope, relevant check and budget. Compilation and PGO training count toward that budget. Reuse a suitable existing baseline where its provenance is known; do not compare unlike compiler profiles and call the difference an implementation gain.
 
+PGO preparation needs its own allowance inside the task budget: both compiler phases and cartridge training count. Do not automatically repeat multi-billion-instruction training for every small edit. If a build cannot finish within the remaining budget, preserve the current launcher and stop or agree on an extension; do not let compiler work silently consume the next task's time.
+
 At the limit, stop and report one of: completed, rejected approach, or incomplete with a concrete blocker and proposed next slice. Ask the user before extending the agreed budget or starting a materially larger investigation. Do not silently add repeated comparisons. If the planned build or necessary check cannot fit, narrow the task or agree on a different budget before starting it. Never describe an untested result as accepted merely because time expired.
 
 ## Short checks first; stop on sufficient evidence
@@ -51,11 +53,11 @@ The [first execution slice](docs/58_execution_boundary_and_short_checks.md) and 
 
 | Priority | Delivered | Remaining |
 | --- | --- | --- |
-| P0 | Short technical/title-screen procedures and recorded configurations | Select and measure the intended weak CPU. |
+| P0 | Short technical/title-screen procedures and recorded configurations; target category is 32-bit ARM on a 2018 device | Confirm exact device, SoC, OS and ABI, then measure on that device. |
 | P1 | Independent modeled CPU-state structure and shared single/batch interpreter boundary | Actual alternative execution engine and safe state handoff; current CPU still owns its state. |
 | P2 | Scheduler owns legacy phase, register-clock fractions, device deadlines and idle advancement | Hardware timing calibration and finer scheduling remain open; register-clock mode is experimental. |
 | P3 | Standalone MMU, independent checks, cached subpage rights and section-fault corrections | Domain-control, system/ROM protection and unsupported descriptor behavior need architectural review. |
 | P4 | Decoder-cache prototype rejected after a slower pair; simpler [legacy phase batches](docs/60_legacy_phase_batches.md) retained after matching guest state and a faster short pair | A block execution engine or JIT remains unimplemented. PGO and weak-device gains are not established by the developer-build pair. |
 | P5 | Shared machine owner used by the application and runtime probe | Frontend orchestration and other tools can be migrated when needed; no broad UI rewrite is scheduled. |
 
-Next performance slice: define a block execution path that can remove dispatch work while preserving instruction/fault/interrupt boundaries. Choose a host-specific backend only after the weak target CPU is identified. The initial structural slices are delivered; universal weak-hardware performance and full architectural fidelity remain open.
+Next target slice: confirm the device and operating system, then prepare a 32-bit ARM build and the required platform frontend. The current Windows executable cannot serve as that device build. A later block engine must target the confirmed ARM environment while preserving instruction/fault/interrupt boundaries. The initial structural slices are delivered; ARM-device execution, universal weak-hardware performance and full architectural fidelity remain open.

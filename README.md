@@ -124,6 +124,8 @@ The [prioritized roadmap](ROADMAP.md) defines the path toward better performance
 
 The [machine-core implementation report](docs/59_machine_core_and_decoder_experiment.md) records the extracted CPU state, scheduler, standalone MMU and shared machine owner, together with targeted checks and a rejected decoder-cache experiment. These foundations do not yet establish full-speed support on weak hardware.
 
+[Legacy phase batches](docs/60_legacy_phase_batches.md) reduce interpreter bookkeeping and include a short developer-build comparison and local PGO title check. The intended 32-bit ARM device still needs its exact platform identified; the current Windows frontend and executable do not provide an ARM device build.
+
 ## Building, Testing & Command-Line Usage
 
 ### Prerequisites
