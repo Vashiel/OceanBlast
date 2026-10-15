@@ -6,6 +6,8 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ## 2026-10-15 — Prioritized Roadmap and Bounded Validation
 
+* **[LDM RAM-Span Experiment](docs/64_ldm_ram_span_experiment.md):** A candidate translates consecutive LDM RAM reads once inside a single 1-KB rights region. It passes targeted partial-abort, boundary and addressing checks, but its one active-scene pair shows no benefit. The candidate was rejected; production code and the installed executable remain unchanged.
+
 * **[MMU Outlining Experiment](docs/63_mmu_outline_experiment.md):** An isolated table-walk outlining candidate passes MMU, CPU and timing checks and preserves the active gameplay state. Its one comparison shows no useful throughput gain, so the patch was rejected. Production source and the installed launcher remain unchanged.
 
 * **[Unpaced Active-Scene Comparison](docs/62_active_scene_acceptance.md#unpaced-throughput-follow-up):** The immediate-ALU path reaches 82.50 versus 72.22 MIPS in one matched Superstar Chefs gameplay section, with identical final guest state. Whole-process CPU time decreases by 9.15%. This is one normal-build pair on the current host; unpaced audio drops exclude sound-quality acceptance, and no installed binary was replaced.

@@ -61,6 +61,8 @@ To reproduce this throughput check, use the command above with `--unpaced`, omit
 
 ## Next decision
 
+The [LDM RAM-span experiment](64_ldm_ram_span_experiment.md) also uses this gate and rejects its candidate after a slower pair. Profile the active section before selecting another memory optimization.
+
 The subsequent [MMU outlining experiment](63_mmu_outline_experiment.md) uses this active-scene gate. It finds no useful gain and rejects the candidate without repeated pairs.
 
 Use this fixture for the next CPU candidate. The unpaced pair establishes a scene-specific throughput observation for the current immediate-ALU path. Further changes must earn their own comparison; do not repeat this pair without a concrete unresolved question. Use matching build profiles and one short pair. A capped 60-MIPS pass alone is compatibility evidence. Listening, motion smoothness and original-hardware speed remain separate checks.
