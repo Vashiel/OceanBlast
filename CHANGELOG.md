@@ -6,6 +6,8 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ## 2026-10-15 — Prioritized Roadmap and Bounded Validation
 
+* **[Unpaced Active-Scene Comparison](docs/62_active_scene_acceptance.md#unpaced-throughput-follow-up):** The immediate-ALU path reaches 82.50 versus 72.22 MIPS in one matched Superstar Chefs gameplay section, with identical final guest state. Whole-process CPU time decreases by 9.15%. This is one normal-build pair on the current host; unpaced audio drops exclude sound-quality acceptance, and no installed binary was replaced.
+
 * **[Active-Scene Acceptance](docs/62_active_scene_acceptance.md):** Added a short first-level replay with movement and A/B/C. One matched pair preserves CPU, memory and framebuffer state; both builds hold the same pacing cap without empty queues or dropped samples. Lower section execution time is recorded as a single observation, not a general gameplay gain. GUI comparisons now have time limits, stopped-scene inspection, early-close rejection and optional audio limits.
 
 * **[ARM Dispatch Measurement](docs/61_arm_dispatch_measurement.md):** A short current-build profile identifies CPU execution as the main host cost. Plain immediate ARM operations can now bypass the general decoder while preserving the existing interrupt, fetch and peripheral boundaries. The CPU suite has 58 passing checks; timing and short title checks pass. One developer-build pair improves from 76.076 to 79.401 MIPS. Three other candidates were not retained; no general speedup is claimed from the single pairs.

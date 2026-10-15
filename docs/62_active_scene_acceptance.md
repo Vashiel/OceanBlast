@@ -42,6 +42,23 @@ Inspect the earliest screen that can expose the relevant failure. If it fails, c
 
 Four cartridge-free subprocess checks cover matching results, early closure, an exceeded audio threshold and timeout handling: `python tests/test_compare_gui.py`.
 
+## Unpaced throughput follow-up
+
+One subsequent [unpaced pair](validation/2026-10-15_chefs_active_unpaced.csv) uses the same executables, cartridge, input, blank EEPROM, ratio and four-billion-instruction limit. It adds `--unpaced`, retains the three-to-four-billion-step host-cost section, and exits automatically without manual end inspection. No compilation or other replay ran concurrently. The [reference intervals](validation/2026-10-15_chefs_active_unpaced_baseline.csv) and [candidate intervals](validation/2026-10-15_chefs_active_unpaced_candidate.csv) preserve the raw counters. There was one pair, without repetitions.
+
+| Observation | Reference | Candidate |
+| --- | ---: | ---: |
+| Active-section throughput | 72.2173 MIPS | 82.4953 MIPS |
+| Active-section elapsed time | 13,847.1 ms | 12,121.9 ms |
+| Whole-process CPU time | 51.4219 s | 46.7188 s |
+| Whole-run interval throughput | 76.0760 MIPS | 83.2581 MIPS |
+
+Active-section throughput is 14.23% higher in this pair; whole-process CPU time is 9.15% lower. Final CPU, SDRAM and framebuffer hashes match each other and the earlier paced active-scene result. This supplies measured execution reserve in an active scene on this host, rather than only a capped compatibility pass. It remains a single normal-build comparison, not a repeatability study, PGO measurement, old-hardware result or universal game-speed claim. The percentages describe different metrics and must not be added to earlier results.
+
+Both runs report zero empty queues, but discard 567,558 and 764,422 audio samples respectively. Unpaced execution generates audio faster than real-time playback and fills the output queue. The higher discard count is not an audio-quality improvement; this throughput run is not listening, synchronization or normal-paced acceptance. The preceding paced pair reports zero dropped samples for both builds. No audio threshold was applied to the unpaced pair. The installed executable remains unchanged.
+
+To reproduce this throughput check, use the command above with `--unpaced`, omit `--inspect-end`, and omit the two audio thresholds. Keep the same instruction window and build profiles.
+
 ## Next decision
 
-Use this fixture for the next CPU candidate. Define the benefit first: more unpaced execution reserve in this active section, or a reproducible pacing/audio failure. Use matching build profiles and one short pair. A capped 60-MIPS pass alone is compatibility evidence. Listening, motion smoothness and original-hardware speed remain separate checks.
+Use this fixture for the next CPU candidate. The unpaced pair establishes a scene-specific throughput observation for the current immediate-ALU path. Further changes must earn their own comparison; do not repeat this pair without a concrete unresolved question. Use matching build profiles and one short pair. A capped 60-MIPS pass alone is compatibility evidence. Listening, motion smoothness and original-hardware speed remain separate checks.
