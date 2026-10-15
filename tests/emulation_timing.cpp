@@ -74,22 +74,22 @@ int main() {
         bus->write32(0x5100003c,29);bus->write32(0x51000008,(1u<<20)|(1u<<21)|(1u<<22));
       }
       scalar.setCycleTiming(true);batch.setCycleTiming(true);
-      const size_t retired=runClockedInstructions(batch,batchBus,batchClock,10001,UINT64_MAX,batchTicks);
+      const size_t retired=InterpreterExecution(batch,batchBus).runClocked(batchClock,10001,UINT64_MAX,batchTicks);
       for(size_t i=0;i<retired;++i) {
         auto hz=scalar.getExecutionClock();scalar.step(0);scalarBus.tick(scalarClock.advance(scalar.getLastCycles(),hz));
       }
       check("Clocked batch preserves CPU, fractional clock and timer state",
         retired==10001&&scalar.getReg(0)==batch.getReg(0)&&scalar.getPC()==batch.getPC()&&
         scalarClock.elapsedTicks()==batchTicks&&scalarBus.getMmio(0x51000040)==batchBus.getMmio(0x51000040));
-      const size_t bounded=runClockedInstructions(batch,batchBus,batchClock,10000,batchTicks+7,batchTicks);
+      const size_t bounded=InterpreterExecution(batch,batchBus).runClocked(batchClock,10000,batchTicks+7,batchTicks);
       check("Clocked batch yields at the modeled time deadline",bounded>0&&bounded<10000);
     }
     { Bus bus;ARM920T cpu(bus);EmulationClock clock;uint64_t ticks=0;
       cpu.setCycleTiming(true);bus.write32(0,0xee070f90);bus.write32(4,0xe3a00007);
       check("Clocked batch yields immediately after wait instruction",
-        runClockedInstructions(cpu,bus,clock,100,UINT64_MAX,ticks)==1&&cpu.isWaitingForInterrupt()&&cpu.getPC()==4);
+        InterpreterExecution(cpu,bus).runClocked(clock,100,UINT64_MAX,ticks)==1&&cpu.isWaitingForInterrupt()&&cpu.getPC()==4);
       check("Clocked batch does not retire an already waiting CPU",
-        runClockedInstructions(cpu,bus,clock,100,UINT64_MAX,ticks)==0&&cpu.getReg(0)==0);
+        InterpreterExecution(cpu,bus).runClocked(clock,100,UINT64_MAX,ticks)==0&&cpu.getReg(0)==0);
     }
     for (size_t ratio : {1u, 2u, 4u, 16u}) for (size_t phase = 0; phase < ratio; ++phase) {
         uint64_t count = 0, ticks = 0; size_t currentPhase = phase;
@@ -105,10 +105,11 @@ int main() {
             bus->write32(0x5100003c, 29); bus->write32(0x51000008,(1u<<20)|(1u<<21)|(1u<<22));
         }
         size_t phase = 0; uint64_t ticks = 0;
-        runLegacyInstructions(batch, 37, ratio, phase, ticks);
-        runLegacyInstructions(batch, 964, ratio, phase, ticks);
+        InterpreterExecution execution(batch,batchBus);
+        for (size_t i = 0; i < 37; ++i) execution.stepLegacy(ratio, phase, ticks);
+        execution.runLegacy(964, ratio, phase, ticks);
         for (size_t i = 0; i < 1001; ++i) scalar.step(i % ratio == 0 ? 1 : 0);
-        check("Batched CPU preserves registers and phase across split budgets",
+        check("Single-step to batch transition preserves registers and peripheral phase",
             scalar.getPC() == batch.getPC() && scalar.getReg(0) == batch.getReg(0) &&
             scalar.getCPSR() == batch.getCPSR() && phase == 1001 % ratio && ticks == (1001 + ratio - 1) / ratio);
         check("Batched CPU preserves timer and pending interrupts",
@@ -127,7 +128,7 @@ int main() {
       scalarBus.write32(0x100,0xe121f002);batchBus.write32(0x100,0xe121f002);
       scalarBus.write32(0x104,0xeaffffbd);batchBus.write32(0x104,0xeaffffbd);
       size_t phase=0;uint64_t ticks=0;
-      runLegacyInstructions(batch,701,2,phase,ticks);
+      InterpreterExecution(batch,batchBus).runLegacy(701,2,phase,ticks);
       for(size_t i=0;i<701;++i)scalar.step(i%2==0?1:0);
       bool same=true;for(int i=0;i<16;++i)same=same&&scalar.getReg(i)==batch.getReg(i);
       check("Batch preserves unmasked IRQ entry and exception return",same&&scalar.getCPSR()==batch.getCPSR());
@@ -143,7 +144,7 @@ int main() {
         bus->write32(0x4b000090,512|(1u<<20)|(1u<<22));bus->write32(0x4b0000a0,2);
       }
       size_t phase=0;uint64_t ticks=0;
-      runLegacyInstructions(batch,600001,2,phase,ticks);
+      InterpreterExecution(batch,batchBus).runLegacy(600001,2,phase,ticks);
       for(size_t i=0;i<600001;++i)scalar.step(i%2==0?1:0);
       check("Batch preserves every consumed DMA audio sample",scalarPcm==batchPcm&&scalarPcm.size()==512);
       check("Batch preserves DMA completion registers",scalarBus.getMmio(0x4b000098)==batchBus.getMmio(0x4b000098)&&scalarBus.getMmio(0x4b000094)==batchBus.getMmio(0x4b000094));

@@ -6,6 +6,7 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ## 2026-10-15 — Prioritized Roadmap and Bounded Validation
 
+* **[Interpreter Execution Boundary](docs/58_execution_boundary_and_short_checks.md):** Single steps and batches now share legacy-ratio and register-clock advancement through `InterpreterExecution`. The developer build, 76 timing checks, 55 CPU checks and one short visible Superstar Chefs title run pass. CPU-state separation remains open; no performance gain is claimed.
 * **[Development Roadmap](ROADMAP.md):** Added ordered architecture milestones for weaker-CPU performance, with explicit goals, rationale and completion criteria. Defined per-task time budgets, short contributor self-tests as the primary routine check, and immediate termination when the relevant failure is already evident on an early screen. Longer validation requires a concrete reason and a separate budget. This documentation update makes no new runtime or performance claim.
 
 ---

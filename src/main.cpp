@@ -424,6 +424,7 @@ int main(int argc, char* argv[]) {
     uint64_t executedSteps = 0;
     size_t peripheralPhase = 0;
     EmulationClock emulationClock;
+    InterpreterExecution execution(cpu, bus);
     uint64_t guestTicks = 0, idleTicks = 0, guiTicks = 0;
     std::cout << "[Timing] Mode: " << (autoTiming ? "automatic register clocks (experimental)" : "legacy instruction ratio") << '\n';
     if (autoTiming) std::cout << "[Timing] Instruction-ratio and MIPS pacing disabled; using modeled CPU time.\n";
@@ -731,10 +732,10 @@ int main(int argc, char* argv[]) {
                 HostCostTimer cpuCost(hostCostRunning, hostCpuNs);
                 if (autoTiming) {
                     const uint64_t guiDeadline = gui && guiTicks <= UINT64_MAX - 20000 ? guiTicks + 20000 : UINT64_MAX;
-                    executedSteps += runClockedInstructions(cpu, bus, emulationClock, budget,
+                    executedSteps += execution.runClocked(emulationClock, budget,
                         std::min(tickLimit, guiDeadline), guestTicks);
                 } else {
-                    executedSteps += runLegacyInstructions(cpu, budget, cpuStepsPerTick, peripheralPhase, guestTicks);
+                    executedSteps += execution.runLegacy(budget, cpuStepsPerTick, peripheralPhase, guestTicks);
                 }
                 continue;
             }
@@ -822,17 +823,10 @@ int main(int argc, char* argv[]) {
         }
         if (autoTiming) {
             HostCostTimer cpuCost(hostCostRunning, hostCpuNs);
-            const u32 fclk = cpu.getExecutionClock();
-            cpu.step(0);
-            const uint64_t amount = emulationClock.advance(cpu.getLastCycles(), fclk);
-            bus.tick(amount);
-            guestTicks = emulationClock.elapsedTicks();
+            execution.stepClocked(emulationClock, guestTicks);
         } else {
             HostCostTimer cpuCost(hostCostRunning, hostCpuNs);
-            const bool advance = peripheralPhase == 0;
-            cpu.step(advance ? 1 : 0);
-            guestTicks += advance;
-            if (++peripheralPhase == cpuStepsPerTick) peripheralPhase = 0;
+            execution.stepLegacy(cpuStepsPerTick, peripheralPhase, guestTicks);
         }
         executedSteps++;
     }

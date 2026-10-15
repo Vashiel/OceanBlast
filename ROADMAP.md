@@ -47,4 +47,6 @@ Long gameplay sweeps, repeated benchmark pairs and broad cartridge coverage are 
 
 ## First implementation slice
 
-Start with P0: select an existing affected-cartridge fixture and the earliest useful screen, document a short check, and record the current executable and settings. Then take one P1 slice that introduces the execution boundary without changing instruction semantics, timing policy or cartridge presets. Do not combine this with TLB corrections, new optimizations or frontend redesign.
+The [first execution slice and short check](docs/58_execution_boundary_and_short_checks.md) are recorded as of 2026-10-15. P0 now has a bounded title-screen procedure and executable/settings records; selection and measurement of a weak target CPU remain open. P1 now shares one interpreter execution boundary between single steps and batches. CPU-state separation remains open. Instruction semantics, timing policy and cartridge presets were retained.
+
+Next: take a separate P1 task to extract architectural CPU state without changing its execution behavior. Keep TLB corrections, new optimizations and frontend redesign outside that task.
