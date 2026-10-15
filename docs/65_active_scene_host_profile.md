@@ -39,6 +39,8 @@ One UART level-interrupt check line accounts for 4.1% of samples; the major ARM 
 
 ## Next candidate
 
+Outcome: the subsequent [flag-setting immediate experiment](66_immediate_flags_experiment.md) passes correctness checks but loses throughput in its one active-scene pair. The candidate below was rejected and remains historical scope, not pending work.
+
 Test a narrow direct path for unconditional immediate ARM arithmetic/logical operations that set NZCV flags. The retained shortcut currently accepts only the no-flags subset. The general simple-ALU routine and dispatcher remain material in this active sample, making a bounded extension a better next hypothesis than another unmeasured LDM change. This profile does not reveal the frequency of eligible flag-setting immediate instructions, so it does not predict a gain.
 
 Keep carry-dependent arithmetic, conditional instructions, PC operands and unsupported encodings on the existing path initially. Verify rotated-immediate shifter carry, arithmetic carry/overflow and preservation of unaffected flags against the reference interpreter. Keep the existing no-flags path inexpensive. Use one matching-build active-scene comparison; reject a loss or inconclusive difference. The previously rejected register-operand extension is not reinstated. No candidate implementation or new executable is delivered by this profiling task.

@@ -1,0 +1,43 @@
+--- a/src/cpu/arm920t.cpp
++++ b/src/cpu/arm920t.cpp
+@@ -216 +216 @@
+-// Immediate ALU operations that preserve flags need no carry or shifter state.
++// Direct immediate ALU operations; carry-dependent arithmetic stays in the decoder.
+@@ -218,2 +218 @@
+-static inline bool executeImmediateNoFlags(ARM920TState& state,u32 instr) {
+-    if (instr & (1u<<20)) return false;
++static inline bool executeImmediateAlu(ARM920TState& state,u32 instr) {
+@@ -238,0 +238,18 @@
++    if (instr & (1u<<20)) {
++        constexpr u32 negative=0x80000000u, zero=0x40000000u;
++        constexpr u32 carry=0x20000000u, overflow=0x10000000u;
++        u32 flags=(result & negative) | (result==0 ? zero : 0);
++        if (opcode==2 || opcode==3) {
++            const u32 a=opcode==2 ? left : right;
++            const u32 b=opcode==2 ? right : left;
++            if (a>=b) flags|=carry;
++            if ((a^b)&(a^result)&negative) flags|=overflow;
++        } else if (opcode==4) {
++            if (static_cast<u64>(left)+right>0xffffffffULL) flags|=carry;
++            if ((left^result)&(right^result)&negative) flags|=overflow;
++        } else {
++            flags|=state.cpsr & overflow;
++            if (rotation ? (right & negative)!=0 : (state.cpsr & carry)!=0) flags|=carry;
++        }
++        state.cpsr=(state.cpsr & 0x0fffffffu)|flags;
++    }
+@@ -272 +289 @@
+-               executeImmediateNoFlags(state,instruction)) {
++               executeImmediateAlu(state,instruction)) {
+--- a/tests/cpu_regression.cpp
++++ b/tests/cpu_regression.cpp
+@@ -83,2 +83,2 @@
+-        for (u32 rotation=0;rotation<16;++rotation) for (u32 immediate:{0u,1u,255u}) for (u32 left:edges) {
+-          const u32 instruction=0xe2000000|(opcode<<21)|(1u<<16)|(rotation<<8)|immediate;
++        for (u32 rotation=0;rotation<16;++rotation) for (u32 immediate:{0u,1u,127u,128u,255u}) for (u32 left:edges) for (bool setFlags:{false,true}) {
++          const u32 instruction=0xe2000000|(u32(setFlags)<<20)|(opcode<<21)|(1u<<16)|(rotation<<8)|immediate;
+@@ -157,2 +157,2 @@
+-      for(unsigned flags=0;flags<16;++flags)for(unsigned condition=0;condition<16;++condition){
+-          for(Bus* b:{&fastBus,&referenceBus}){b->write32(0x30000000,0xe128f004);b->write32(0x30000004,(condition<<28)|0x02810003);}
++      for(unsigned flags=0;flags<16;++flags)for(unsigned condition=0;condition<16;++condition)for(bool setFlags:{false,true}){
++          for(Bus* b:{&fastBus,&referenceBus}){b->write32(0x30000000,0xe128f004);b->write32(0x30000004,(condition<<28)|(u32(setFlags)<<20)|0x02810003);}

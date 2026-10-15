@@ -69,3 +69,5 @@ The subsequent [MMU table-walk outlining experiment](docs/63_mmu_outline_experim
 The [LDM RAM-span experiment](docs/64_ldm_ram_span_experiment.md) also produced no useful gain and was rejected. Before another memory candidate, profile costs and instruction frequency in the active gameplay section; the earlier startup sample does not establish that LDM translation is a material bottleneck there.
 
 The [active-scene host profile](docs/65_active_scene_host_profile.md) now supplies the requested gameplay sample. It prioritizes a bounded direct path for flag-setting immediate ARM operations as the next hypothesis, subject to flag correctness and one active-scene comparison. No implementation gain is claimed from sampling.
+
+The [flag-setting immediate extension](docs/66_immediate_flags_experiment.md) passes reference checks but loses throughput in its single active-scene pair and was rejected. The no-flags path remains unchanged. Before another special case, establish the eligible guest-instruction mix and account for the rejected extensions rather than using function-level sample share as a speedup prediction.
