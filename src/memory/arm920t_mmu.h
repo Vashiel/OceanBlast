@@ -44,9 +44,9 @@ public:
         const TlbEntry& entry = tlb[idx];
         if (entry.valid && entry.vpn == vpn) {
             if (userMode) {
-                u32 ap = entry.ap;
+                const u32 ap = (entry.accessPermissions >> (((va >> 10) & 3) * 2)) & 3;
                 if (ap == 0 || ap == 1 || (ap == 2 && isWrite)) {
-                    if (fault) *fault = MmuFault::PAGE_PERMISSION_FAULT;
+                    if (fault) *fault = entry.section ? MmuFault::SECTION_PERMISSION_FAULT : MmuFault::PAGE_PERMISSION_FAULT;
                     return 0xFFFFFFFF;
                 }
             }
@@ -66,7 +66,8 @@ private:
     struct TlbEntry {
         u32 vpn = 0xFFFFFFFF;
         u32 paBase = 0;
-        u8  ap = 0;
+        u8 accessPermissions = 0; // Four 1-KB subregion AP fields.
+        bool section = false;
         bool valid = false;
     };
     static constexpr size_t TLB_SIZE = 2048;
@@ -100,7 +101,8 @@ inline u32 Arm920TMmu::translateSlow(u32 va, const u8* ram, MmuFault* fault, boo
             u32 pa = (desc & 0xFFF00000) | (va & 0x000FFFFF);
             tlb[idx].vpn = vpn;
             tlb[idx].paBase = pa & ~0xFFF;
-            tlb[idx].ap = ap;
+            tlb[idx].accessPermissions = static_cast<u8>(ap * 0x55);
+            tlb[idx].section = true;
             tlb[idx].valid = true;
             tlbEmpty = false;
             return pa;
@@ -123,7 +125,8 @@ inline u32 Arm920TMmu::translateSlow(u32 va, const u8* ram, MmuFault* fault, boo
                     u32 pa = (pte & 0xFFFFF000) | (va & 0xFFF);
                     tlb[idx].vpn = vpn;
                     tlb[idx].paBase = pa & ~0xFFF;
-                    tlb[idx].ap = ap;
+                    tlb[idx].accessPermissions = static_cast<u8>((pte >> 4) & 0xff);
+                    tlb[idx].section = false;
                     tlb[idx].valid = true;
                     tlbEmpty = false;
                     return pa;
@@ -139,7 +142,8 @@ inline u32 Arm920TMmu::translateSlow(u32 va, const u8* ram, MmuFault* fault, boo
                     u32 pa = (pte & 0xFFFF0000) | (va & 0xFFFF);
                     tlb[idx].vpn = vpn;
                     tlb[idx].paBase = pa & ~0xFFF;
-                    tlb[idx].ap = ap;
+                    tlb[idx].accessPermissions = static_cast<u8>(ap * 0x55);
+                    tlb[idx].section = false;
                     tlb[idx].valid = true;
                     tlbEmpty = false;
                     return pa;
@@ -159,7 +163,8 @@ inline u32 Arm920TMmu::translateSlow(u32 va, const u8* ram, MmuFault* fault, boo
         u32 pa = (va - 0xC0000000) + ADDR_SDRAM_BASE;
         tlb[idx].vpn = vpn;
         tlb[idx].paBase = pa & ~0xFFF;
-        tlb[idx].ap = 3;
+        tlb[idx].accessPermissions = 0xff;
+        tlb[idx].section = false;
         tlb[idx].valid = true;
         tlbEmpty = false;
         return pa;
