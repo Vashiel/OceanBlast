@@ -55,7 +55,7 @@ The [first execution slice](docs/58_execution_boundary_and_short_checks.md) and 
 | P1 | Independent modeled CPU-state structure and shared single/batch interpreter boundary | Actual alternative execution engine and safe state handoff; current CPU still owns its state. |
 | P2 | Scheduler owns legacy phase, register-clock fractions, device deadlines and idle advancement | Hardware timing calibration and finer scheduling remain open; register-clock mode is experimental. |
 | P3 | Standalone MMU, independent checks, cached subpage rights and section-fault corrections | Domain-control, system/ROM protection and unsupported descriptor behavior need architectural review. |
-| P4 | One isolated decoder-cache prototype evaluated and rejected after a short slower pair | A block execution engine or JIT remains unimplemented. Do not repeat the rejected cache design without new evidence. |
+| P4 | Decoder-cache prototype rejected after a slower pair; simpler [legacy phase batches](docs/60_legacy_phase_batches.md) retained after matching guest state and a faster short pair | A block execution engine or JIT remains unimplemented. PGO and weak-device gains are not established by the developer-build pair. |
 | P5 | Shared machine owner used by the application and runtime probe | Frontend orchestration and other tools can be migrated when needed; no broad UI rewrite is scheduled. |
 
 Next performance slice: define a block execution path that can remove dispatch work while preserving instruction/fault/interrupt boundaries. Choose a host-specific backend only after the weak target CPU is identified. The initial structural slices are delivered; universal weak-hardware performance and full architectural fidelity remain open.

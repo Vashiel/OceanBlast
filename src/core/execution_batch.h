@@ -1,6 +1,7 @@
 #pragma once
 #include "cpu/arm920t.h"
 #include "emulation_clock.h"
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 
@@ -30,8 +31,20 @@ public:
 
     size_t runLegacy(size_t budget, size_t ratio, size_t& phase, uint64_t& guestTicks) {
         size_t retired = 0;
-        for (; retired < budget && !cpu.isHalted(); ++retired) {
-            stepLegacy(ratio, phase, guestTicks);
+        while (retired < budget && !cpu.isHalted()) {
+            if (phase == 0) {
+                cpu.step(1);
+                ++guestTicks;
+                ++retired;
+                phase = ratio == 1 ? 0 : 1;
+            }
+            if (phase == 0) continue;
+            const size_t count = std::min(budget-retired,ratio-phase);
+            size_t completed = 0;
+            for (; completed < count && !cpu.isHalted(); ++completed) cpu.step(0);
+            retired += completed;
+            phase += completed;
+            if (phase == ratio) phase = 0;
         }
         return retired;
     }
