@@ -6,6 +6,8 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ## 2026-10-15 — Prioritized Roadmap and Bounded Validation
 
+* **[Active-Scene Host Profile](docs/65_active_scene_host_profile.md):** A bounded sample of the current gameplay replay identifies ARM execution/dispatch as the largest resolved source group. Final guest state matches the reference. The next proposed candidate is a narrow flag-setting immediate-ALU path; the profiling task changes no execution code or installed binary.
+
 * **[LDM RAM-Span Experiment](docs/64_ldm_ram_span_experiment.md):** A candidate translates consecutive LDM RAM reads once inside a single 1-KB rights region. It passes targeted partial-abort, boundary and addressing checks, but its one active-scene pair shows no benefit. The candidate was rejected; production code and the installed executable remain unchanged.
 
 * **[MMU Outlining Experiment](docs/63_mmu_outline_experiment.md):** An isolated table-walk outlining candidate passes MMU, CPU and timing checks and preserves the active gameplay state. Its one comparison shows no useful throughput gain, so the patch was rejected. Production source and the installed launcher remain unchanged.

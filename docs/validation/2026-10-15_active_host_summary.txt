@@ -1,0 +1,78 @@
+In-module samples: 2194
+Category,samples,percent
+cpu,1484,67.6
+memory,541,24.7
+core,157,7.2
+display,5,0.2
+runtime_or_unknown,3,0.1
+audio,2,0.1
+main,2,0.1
+
+Top functions:
+  440  20.1% cpu                oceanblast::ARM920T::stepARM(unsigned int)
+  372  17.0% cpu                oceanblast::ARM920T::step(unsigned long long)
+  294  13.4% cpu                oceanblast::ARM920T::executeSimpleDataProcessing(unsigned int)
+  172   7.8% memory             oceanblast::Bus::tick(unsigned long long)
+  164   7.5% memory             oceanblast::Arm920TMmu::translate(unsigned int, unsigned char const*, oceanblast::Arm920TMmu::MmuFault*, bool) const
+  156   7.1% core               oceanblast::InterpreterExecution::runLegacy(unsigned long long, unsigned long long, unsigned long long&, unsigned long long&)
+  139   6.3% cpu                executeImmediateNoFlags
+   88   4.0% memory             oceanblast::Bus::readInstruction(unsigned int, bool, oceanblast::Arm920TMmu::MmuFault&)
+   52   2.4% cpu                oceanblast::ARM920T::executeBlockDataTransfer(unsigned int)
+   44   2.0% cpu                oceanblast::ARM920T::executeHalfwordTransfer(unsigned int)
+   39   1.8% cpu                oceanblast::ARM920T::executeSingleDataTransfer(unsigned int)
+   31   1.4% cpu                oceanblast::ARM920T::evaluateCondition(unsigned int) const
+   31   1.4% memory             oceanblast::Timer4::advance(unsigned long long)
+   19   0.9% memory             oceanblast::Timer4::isRunning() const
+   18   0.8% memory             oceanblast::Bus::read32Phys(unsigned int)
+   17   0.8% cpu                readRotatedWord
+   15   0.7% cpu                oceanblast::ARM920T::setSubFlags(unsigned int, unsigned int, unsigned int)
+   13   0.6% cpu                oceanblast::ARM920T::executeBranch(unsigned int)
+   11   0.5% memory             oceanblast::Bus::tickAdcI2c(unsigned long long)
+   10   0.5% memory             oceanblast::Bus::captureFrameWrite(unsigned int, unsigned int)
+   10   0.5% cpu                oceanblast::ARM920T::executeMultiply(unsigned int)
+    8   0.4% cpu                oceanblast::ARM920T::setNZFlags(unsigned int)
+    8   0.4% cpu                oceanblast::ARM920T::setAddFlags(unsigned int, unsigned int, unsigned int)
+    7   0.3% memory             oceanblast::Bus::getLastFault() const
+    5   0.2% memory             oceanblast::Bus::write32(unsigned int, unsigned int)
+
+Top source lines:
+  117   5.3% src/cpu/arm920t.cpp:564
+  102   4.6% src/memory/arm920t_mmu.h:45
+   90   4.1% src/memory/bus.h:250
+   85   3.9% src/cpu/arm920t.cpp:475
+   82   3.7% src/cpu/arm920t.cpp:608
+   79   3.6% src/cpu/arm920t.cpp:242
+   77   3.5% src/core/execution_batch.h:44
+   72   3.3% src/cpu/arm920t.cpp:261
+   48   2.2% src/cpu/arm920t.cpp:279
+   42   1.9% src/cpu/arm920t.cpp:566
+   42   1.9% src/memory/bus.h:110
+   39   1.8% src/cpu/arm920t.cpp:477
+   39   1.8% src/cpu/arm920t.cpp:246
+   39   1.8% src/cpu/arm920t.cpp:270
+   31   1.4% src/cpu/arm920t.cpp:300
+   31   1.4% src/memory/bus.h:251
+   30   1.4% src/cpu/arm920t.cpp:588
+   29   1.3% src/memory/bus.h:111
+   29   1.3% src/cpu/arm920t.cpp:222
+   27   1.2% src/cpu/arm920t.cpp:219
+   25   1.1% src/cpu/arm920t.cpp:473
+   25   1.1% src/cpu/arm920t.cpp:275
+   24   1.1% src/cpu/arm920t.cpp:220
+   24   1.1% src/cpu/arm920t.cpp:221
+   23   1.0% src/cpu/arm920t.cpp:380
+   21   1.0% src/core/execution_batch.h:34
+   20   0.9% src/cpu/arm920t.cpp:383
+   20   0.9% src/memory/timer4.h:32
+   19   0.9% src/cpu/arm920t.cpp:401
+   19   0.9% src/cpu/arm920t.cpp:584
+   19   0.9% src/cpu/arm920t.cpp:250
+   19   0.9% src/memory/timer4.h:24
+   18   0.8% src/cpu/arm920t.cpp:429
+   18   0.8% src/cpu/arm920t.cpp:443
+   18   0.8% src/cpu/arm920t.cpp:278
+   18   0.8% src/memory/bus.h:265
+   17   0.8% src/cpu/arm920t.cpp:387
+   17   0.8% src/memory/bus.h:254
+   16   0.7% src/cpu/arm920t.cpp:403
+   16   0.7% src/cpu/arm920t.cpp:13
