@@ -1,0 +1,41 @@
+--- a/src/cpu/arm920t.cpp
++++ b/src/cpu/arm920t.cpp
+@@ -215,0 +216,33 @@
++// Plain ALU operations preserve flags and need no carry or register shifter.
++// The caller has selected unconditional ARM data-processing classes 0/1.
++static inline bool executePlainAlu(ARM920TState& state,u32 instr) {
++    if (instr & (1u<<20)) return false;
++    const u32 opcode=(instr>>21)&15, rn=(instr>>16)&15, rd=(instr>>12)&15;
++    if (rn==15 || rd==15 || (opcode>=5 && opcode<=11)) return false;
++    u32 right;
++    if (instr & (1u<<25)) {
++        const u32 rotation=((instr>>8)&15)*2, value=instr&255;
++        right=rotation?(value>>rotation)|(value<<(32-rotation)):value;
++    } else {
++        const u32 rm=instr&15;
++        if ((instr&0xff0u) || rm==15) return false;
++        right=state.r[rm];
++    }
++    const u32 left=state.r[rn];
++    u32 result;
++    switch (opcode) {
++        case 0: result=left&right; break;
++        case 1: result=left^right; break;
++        case 2: result=left-right; break;
++        case 3: result=right-left; break;
++        case 4: result=left+right; break;
++        case 12: result=left|right; break;
++        case 13: result=right; break;
++        case 14: result=left&~right; break;
++        case 15: result=~right; break;
++        default: return false;
++    }
++    state.r[rd]=result;
++    return true;
++}
++
+@@ -243,0 +277,4 @@
++    } else if (simpleAluExecution && !debugLogging &&
++               (instruction & 0xfc000000u) == 0xe0000000u &&
++               executePlainAlu(state,instruction)) {
++        state.r[15] += 4;

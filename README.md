@@ -126,6 +126,8 @@ The [machine-core implementation report](docs/59_machine_core_and_decoder_experi
 
 [Legacy phase batches](docs/60_legacy_phase_batches.md) reduce interpreter bookkeeping and include a short developer-build comparison and local PGO title check. The goal is broad usability on old, low-end hardware. Portable core improvements proceed without requiring a particular device model; actual weak-device speed remains to be measured.
 
+The subsequent [ARM dispatch measurement](docs/61_arm_dispatch_measurement.md) records a narrow immediate-operation shortcut and the short checks used to retain it.
+
 ## Building, Testing & Command-Line Usage
 
 ### Prerequisites

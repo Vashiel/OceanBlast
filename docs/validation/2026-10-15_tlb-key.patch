@@ -1,0 +1,44 @@
+--- a/src/memory/arm920t_mmu.h
++++ b/src/memory/arm920t_mmu.h
+@@ -29 +29 @@
+-    void flushTlbEntry(u32 va) const { tlb[(va >> 12) & (TLB_SIZE - 1)].valid = false; }
++    void flushTlbEntry(u32 va) const { tlb[(va >> 12) & (TLB_SIZE - 1)].vpn = INVALID_VPN; }
+@@ -32 +32 @@
+-        for (auto& entry : tlb) entry.valid = false;
++        for (auto& entry : tlb) entry.vpn = INVALID_VPN;
+@@ -45 +45 @@
+-        if (entry.valid && entry.vpn == vpn) {
++        if (entry.vpn == vpn) {
+@@ -65,0 +66 @@
++    static constexpr u32 INVALID_VPN = UINT32_MAX;
+@@ -67 +68 @@
+-        u32 vpn = 0xFFFFFFFF;
++        u32 vpn = INVALID_VPN;
+@@ -71 +71,0 @@
+-        bool valid = false;
+@@ -106 +105,0 @@
+-            tlb[idx].valid = true;
+@@ -130,2 +129 @@
+-                    tlb[idx].valid = true;
+-                    tlbEmpty = false;
++                            tlbEmpty = false;
+@@ -147,2 +145 @@
+-                    tlb[idx].valid = true;
+-                    tlbEmpty = false;
++                            tlbEmpty = false;
+@@ -168 +164,0 @@
+-        tlb[idx].valid = true;
+--- a/tests/mmu_translation.cpp
++++ b/tests/mmu_translation.cpp
+@@ -73,0 +74,11 @@
++    mmu.flushTlb();
++    mmu.translate(UINT32_MAX,ram.data(),&fault);
++    check("Invalid TLB entries cannot match the highest virtual page",
++        fault==Fault::SECTION_TRANSLATION_FAULT);
++    write(table+0x3ffc,0x30000c02);
++    check("Highest virtual page maps and survives a cached lookup",
++        mmu.translate(UINT32_MAX,ram.data(),&fault)==0x300fffff && fault==Fault::NONE &&
++        mmu.translate(UINT32_MAX,ram.data(),&fault)==0x300fffff && fault==Fault::NONE);
++    write(table+0x3ffc,0x30200c02); mmu.flushTlbEntry(UINT32_MAX);
++    check("Highest virtual page single-entry invalidation reveals its new mapping",
++        mmu.translate(UINT32_MAX,ram.data(),&fault)==0x302fffff && fault==Fault::NONE);

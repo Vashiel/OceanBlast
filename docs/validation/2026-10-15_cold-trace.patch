@@ -1,0 +1,23 @@
+--- a/src/cpu/arm920t.h
++++ b/src/cpu/arm920t.h
+@@ -84,0 +85 @@
++    void traceARM(u32 pc);
+--- a/src/cpu/arm920t.cpp
++++ b/src/cpu/arm920t.cpp
+@@ -445,3 +445,6 @@
+-void ARM920T::stepARM(u32 instr) {
+-    u32 pc = state.r[15];
+-    if (debugLogging) {
++#if defined(__GNUC__)
++__attribute__((cold,noinline))
++#elif defined(_MSC_VER)
++__declspec(noinline)
++#endif
++void ARM920T::traceARM(u32 pc) {
+@@ -526 +529,5 @@
+-    }
++}
++
++void ARM920T::stepARM(u32 instr) {
++    u32 pc = state.r[15];
++    if (debugLogging) traceARM(pc);
