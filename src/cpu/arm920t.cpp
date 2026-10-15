@@ -213,6 +213,32 @@ void ARM920T::dumpState() const {
     }
 }
 
+// Immediate ALU operations that preserve flags need no carry or shifter state.
+// The caller has selected unconditional ARM instruction class 1.
+static inline bool executeImmediateNoFlags(ARM920TState& state,u32 instr) {
+    if (instr & (1u<<20)) return false;
+    const u32 opcode=(instr>>21)&15, rn=(instr>>16)&15, rd=(instr>>12)&15;
+    if (rn==15 || rd==15 || (opcode>=5 && opcode<=11)) return false;
+    const u32 rotation=((instr>>8)&15)*2, value=instr&255;
+    const u32 right=rotation?(value>>rotation)|(value<<(32-rotation)):value;
+    const u32 left=state.r[rn];
+    u32 result;
+    switch (opcode) {
+        case 0: result=left&right; break;
+        case 1: result=left^right; break;
+        case 2: result=left-right; break;
+        case 3: result=right-left; break;
+        case 4: result=left+right; break;
+        case 12: result=left|right; break;
+        case 13: result=right; break;
+        case 14: result=left&~right; break;
+        case 15: result=~right; break;
+        default: return false;
+    }
+    state.r[rd]=result;
+    return true;
+}
+
 void ARM920T::step(size_t peripheralTicks) {
     lastCycles = 1;
     if (state.halted) return;
@@ -241,6 +267,10 @@ void ARM920T::step(size_t peripheralTicks) {
 
     if (thumb) {
         stepThumb(static_cast<u16>(instruction));
+    } else if (simpleAluExecution && !debugLogging &&
+               (instruction & 0xfe000000u) == 0xe2000000u &&
+               executeImmediateNoFlags(state,instruction)) {
+        state.r[15] += 4;
     } else {
         stepARM(instruction);
     }

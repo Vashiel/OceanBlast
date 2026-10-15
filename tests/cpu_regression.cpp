@@ -79,6 +79,24 @@ int main() {
     { Bus fastBus,referenceBus; ARM920T fast(fastBus),reference(referenceBus);
       reference.setSimpleAluExecution(false); bool equivalent=true;
       const u32 edges[]={0,1,0x7fffffff,0x80000000,0xffffffff};
+      for (u32 flags=0;flags<16;++flags) for (u32 opcode:{0u,1u,2u,3u,4u,12u,13u,14u,15u})
+        for (u32 rotation=0;rotation<16;++rotation) for (u32 immediate:{0u,1u,255u}) for (u32 left:edges) {
+          const u32 instruction=0xe2000000|(opcode<<21)|(1u<<16)|(rotation<<8)|immediate;
+          for (Bus* bus:{&fastBus,&referenceBus}) {
+            bus->write32(0x30000000,0xe128f004); bus->write32(0x30000004,instruction);
+          }
+          for (ARM920T* cpu:{&fast,&reference}) {
+            cpu->setReg(0,0x12345678); cpu->setReg(1,left); cpu->setReg(4,flags<<28);
+            cpu->setReg(15,0x30000000); cpu->step(); cpu->step();
+          }
+          for (int reg=0;reg<16;++reg) equivalent=equivalent&&fast.getReg(reg)==reference.getReg(reg);
+          equivalent=equivalent&&fast.getCPSR()==reference.getCPSR()&&fast.getLastCycles()==reference.getLastCycles();
+        }
+      check("Immediate ALU path preserves rotations edge arithmetic flags and cycle counts",equivalent);
+    }
+    { Bus fastBus,referenceBus; ARM920T fast(fastBus),reference(referenceBus);
+      reference.setSimpleAluExecution(false); bool equivalent=true;
+      const u32 edges[]={0,1,0x7fffffff,0x80000000,0xffffffff};
       for (unsigned nzcv=0;nzcv<16;++nzcv) for (u32 opcode:{0u,1u,2u,3u,4u,8u,9u,10u,11u,12u,13u,14u,15u})
         for (u32 left:edges) for (u32 right:edges) for (bool immediate:{false,true}) {
           // Logical rotated immediates replace C; unshifted registers preserve
