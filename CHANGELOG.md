@@ -4,6 +4,12 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ---
 
+## 2026-10-15 — Prioritized Roadmap and Bounded Validation
+
+* **[Development Roadmap](ROADMAP.md):** Added ordered architecture milestones for weaker-CPU performance, with explicit goals, rationale and completion criteria. Defined per-task time budgets, short contributor self-tests as the primary routine check, and immediate termination when the relevant failure is already evident on an early screen. Longer validation requires a concrete reason and a separate budget. This documentation update makes no new runtime or performance claim.
+
+---
+
 ## 2026-10-14 — TLB Cold-Fault and Large-Page Checks
 
 * **[TLB Permission-Tag Candidate Checks](docs/57_tlb_permission_tag_candidates.md):** The fourth isolated candidate preserves existing TLB entries on denied cold translations. Additional ROM-free probes cover colliding entries and all sixteen large-page slices across privilege transitions. The targeted diagnostics and CPU/timing/UART suites pass; performance and gameplay acceptance remain separate checks.
