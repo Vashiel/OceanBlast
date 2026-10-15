@@ -73,4 +73,4 @@ The [results](validation/2026-10-15_decoded_blocks.csv) and [candidate patch](va
 
 The subsequent [legacy phase-batch change](60_legacy_phase_batches.md) reduces per-instruction phase bookkeeping and records a separate short comparison. It does not reuse the rejected decoder cache.
 
-The next performance task should target an execution path that can remove repeated dispatch work, rather than repeat the rejected operand-cache design. A real block engine also needs explicit fallback, fault, interrupt and modified-code boundaries. Select the intended weak CPU before committing to a host-specific JIT backend. Broad gameplay and release validation remain separate, budgeted work.
+The next performance task should target an execution path that can remove repeated dispatch work, rather than repeat the rejected operand-cache design. A real block engine also needs explicit fallback, fault, interrupt and modified-code boundaries. Keep portable interpreter improvements independent of a particular device model; a host-specific JIT backend needs its own platform decision. Broad gameplay and release validation remain separate, budgeted work.
