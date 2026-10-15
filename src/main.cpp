@@ -13,7 +13,7 @@
 #include "core/cartridge_settings.h"
 #include "core/cartridge_language.h"
 #include "core/emulation_clock.h"
-#include "core/execution_scheduler.h"
+#include "core/machine.h"
 #include "core/host_pacer.h"
 #include "core/guest_symbols.h"
 #include "memory/bus.h"
@@ -292,7 +292,8 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    oceanblast::Bus bus;
+    oceanblast::Machine machine;
+    auto& bus = machine.bus();
     if (!nvramPath.empty()) {
         std::error_code error;
         const bool existing = std::filesystem::exists(nvramPath, error);
@@ -367,11 +368,11 @@ int main(int argc, char* argv[]) {
               << "; profile: " << (displayProfile == DisplayProfile::CrazyJack ? "Crazy Jack" : "LCD registers") << '\n';
 
     // Initialize ARM920T CPU
-    oceanblast::ARM920T cpu(bus);
+    auto& cpu = machine.cpu();
     cpu.reset(0x00000000); // Boot from Steppingstone SRAM
     cpu.setSimpleAluExecution(simpleAluExecution);
     cpu.setFpa11Execution(fpa11Execution);
-    cpu.setCycleTiming(autoTiming);
+    machine.configureExecution(autoTiming, cpuStepsPerTick);
     cpu.setDebugLogging(debug || trace);
     cpu.setFaultLogging(faultLog);
     bus.setI2cLogging(i2cLog);
@@ -422,7 +423,7 @@ int main(int argc, char* argv[]) {
     }
 
     uint64_t executedSteps = 0;
-    ExecutionScheduler execution(cpu, bus, autoTiming, cpuStepsPerTick);
+    auto& execution = machine.execution();
     const auto& guestTicks = execution.time().ticks;
     const auto& idleTicks = execution.time().idleTicks;
     uint64_t guiTicks = 0;

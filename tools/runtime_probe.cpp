@@ -1,5 +1,5 @@
 // Controlled CPU/peripheral ratio probe. No host pacing, audio device or input.
-#include "cpu/arm920t.h"
+#include "core/machine.h"
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -16,10 +16,13 @@ int main(int argc, char** argv) {
     try { budget = std::stoull(argv[2]); ratio = std::stoull(argv[3]); }
     catch (...) { return 1; }
     if (!budget || !ratio || ratio > 16 || budget > std::numeric_limits<uint64_t>::max() / ratio) return 1;
-    Bus bus;
+    Machine machine;
+    auto& bus=machine.bus();
     if (argc == 6 && !bus.loadEeprom(argv[5])) return 1;
     if (!bus.loadCartridge(argv[1])) return 1;
-    ARM920T cpu(bus); cpu.reset();
+    auto& cpu=machine.cpu(); cpu.reset();
+    machine.configureExecution(false,static_cast<size_t>(ratio));
+    auto& execution=machine.execution();
     uint64_t samples = 0, changes = 0;
     bus.setAudioCallback([&](const int16_t*, size_t count) { samples += count; });
     std::ofstream out(argv[4]);
@@ -31,7 +34,7 @@ int main(int argc, char** argv) {
     bool havePrevious = false;
     const uint64_t period = 200000; // 100 polls/s of the existing 20M-tick model.
     for (uint64_t step = 0; step < budget * ratio && !cpu.isHalted(); ++step) {
-        cpu.step(step % ratio == 0 ? 1 : 0);
+        execution.step();
         if ((step + 1) % (period * ratio)) continue;
         const uint32_t address = (bus.getMmio(0x4d000014) & 0x1fffffff) << 1;
         const size_t stride = std::max(bus.getFramebufferStride(), bus.isLcd16Bpp() ? size_t(480) : size_t(360));

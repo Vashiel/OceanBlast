@@ -17,6 +17,7 @@ HEADERS = src/core/types.h \
           src/core/emulation_clock.h \
           src/core/execution_batch.h \
           src/core/execution_scheduler.h \
+          src/core/machine.h \
           src/core/host_pacer.h \
           src/core/cartridge_settings.h \
           src/core/cartridge_language.h \
@@ -72,6 +73,7 @@ $(TARGET): $(OBJS) $(RES_OBJ)
 
 test: build/frame_latch.exe build/emulation_timing.exe build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
 	./build/mmu_translation.exe
+	./build/machine.exe
 	./build/mp3_storage.exe
 	./build/usb_storage.exe
 	./build/cartridge_settings.exe
@@ -174,6 +176,8 @@ build/runtime_probe.exe: tools/runtime_probe.cpp src/cpu/arm920t.cpp src/memory/
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
 
+build/runtime_probe.exe: src/core/machine.h src/core/execution_scheduler.h src/core/execution_batch.h src/core/emulation_clock.h
+
 build/capture_audio.exe: tools/capture_audio.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cpu/arm920t.h src/memory/bus.h src/memory/i2c_eeprom.h src/memory/timer4.h src/audio/resampler.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
@@ -234,6 +238,10 @@ build/cartridge_loading.exe: tests/cartridge_loading.cpp src/memory/bus.cpp $(HE
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
 
 test: build/mmu_translation.exe
+test: build/machine.exe
+build/machine.exe: tests/machine.cpp src/cpu/arm920t.cpp src/memory/bus.cpp $(HEADERS)
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
 build/mmu_translation.exe: tests/mmu_translation.cpp src/memory/arm920t_mmu.h src/memory/address_map.h src/core/types.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $<
