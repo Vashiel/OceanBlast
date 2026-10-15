@@ -13,7 +13,7 @@
 #include "core/cartridge_settings.h"
 #include "core/cartridge_language.h"
 #include "core/emulation_clock.h"
-#include "core/execution_batch.h"
+#include "core/execution_scheduler.h"
 #include "core/host_pacer.h"
 #include "core/guest_symbols.h"
 #include "memory/bus.h"
@@ -422,10 +422,10 @@ int main(int argc, char* argv[]) {
     }
 
     uint64_t executedSteps = 0;
-    size_t peripheralPhase = 0;
-    EmulationClock emulationClock;
-    InterpreterExecution execution(cpu, bus);
-    uint64_t guestTicks = 0, idleTicks = 0, guiTicks = 0;
+    ExecutionScheduler execution(cpu, bus, autoTiming, cpuStepsPerTick);
+    const auto& guestTicks = execution.time().ticks;
+    const auto& idleTicks = execution.time().idleTicks;
+    uint64_t guiTicks = 0;
     std::cout << "[Timing] Mode: " << (autoTiming ? "automatic register clocks (experimental)" : "legacy instruction ratio") << '\n';
     if (autoTiming) std::cout << "[Timing] Instruction-ratio and MIPS pacing disabled; using modeled CPU time.\n";
     else std::cout << "[Timing] CPU steps per peripheral tick: " << cpuStepsPerTick
@@ -705,13 +705,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        if (autoTiming && cpu.isWaitingForInterrupt() && !bus.hasPendingIrq()) {
-            const uint64_t amount = std::min(bus.ticksUntilEvent(), tickLimit - guestTicks);
-            bus.tick(amount);
-            emulationClock.advanceIdle(amount);
-            guestTicks += amount; idleTicks += amount;
-            continue;
-        }
+        if (execution.advanceIdle(tickLimit)) continue;
         if (executionBatch > 1 && enteredSdram && !cpu.isWaitingForInterrupt() && !debug && !trace && !traceRange && !faultLog &&
             !pcProfileInterval && !display.paused && stepLimit - executedSteps > 30) {
             size_t budget = std::min<uint64_t>(executionBatch, stepLimit - executedSteps - 30);
@@ -722,20 +716,13 @@ int main(int argc, char* argv[]) {
             if (gui && !autoTiming) budget = std::min(budget, size_t(50000 - executedSteps % 50000));
             if (hostCostProfile && !hostCostRunning && executedSteps < hostCostStartStep)
                 budget = std::min<uint64_t>(budget, hostCostStartStep - executedSteps);
-            if (!autoTiming && tickLimit != UINT64_MAX) {
-                const uint64_t remaining = tickLimit - guestTicks;
-                // Do not batch across the last peripheral-time boundary.
-                const uint64_t stepsToLimit = legacyStepsUntilTickLimit(remaining, cpuStepsPerTick, peripheralPhase);
-                budget = std::min<uint64_t>(budget, stepsToLimit);
-            }
             if (budget) {
                 HostCostTimer cpuCost(hostCostRunning, hostCpuNs);
                 if (autoTiming) {
                     const uint64_t guiDeadline = gui && guiTicks <= UINT64_MAX - 20000 ? guiTicks + 20000 : UINT64_MAX;
-                    executedSteps += execution.runClocked(emulationClock, budget,
-                        std::min(tickLimit, guiDeadline), guestTicks);
+                    executedSteps += execution.run(budget, std::min(tickLimit, guiDeadline));
                 } else {
-                    executedSteps += execution.runLegacy(budget, cpuStepsPerTick, peripheralPhase, guestTicks);
+                    executedSteps += execution.run(budget, tickLimit);
                 }
                 continue;
             }
@@ -821,12 +808,9 @@ int main(int argc, char* argv[]) {
                       << std::dec << '\n';
             cpu.dumpState();
         }
-        if (autoTiming) {
+        {
             HostCostTimer cpuCost(hostCostRunning, hostCpuNs);
-            execution.stepClocked(emulationClock, guestTicks);
-        } else {
-            HostCostTimer cpuCost(hostCostRunning, hostCpuNs);
-            execution.stepLegacy(cpuStepsPerTick, peripheralPhase, guestTicks);
+            execution.step();
         }
         executedSteps++;
     }

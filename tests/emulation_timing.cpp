@@ -1,5 +1,6 @@
 #include "core/emulation_clock.h"
 #include "core/execution_batch.h"
+#include "core/execution_scheduler.h"
 #include "cpu/arm920t.h"
 #include "../tools/kernel_jiffies.h"
 #include "../tools/guest_ram.h"
@@ -17,6 +18,65 @@ static void arm(Bus& bus, ARM920T& cpu, u32 instr) {
     bus.write32(cpu.getPC(), instr); cpu.step(0);
 }
 int main() {
+    for (size_t ratio : {1u,3u,6u,16u}) {
+      Bus referenceBus,bus; ARM920T reference(referenceBus),cpu(bus);
+      for (Bus* target : {&referenceBus,&bus}) {
+        target->write32(0,0xe2800001); target->write32(4,0xeafffffd);
+        target->write32(0x5100003c,29);
+        target->write32(0x51000008,(1u<<20)|(1u<<21)|(1u<<22));
+      }
+      ExecutionScheduler scheduler(cpu,bus,false,ratio);
+      size_t retired=scheduler.run(17);
+      for (size_t i=0;i<3;++i) { scheduler.step(); ++retired; }
+      retired+=scheduler.run(21);
+      for (size_t i=0;i<retired;++i) reference.step(i%ratio==0?1:0);
+      check("Scheduler preserves scalar state across mixed legacy execution",
+        retired==41 && cpu.getPC()==reference.getPC() && cpu.getReg(0)==reference.getReg(0) &&
+        scheduler.time().ticks==(retired+ratio-1)/ratio && scheduler.time().idleTicks==0 &&
+        bus.getMmio(0x51000040)==referenceBus.getMmio(0x51000040));
+      const auto deadline=scheduler.time().ticks+2;
+      const size_t bounded=scheduler.run(1000,deadline);
+      check("Scheduler stops legacy execution at its peripheral deadline",
+        bounded>0 && bounded<=2*ratio && scheduler.time().ticks==deadline &&
+        scheduler.run(1,deadline)==0 && scheduler.run(0)==0);
+    }
+    { Bus referenceBus,bus; ARM920T reference(referenceBus),cpu(bus);
+      for (Bus* target : {&referenceBus,&bus}) {
+        target->write32(0,0xe2800001); target->write32(4,0xeafffffd);
+        target->write32(0x5100003c,29);
+        target->write32(0x51000008,(1u<<20)|(1u<<21));
+      }
+      reference.setCycleTiming(true); cpu.setCycleTiming(true);
+      ExecutionScheduler scheduler(cpu,bus,true,1); EmulationClock referenceClock;
+      const size_t retired=scheduler.run(10001);
+      for (size_t i=0;i<retired;++i) {
+        const auto hz=reference.getExecutionClock(); reference.step(0);
+        referenceBus.tick(referenceClock.advance(reference.getLastCycles(),hz));
+      }
+      check("Clocked scheduler returns at Timer 4 event with scalar-equivalent state",
+        retired>0 && retired<10001 && cpu.getPC()==reference.getPC() &&
+        cpu.getReg(0)==reference.getReg(0) && scheduler.time().ticks==referenceClock.elapsedTicks() &&
+        bus.getMmio(0x51000040)==referenceBus.getMmio(0x51000040) &&
+        bus.getTimer4Expirations()==1 && bus.getMmio(0x4a000000)==referenceBus.getMmio(0x4a000000));
+    }
+    { Bus bus; ARM920T cpu(bus); cpu.setCycleTiming(true);
+      bus.write32(0,0xee070f90); bus.write32(4,0xe3a00007);
+      bus.write32(0x5100003c,29); bus.write32(0x51000008,(1u<<20)|(1u<<21));
+      bus.write32(0x4a000008,~(1u<<14));
+      ExecutionScheduler scheduler(cpu,bus,true,1);
+      const size_t retired=scheduler.run(100);
+      const auto before=scheduler.time().ticks;
+      const auto deadline=before+bus.ticksUntilEvent();
+      const auto first=scheduler.advanceIdle(before+1);
+      const auto rest=scheduler.advanceIdle(deadline);
+      check("Scheduler idle respects external and device deadlines without retiring instructions",
+        retired==1 && first==1 && first+rest==deadline-before &&
+        scheduler.time().ticks==deadline && scheduler.time().idleTicks==deadline-before &&
+        cpu.isWaitingForInterrupt() && cpu.getPC()==4 && bus.hasPendingIrq());
+      check("Scheduler wakes a waiting CPU when an IRQ is pending",
+        scheduler.advanceIdle(deadline+100)==0 && scheduler.run(1)==1 &&
+        !cpu.isWaitingForInterrupt() && cpu.getPC()==8 && cpu.getReg(0)==7);
+    }
     { Bus bus;u32 word=0;bus.write32(0x30002000,0x12345678);
       check("Diagnostic RAM inspection reads physical SDRAM",readGuestRam32(bus,0x30002000,word)&&word==0x12345678);
       bus.setTtb(0x30004000);bus.write32(0x30004004,0x30000002);bus.setMmuEnabled(true);bus.setUserMode(true);

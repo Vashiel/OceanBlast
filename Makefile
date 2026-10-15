@@ -16,6 +16,7 @@ HEADERS = src/core/types.h \
           src/core/input_script.h \
           src/core/emulation_clock.h \
           src/core/execution_batch.h \
+          src/core/execution_scheduler.h \
           src/core/host_pacer.h \
           src/core/cartridge_settings.h \
           src/core/cartridge_language.h \
@@ -179,7 +180,7 @@ build/dma_audio_stream.exe: tests/dma_audio_stream.cpp src/memory/bus.cpp src/me
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
 
 # Register-clock execution and bounded CPU idle advancement.
-build/emulation_timing.exe: src/core/emulation_clock.h src/core/execution_batch.h
+build/emulation_timing.exe: src/core/emulation_clock.h src/core/execution_batch.h src/core/execution_scheduler.h
 build/cpu_regression.exe build/input_test.exe: src/cpu/arm920t.h
 
 # CPU state changes must invalidate every target that embeds the interpreter.
