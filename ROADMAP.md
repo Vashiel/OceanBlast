@@ -1,6 +1,6 @@
 # Development Roadmap
 
-Updated: 2026-10-15. All milestones below are planned, not completed validation.
+Updated: 2026-10-15. The priority table defines completion criteria; delivered work and remaining validation appear under Implementation status.
 
 ## Goal and priorities
 
@@ -62,4 +62,4 @@ The [first execution slice](docs/58_execution_boundary_and_short_checks.md) and 
 
 The [current ARM cost profile and direct immediate-operation path](docs/61_arm_dispatch_measurement.md) form the next retained execution slice. Diagnostic outlining, a TLB validity change and a broader register-operation shortcut were not retained after their short comparisons.
 
-Next performance slice: continue reducing interpreter dispatch and memory-access costs, using small portable experiments with short acceptance checks. Keep a simple reference path and conservative CPU requirements for distributable builds. A host-specific JIT or platform frontend needs its own scope; no Android/TV port is scheduled from the illustrative hardware examples. Actual old-device performance and full architectural fidelity remain open.
+Next performance slice: evaluate interpreter and memory-access candidates using the [fixed active Superstar Chefs scene](docs/62_active_scene_acceptance.md), including movement and A/B/C. Its first paced pair preserves guest state and reaches the same speed cap; it does not establish a general gameplay gain. Use small portable experiments with short acceptance checks. Keep a simple reference path and conservative CPU requirements for distributable builds. A host-specific JIT or platform frontend needs its own scope; no Android/TV port is scheduled from the illustrative hardware examples. Actual old-device performance and full architectural fidelity remain open.

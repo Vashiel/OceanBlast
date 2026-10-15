@@ -3,6 +3,7 @@ import argparse
 import csv
 import hashlib
 import os
+import re
 from pathlib import Path
 import subprocess
 import time
@@ -38,6 +39,14 @@ def main():
     parser.add_argument('--input-script', type=Path, required=True)
     parser.add_argument('--nvram', type=Path, required=True)
     parser.add_argument('--repeat', type=int, default=1)
+    parser.add_argument('--timeout', type=float, default=120,
+                        help='Maximum seconds per process, including end-screen inspection (default: 120)')
+    parser.add_argument('--inspect-end', action='store_true',
+                        help='Keep the final scene visible; close its window to continue')
+    parser.add_argument('--max-empty-queues', type=int,
+                        help='Stop before the next run if this whole-run audio count is exceeded')
+    parser.add_argument('--max-dropped-samples', type=int,
+                        help='Stop before the next run if this whole-run audio count is exceeded')
     parser.add_argument('--unpaced', action='store_true', help='Disable host pacing to measure throughput')
     parser.add_argument('--host-cost-start', type=int, help='Measure a fixed scene after this instruction step')
     parser.add_argument('--baseline-batch', type=int, default=4096)
@@ -45,6 +54,11 @@ def main():
     args = parser.parse_args()
     if args.steps < 2 or args.repeat < 1:
         parser.error('steps must exceed one and repeat must be positive')
+    if not 0 < args.timeout <= 600:
+        parser.error('timeout must be in (0, 600] seconds')
+    if any(value is not None and value < 0 for value in
+           (args.max_empty_queues, args.max_dropped_samples)):
+        parser.error('audio limits must be nonnegative')
     if args.host_cost_start is not None and not 0 <= args.host_cost_start < args.steps:
         parser.error('host-cost-start must precede the step limit')
     if min(args.baseline_batch, args.candidate_batch) < 1:
@@ -67,8 +81,10 @@ def main():
         image.write_bytes(args.nvram.read_bytes())
         command = [str(executable), str(args.rom), '--gui', '--sound', '--profile',
                    '--steps', str(args.steps), '--cpu-steps-per-tick', str(args.ratio),
-                   '--host-wait', 'timer', '--exit-on-limit', '--snapshot-interval',
+                   '--host-wait', 'timer', '--scale', '2', '--window-mode', 'plain', '--snapshot-interval',
                    str(args.steps - 1), '--nvram', str(image), '--input-script', str(args.input_script)]
+        if not args.inspect_end:
+            command += ['--exit-on-limit']
         batch = args.baseline_batch if variant == 'baseline' else args.candidate_batch
         command += ['--execution-batch', str(batch)]
         if args.unpaced:
@@ -79,11 +95,13 @@ def main():
         environment = os.environ.copy()
         environment['OCEANBLAST_SETTINGS_PATH'] = str(directory / 'settings.ini')
         started = time.monotonic()
+        print(f'{variant}: starting; limit {args.timeout:g}s' +
+              ('; inspect the stopped scene and close its window' if args.inspect_end else ''), flush=True)
         with (directory / 'run.log').open('w', encoding='utf-8') as log:
             with subprocess.Popen(command, cwd=directory, stdout=log,
                                   stderr=subprocess.STDOUT, env=environment) as process:
                 try:
-                    exit_code = process.wait(timeout=600)
+                    exit_code = process.wait(timeout=args.timeout)
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait()
@@ -92,6 +110,10 @@ def main():
         if exit_code:
             raise RuntimeError(f'{variant} exited {exit_code}')
         elapsed = time.monotonic() - started
+        log = (directory / 'run.log').read_text(encoding='utf-8', errors='replace')
+        finished = re.search(r'\[OceanBlast\] Execution finished after (\d+) instructions\.', log)
+        if not finished or int(finished[1]) != args.steps:
+            raise RuntimeError(f'{variant} did not reach the requested instruction limit')
         metrics = list(csv.DictReader((directory / 'performance.csv').open(encoding='utf-8')))
         if len(metrics) < 2:
             raise RuntimeError('insufficient performance intervals')
@@ -106,12 +128,14 @@ def main():
             weighted_changes += float(current['changed_fps']) * float(current['seconds'])
         snapshot = dict(line.split('=', 1) for line in
                         (directory / f'snapshot_{args.steps-1}.txt').read_text(encoding='utf-8').splitlines())
-        log = (directory / 'run.log').read_text(encoding='utf-8', errors='replace')
         cpu = log.split('[OceanBlast] Execution finished after ', 1)[1].split(
             '--- [Linux Kernel dmesg / Log Buffer] ---', 1)[0]
         row = dict(rom=args.rom.name, repeat=repeat, variant=variant, ratio=args.ratio, steps=args.steps,
                    batch=batch, host_pacing=not args.unpaced,
-                   cpu_seconds=round(cpu_seconds, 4) if cpu_seconds is not None else '',
+                   end_inspection=args.inspect_end, timeout_seconds=args.timeout,
+                   cpu_seconds=round(cpu_seconds, 4) if cpu_seconds is not None and not args.inspect_end else '',
+                   process_cpu_including_inspection_seconds=(round(cpu_seconds, 4)
+                       if args.inspect_end and cpu_seconds is not None else ''),
                    elapsed_seconds=round(elapsed, 4), measured_seconds=round(interval, 4),
                    mips=round(mips, 4), changed_per_second=round(weighted_changes / interval, 4),
                    mean_modeled_speed=round(mips / (20 * args.ratio) * 100, 4),
@@ -133,6 +157,10 @@ def main():
         rows.append(row)
         if not write_results(rows, args.output / 'results.csv'):
             raise RuntimeError('GUI replays differ in guest state')
+        for key, limit in (('audio_empty_queue_events', args.max_empty_queues),
+                           ('dropped_samples', args.max_dropped_samples)):
+            if limit is not None and int(row[key]) > limit:
+                raise RuntimeError(f'{variant}: {key}={row[key]} exceeds {limit}; stopping comparison')
         print(f'{variant}: {mips:.2f} MIPS; {row["changed_per_second"]} sampled changes/s; '
               f'{row["audio_empty_queue_events"]} empty queues', flush=True)
         if args.host_cost_start is not None:

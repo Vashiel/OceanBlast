@@ -1,5 +1,7 @@
 # ARM Dispatch Measurement
 
+The subsequent [active-scene check](62_active_scene_acceptance.md) exercises movement and A/B/C in the first level. It preserves guest state but does not establish a general gameplay speedup.
+
 ## Current cost profile
 
 A five-second host-PC sample of the current normal GCC `-O3 -march=native` unity build begins after the 600-million-instruction snapshot of Superstar Chefs at ratio 3. The unpaced headless replay has no input and stops at 1.8 billion instructions. This covers an early startup/title interval; the exact ending guest step of the sample was not recorded. Executable SHA-256: `a73b3c1d0ed48de23df3acac9bcfed6bac67da33694435466f0da4dd937756da`.
