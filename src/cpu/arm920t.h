@@ -1,17 +1,9 @@
 #pragma once
-#include "../core/types.h"
+#include "arm920t_state.h"
 #include "../memory/bus.h"
 #include <string>
 
 namespace oceanblast {
-
-constexpr u32 FLAG_N = 1u << 31; // Negative
-constexpr u32 FLAG_Z = 1u << 30; // Zero
-constexpr u32 FLAG_C = 1u << 29; // Carry
-constexpr u32 FLAG_V = 1u << 28; // Overflow
-constexpr u32 FLAG_I = 1u << 7;  // IRQ disable
-constexpr u32 FLAG_F = 1u << 6;  // FIQ disable
-constexpr u32 FLAG_T = 1u << 5;  // Thumb state (1 = Thumb, 0 = ARM)
 
 class ARM920T {
 public:
@@ -24,13 +16,13 @@ public:
     void step(size_t peripheralTicks = 1);
     void setSimpleAluExecution(bool enabled) { simpleAluExecution = enabled; }
     void setFpa11Execution(bool enabled) { fpa11Execution = enabled; }
-    void setCycleTiming(bool enabled) { cycleTiming = enabled; waitingForInterrupt = false; }
-    uint32_t getControlRegister() const { return cp15_control; }
+    void setCycleTiming(bool enabled) { cycleTiming = enabled; state.waitingForInterrupt = false; }
+    uint32_t getControlRegister() const { return state.cp15_control; }
     uint32_t getExecutionClock() const {
-        return (cp15_control & (1u << 30)) ? bus.getCpuClock() : bus.getBusClock();
+        return (state.cp15_control & (1u << 30)) ? bus.getCpuClock() : bus.getBusClock();
     }
     uint32_t getLastCycles() const { return lastCycles; }
-    bool isWaitingForInterrupt() const { return waitingForInterrupt; }
+    bool isWaitingForInterrupt() const { return state.waitingForInterrupt; }
     void setDebugLogging(bool enabled) { debugLogging = enabled; }
     void setFaultLogging(bool enabled) { faultLogging = enabled; }
     // Observe a userspace SWI before exception entry; disabled in normal execution.
@@ -38,17 +30,19 @@ public:
     void setSyscallObserver(SyscallObserver observer) { syscallObserver = std::move(observer); }
 
     // Register Access
-    u32 getReg(int index) const { return (index >= 0 && index < 16) ? r[index] : 0; }
-    void setReg(int index, u32 val) { if (index >= 0 && index < 16) r[index] = val; }
+    u32 getReg(int index) const { return (index >= 0 && index < 16) ? state.r[index] : 0; }
+    void setReg(int index, u32 val) { if (index >= 0 && index < 16) state.r[index] = val; }
 
-    u32 getPC() const { return r[15]; }
-    u32 getLR() const { return r[14]; }
-    u32 getSP() const { return r[13]; }
-    u32 getCPSR() const { return cpsr; }
+    u32 getPC() const { return state.r[15]; }
+    u32 getLR() const { return state.r[14]; }
+    u32 getSP() const { return state.r[13]; }
+    u32 getCPSR() const { return state.cpsr; }
 
-    bool isThumb() const { return (cpsr & FLAG_T) != 0; }
-    bool isHalted() const { return halted; }
+    bool isThumb() const { return (state.cpsr & FLAG_T) != 0; }
+    bool isHalted() const { return state.halted; }
 
+    // Read-only view; restoring CP15 state also requires bus synchronization.
+    const ARM920TState& getState() const { return state; }
     void dumpState() const;
 
     // Disassembler for tracing
@@ -56,19 +50,10 @@ public:
 
 private:
     Bus& bus;
-    u32 r[16];   // r0..r15 (r13=SP, r14=LR, r15=PC)
-    u32 cpsr;
-    u32 spsr;
-    bool halted;
+    ARM920TState state;
     bool simpleAluExecution = true;
     bool fpa11Execution = true;
-    struct FpaReg {
-        u8 type = 0; // 0: None, 1: Single, 2: Double
-        u32 w0 = 0;  // Single IEEE-754 bits or Double low 32 bits
-        u32 w1 = 0;  // Double high 32 bits
-    };
-    FpaReg fpa[8]{};
-    u32 fpaFpsr = 0;
+    using FpaReg = ARM920TState::FpaReg;
     float readFpaSingle(u32 reg) const;
     double readFpaDouble(u32 reg) const;
     void writeFpaSingle(u32 reg, float val);
@@ -76,32 +61,18 @@ private:
     bool executeFPA11DataTransfer(u32 instruction);
     bool executeFPA11Operation(u32 instruction);
     bool executeSimpleDataProcessing(u32 instruction);
-    bool cycleTiming = false, waitingForInterrupt = false;
+    bool cycleTiming = false;
     uint32_t lastCycles = 1;
     bool debugLogging = false;
     bool faultLogging = false;
     SyscallObserver syscallObserver;
     void logFaultContext(const char* kind, u32 instructionPC, u32 faultAddress);
 
-    // Banked Registers for ARM Exception Modes
-    u32 r13_usr = 0, r14_usr = 0;
-    u32 r13_svc = 0, r14_svc = 0, spsr_svc = 0;
-    u32 r13_irq = 0, r14_irq = 0, spsr_irq = 0;
-    u32 r13_abt = 0, r14_abt = 0, spsr_abt = 0;
-    u32 r13_und = 0, r14_und = 0, spsr_und = 0;
-
     void switchMode(u32 newMode);
     void handleIrq();
     void handlePrefetchAbort(u32 faultPC);
     void handleDataAbort(u32 faultAddr, Bus::MmuFault faultType);
     void handleUndefinedInstruction(u32 instr);
-
-    // Coprocessor 15 (System Control Coprocessor)
-    u32 cp15_control = 0x00000070; // Control Register (c1)
-    u32 cp15_ttb     = 0;          // Translation Table Base (c2)
-    u32 cp15_dacr    = 0;          // Domain Access Control (c3)
-    u32 cp15_fsr     = 0;          // Fault Status Register (c5)
-    u32 cp15_far     = 0;          // Fault Address Register (c6)
 
     // Helper functions
     bool evaluateCondition(u32 cond) const;

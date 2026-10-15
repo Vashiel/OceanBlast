@@ -22,6 +22,7 @@ HEADERS = src/core/types.h \
           src/core/button_pulses.h \
           src/core/mp3_storage.h \
           src/cpu/arm920t.h \
+          src/cpu/arm920t_state.h \
           src/memory/bus.h \
           src/memory/i2c_eeprom.h \
           src/memory/timer4.h \
@@ -180,6 +181,9 @@ build/dma_audio_stream.exe: tests/dma_audio_stream.cpp src/memory/bus.cpp src/me
 # Register-clock execution and bounded CPU idle advancement.
 build/emulation_timing.exe: src/core/emulation_clock.h src/core/execution_batch.h
 build/cpu_regression.exe build/input_test.exe: src/cpu/arm920t.h
+
+# CPU state changes must invalidate every target that embeds the interpreter.
+build/cpu_regression.exe build/input_test.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe build/runtime_probe.exe build/capture_audio.exe build/frame_latch.exe build/emulation_timing.exe build/sdl_surface_probe.exe build/scene_work_probe.exe build/codec_probe.exe: src/cpu/arm920t_state.h
 build/emulation_timing.exe: tests/emulation_timing.cpp src/cpu/arm920t.cpp src/memory/bus.cpp src/cpu/arm920t.h src/memory/bus.h src/memory/clock_tree.h src/memory/timer4.h src/memory/i2c_eeprom.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)

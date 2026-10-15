@@ -3,6 +3,7 @@
 #include "core/input_script.h"
 #include <iostream>
 #include <sstream>
+#include <type_traits>
 using namespace oceanblast;
 static int failures = 0;
 static void check(const char* name, bool ok) {
@@ -17,6 +18,23 @@ static void thumb(Bus& b, ARM920T& c, u16 instruction) {
     c.step();
 }
 int main() {
+    static_assert(std::is_trivially_copyable<ARM920TState>::value,
+                  "CPU state must remain independent of host resources");
+    { Bus b; ARM920T c(b);
+      c.setReg(13,0x1110); c.setReg(14,0x2220);
+      b.write32(0x100,0xe121f000); // MSR CPSR_c, r0
+      c.setReg(0,0x12); c.setReg(15,0x100); c.step(0);
+      const ARM920TState saved=c.getState();
+      c.setReg(13,0x3330); c.setReg(14,0x4440);
+      c.setReg(0,0x13); c.setReg(15,0x100); c.step(0);
+      const auto& state=c.getState();
+      check("CPU state exposes active and banked registers across mode changes",
+        state.r[13]==0x1110 && state.r[14]==0x2220 && state.r13_irq==0x3330 &&
+        state.r14_irq==0x4440 && state.cpsr==c.getCPSR());
+      check("Copied CPU state is independent of later interpreter execution",
+        saved.r[13]==0 && saved.r13_svc==0x1110 && saved.r14_svc==0x2220 &&
+        (saved.cpsr&0x1f)==0x12 && (state.cpsr&0x1f)==0x13);
+    }
     { Bus b; Bus::MmuFault fault=Bus::MmuFault::NONE;
       b.write32(0x30000000,0x12345678);
       bool correct=b.readInstruction(0x30000000,false,fault)==0x12345678&&fault==Bus::MmuFault::NONE;
