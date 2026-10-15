@@ -1,5 +1,7 @@
 # Interpreter Execution Boundary and Short Checks
 
+The subsequent [machine-core changes and decoder experiment](59_machine_core_and_decoder_experiment.md) extend this first slice. The result below records the earlier build.
+
 ## Scope
 
 The first execution refactor introduces `InterpreterExecution` in `src/core/execution_batch.h`. Both the single-step path and bounded batches in `main.cpp` now use its legacy-ratio or register-clock step. Each step still calls `ARM920T::step`; instruction decoding, exceptions, memory translation and cartridge presets are unchanged.

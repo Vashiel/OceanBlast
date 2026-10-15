@@ -122,6 +122,8 @@ The Nikko digiBLAST hardware is built around the Samsung S3C2410A / OCEAN-L-20 p
 
 The [prioritized roadmap](ROADMAP.md) defines the path toward better performance on weaker CPUs: short baseline checks, an interchangeable CPU execution structure, shared timing boundaries, clearer memory semantics, and a measured block-execution/JIT prototype. It includes task budgets and early-stop rules: if the relevant problem is already visible on the title screen, stop the test there. These are planned milestones, not claims of completed performance improvements.
 
+The [machine-core implementation report](docs/59_machine_core_and_decoder_experiment.md) records the extracted CPU state, scheduler, standalone MMU and shared machine owner, together with targeted checks and a rejected decoder-cache experiment. These foundations do not yet establish full-speed support on weak hardware.
+
 ## Building, Testing & Command-Line Usage
 
 ### Prerequisites

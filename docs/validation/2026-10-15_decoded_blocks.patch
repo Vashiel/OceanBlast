@@ -1,0 +1,104 @@
+--- a/src/cpu/arm920t.h
++++ b/src/cpu/arm920t.h
+@@ -2,0 +3,2 @@
++#include "arm_decoded_blocks.h"
++#include <memory>
+@@ -68,0 +71 @@
++    std::unique_ptr<ArmDecodedBlocks> decodedBlocks;
+--- a/src/cpu/arm920t.cpp
++++ b/src/cpu/arm920t.cpp
+@@ -17 +17 @@
+-ARM920T::ARM920T(Bus& bus) : bus(bus) {
++ARM920T::ARM920T(Bus& bus) : bus(bus), decodedBlocks(new ArmDecodedBlocks) {
+@@ -244 +244 @@
+-    } else {
++    } else if (!simpleAluExecution || debugLogging || !decodedBlocks->execute(state,currentPC,instruction)) {
+--- /dev/null
++++ b/src/cpu/arm_decoded_blocks.h
+@@ -0,0 +1,64 @@
++#pragma once
++#include "arm920t_state.h"
++#include <array>
++
++namespace oceanblast {
++// Lazily decode 16-instruction ARM blocks. Fetch and permission checks still
++// occur for every instruction; exact word validation handles modified code.
++class ArmDecodedBlocks {
++public:
++    bool execute(ARM920TState& state, u32 pc, u32 instruction) {
++        auto& block=blocks[(pc>>6)&255];
++        const u32 tag=pc>>6, index=(pc>>2)&15, mask=1u<<index;
++        if (block.tag!=tag) { block.tag=tag; block.valid=0; }
++        auto& decoded=block.instructions[index];
++        if (!(block.valid&mask) || decoded.word!=instruction) {
++            decoded=decode(instruction);
++            block.valid|=mask;
++        }
++        if (!decoded.supported) return false;
++        const u32 left=state.r[decoded.rn], right=decoded.immediate;
++        u32 result=0;
++        switch (decoded.opcode) {
++            case 0: result=left&right; break;
++            case 1: result=left^right; break;
++            case 2: result=left-right; break;
++            case 3: result=right-left; break;
++            case 4: result=left+right; break;
++            case 12: result=left|right; break;
++            case 13: result=right; break;
++            case 14: result=left&~right; break;
++            case 15: result=~right; break;
++        }
++        state.r[decoded.rd]=result;
++        state.r[15]=pc+4;
++        return true;
++    }
++private:
++    struct Decoded {
++        u32 word=0, immediate=0;
++        u8 opcode=0, rn=0, rd=0;
++        bool supported=false;
++    };
++    struct Block {
++        u32 tag=UINT32_MAX, valid=0;
++        std::array<Decoded,16> instructions;
++    };
++    std::array<Block,256> blocks;
++
++    static Decoded decode(u32 instruction) {
++        Decoded result;
++        result.word=instruction;
++        if ((instruction&0xfe100000)!=0xe2000000) return result;
++        result.opcode=(instruction>>21)&15;
++        result.rn=(instruction>>16)&15;
++        result.rd=(instruction>>12)&15;
++        if (result.rn==15 || result.rd==15 ||
++            (result.opcode>=5 && result.opcode<=11)) return result;
++        const u32 rotation=((instruction>>8)&15)*2, value=instruction&255;
++        result.immediate=rotation?(value>>rotation)|(value<<(32-rotation)):value;
++        result.supported=true;
++        return result;
++    }
++};
++}
+--- /dev/null
++++ b/tests/decoded_blocks.cpp
+@@ -0,0 +1,19 @@
++#include "cpu/arm_decoded_blocks.h"
++#include <iostream>
++using namespace oceanblast;
++int main() {
++    ArmDecodedBlocks blocks; ARM920TState state;
++    state.r[0]=3; state.cpsr=0xf00000d3;
++    bool ok=blocks.execute(state,0,0xe2800001) && state.r[0]==4 && state.r[15]==4;
++    state.r[0]=10;
++    ok=ok && blocks.execute(state,0,0xe2800001) && state.r[0]==11;
++    ok=ok && blocks.execute(state,0,0xe2400002) && state.r[0]==9;
++    ok=ok && blocks.execute(state,0x4000,0xe3a004ff) && state.r[0]==0xff000000 && state.r[15]==0x4004;
++    ok=ok && !blocks.execute(state,0,0xe2900001) && state.r[0]==0xff000000;
++    ok=ok && !blocks.execute(state,0,0x02800001) && state.r[0]==0xff000000;
++    ok=ok && !blocks.execute(state,0,0xe28f0001) && state.r[0]==0xff000000;
++    ok=ok && !blocks.execute(state,0,0xe280f001) && state.r[15]==0x4004;
++    ok=ok && state.cpsr==0xf00000d3;
++    std::cout << (ok?"PASS ":"FAIL ") << "decoded block reuse, changed code, collisions and fallback guards\n";
++    return ok?0:1;
++}

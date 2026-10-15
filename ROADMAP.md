@@ -45,8 +45,17 @@ The contributor's short self-test is the primary routine acceptance check. When 
 
 Long gameplay sweeps, repeated benchmark pairs and broad cartridge coverage are reserved for a specific late-occurring problem, a justified shared-core risk, or release validation. Define their scope and time budget separately. Earlier research reports retain their historical methods; their long runs are not the default workflow for every new task.
 
-## First implementation slice
+## Implementation status (2026-10-15)
 
-The [first execution slice and short check](docs/58_execution_boundary_and_short_checks.md) are recorded as of 2026-10-15. P0 now has a bounded title-screen procedure and executable/settings records; selection and measurement of a weak target CPU remain open. P1 now shares one interpreter execution boundary between single steps and batches. CPU-state separation remains open. Instruction semantics, timing policy and cartridge presets were retained.
+The [first execution slice](docs/58_execution_boundary_and_short_checks.md) and [subsequent core changes](docs/59_machine_core_and_decoder_experiment.md) record the implementation and its limits.
 
-Next: take a separate P1 task to extract architectural CPU state without changing its execution behavior. Keep TLB corrections, new optimizations and frontend redesign outside that task.
+| Priority | Delivered | Remaining |
+| --- | --- | --- |
+| P0 | Short technical/title-screen procedures and recorded configurations | Select and measure the intended weak CPU. |
+| P1 | Independent modeled CPU-state structure and shared single/batch interpreter boundary | Actual alternative execution engine and safe state handoff; current CPU still owns its state. |
+| P2 | Scheduler owns legacy phase, register-clock fractions, device deadlines and idle advancement | Hardware timing calibration and finer scheduling remain open; register-clock mode is experimental. |
+| P3 | Standalone MMU, independent checks, cached subpage rights and section-fault corrections | Domain-control, system/ROM protection and unsupported descriptor behavior need architectural review. |
+| P4 | One isolated decoder-cache prototype evaluated and rejected after a short slower pair | A block execution engine or JIT remains unimplemented. Do not repeat the rejected cache design without new evidence. |
+| P5 | Shared machine owner used by the application and runtime probe | Frontend orchestration and other tools can be migrated when needed; no broad UI rewrite is scheduled. |
+
+Next performance slice: define a block execution path that can remove dispatch work while preserving instruction/fault/interrupt boundaries. Choose a host-specific backend only after the weak target CPU is identified. The initial structural slices are delivered; universal weak-hardware performance and full architectural fidelity remain open.

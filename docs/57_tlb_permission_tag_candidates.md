@@ -1,5 +1,7 @@
 # TLB Permission-Tag Candidate Checks
 
+Current status (2026-10-15): [the production MMU was extracted into its own component](59_machine_core_and_decoder_experiment.md), and separate changes corrected cached small-page AP selection and section fault types. Precomputed permission tags were not adopted. The experiments below describe their historical baselines and candidates.
+
 The [host CPU samples](54_host_cpu_samples.md) identify the TLB hit path as a possible optimization target. Encoding access permissions in precomputed read/write tags can reduce checks on a permitted hit. This remains a performance hypothesis; the candidates below were checked for correctness before throughput measurement.
 
 The baseline is revision `81cac21`. Four isolated candidates replace `TlbEntry`'s virtual-page, AP and valid fields with read/write tags and a physical page base. No candidate changes were adopted in the production CPU or bus sources.
