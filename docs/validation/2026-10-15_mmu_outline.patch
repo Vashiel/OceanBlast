@@ -1,0 +1,11 @@
+--- a/src/memory/arm920t_mmu.h
++++ b/src/memory/arm920t_mmu.h
+@@ -75,7 +75,7 @@
+     mutable bool tlbEmpty = true;
+ };
+ 
+-inline u32 Arm920TMmu::translateSlow(u32 va, const u8* ram, MmuFault* fault, bool isWrite) const {
++[[gnu::noinline]] inline u32 Arm920TMmu::translateSlow(u32 va, const u8* ram, MmuFault* fault, bool isWrite) const {
+     if (fault) *fault = MmuFault::NONE;
+     if (!mmuEnabled) return va;
+ 

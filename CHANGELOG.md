@@ -6,6 +6,8 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ## 2026-10-15 — Prioritized Roadmap and Bounded Validation
 
+* **[MMU Outlining Experiment](docs/63_mmu_outline_experiment.md):** An isolated table-walk outlining candidate passes MMU, CPU and timing checks and preserves the active gameplay state. Its one comparison shows no useful throughput gain, so the patch was rejected. Production source and the installed launcher remain unchanged.
+
 * **[Unpaced Active-Scene Comparison](docs/62_active_scene_acceptance.md#unpaced-throughput-follow-up):** The immediate-ALU path reaches 82.50 versus 72.22 MIPS in one matched Superstar Chefs gameplay section, with identical final guest state. Whole-process CPU time decreases by 9.15%. This is one normal-build pair on the current host; unpaced audio drops exclude sound-quality acceptance, and no installed binary was replaced.
 
 * **[Active-Scene Acceptance](docs/62_active_scene_acceptance.md):** Added a short first-level replay with movement and A/B/C. One matched pair preserves CPU, memory and framebuffer state; both builds hold the same pacing cap without empty queues or dropped samples. Lower section execution time is recorded as a single observation, not a general gameplay gain. GUI comparisons now have time limits, stopped-scene inspection, early-close rejection and optional audio limits.
