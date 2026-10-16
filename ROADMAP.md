@@ -1,6 +1,6 @@
 # Development Roadmap
 
-Updated: 2026-10-15. The priority table defines completion criteria; delivered work and remaining validation appear under Implementation status.
+Updated: 2026-10-16. The priority table defines completion criteria; delivered work and remaining validation appear under Implementation status.
 
 ## Goal and priorities
 
@@ -47,7 +47,7 @@ The contributor's short self-test is the primary routine acceptance check. When 
 
 Long gameplay sweeps, repeated benchmark pairs and broad cartridge coverage are reserved for a specific late-occurring problem, a justified shared-core risk, or release validation. Define their scope and time budget separately. Earlier research reports retain their historical methods; their long runs are not the default workflow for every new task.
 
-## Implementation status (2026-10-15)
+## Implementation status (2026-10-16)
 
 The [first execution slice](docs/58_execution_boundary_and_short_checks.md) and [subsequent core changes](docs/59_machine_core_and_decoder_experiment.md) record the implementation and its limits.
 
@@ -71,3 +71,6 @@ The [LDM RAM-span experiment](docs/64_ldm_ram_span_experiment.md) also produced 
 The [active-scene host profile](docs/65_active_scene_host_profile.md) now supplies the requested gameplay sample. It prioritizes a bounded direct path for flag-setting immediate ARM operations as the next hypothesis, subject to flag correctness and one active-scene comparison. No implementation gain is claimed from sampling.
 
 The [flag-setting immediate extension](docs/66_immediate_flags_experiment.md) passes reference checks but loses throughput in its single active-scene pair and was rejected. The no-flags path remains unchanged. Before another special case, establish the eligible guest-instruction mix and account for the rejected extensions rather than using function-level sample share as a speedup prediction.
+
+The [active-scene guest instruction mix](docs/67_active_scene_instruction_mix.md) counts exact opcode categories, basic blocks and short instruction sequences across steps three to four billion. The retained immediate no-flags shortcut hits on 22.93% of active steps, whereas the rejected flag-setting immediate subset and LDM transfers account for 3.20% and 3.07% (mean 2.75 registers). Unconditional/passing register-ALU operations with S clear (`REG_ALU_NOFLAGS`) form the largest remaining slice at 29.15% (14.94% unshifted, 14.16% immediate-shifted, 0.05% register-shifted), and two user-space loops account for 59.50% of all active steps. The next candidate tests a narrow flagless, carry-free register-ALU path (`S=0`, bit 4 clear, non-PC operands) against one active-scene pair.
+
