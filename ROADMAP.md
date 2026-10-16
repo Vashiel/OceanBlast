@@ -80,7 +80,8 @@ The [pre-indexed immediate word transfer shortcut](docs/69_word_transfer_shortcu
 
 The [pre-indexed immediate halfword transfer shortcut](docs/70_halfword_transfer_shortcut.md) specializes no-writeback immediate `LDRH`/`LDRSH`/`STRH` instructions (the fourth-largest active-scene category at 7.38%, concentrated in the second-hottest user-space loop) at the entry of `executeHalfwordTransfer`. It passes all 58 CPU and 87 timing checks, preserves identical active-scene hashes, and improves active-section throughput from 55.10 to 57.91 MIPS (+5.11%, whole-run CPU time 69.97 s to 60.42 s, -13.64%) in its single matched pair. The change is retained; specialized paths now cover roughly 68% of active-scene instructions.
 
-The subsequent [SUBS/CMP simple-ALU experiment](docs/71_subs_cmp_experiment.md) passes all 58 CPU and 87 timing checks and preserves active-scene hashes, but changes active-section throughput by only +0.74% (49.33 versus 49.70 MIPS), which is too small to justify retaining the extra branch. The candidate was rejected and reverted.
+The subsequent [SUBS/CMP simple-ALU experiment](docs/71_subs_cmp_experiment.md) passes all 58 CPU and 87 timing checks and preserves active-scene hashes, but changes active-section throughput by only +0.74% (49.33 versus 49.70 MIPS), which is too small to justify retaining the extra branch. The candidate was rejected and reverted. A conservative `-O3 -march=x86-64` unity PGO build incorporating the three retained shortcuts (`9d3fea8f6a0bd04bc28bd77e4e560960b59685f8291d447c77a5fae9fe7a5f5c`) was installed locally to `bin/oceanblast.exe` (with the prior binary backed up) and verified against the 1.2-billion-step title check.
+
 
 
 

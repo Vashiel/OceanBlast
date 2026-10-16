@@ -30,3 +30,10 @@ In the active `3B..4B` gameplay window, throughput increases by `5.11%` (`55.10`
 ## Decision
 
 Retain the pre-indexed immediate halfword transfer fast path in `ARM920T::executeHalfwordTransfer`. Together with the retained immediate ALU (`22.93%`), register ALU (`29.11%`) and word transfer (`8.76%`) fast paths, specialized execution paths now cover roughly `68%` of instructions in the active Superstar Chefs gameplay window.
+
+## Portable local PGO build
+
+The source at `62029d2` (including the retained register-ALU, word-transfer and halfword-transfer shortcuts) was built as an `-O3` unity PGO executable with `-march=x86-64`, using `Superstar Chefs [G] (EN).bin` and `Rayman 3 [G] (M10).bin` training runs of 900 million instructions each at ratio 3.
+
+The resulting executable, SHA-256 `9d3fea8f6a0bd04bc28bd77e4e560960b59685f8291d447c77a5fae9fe7a5f5c`, replaces the local `bin/oceanblast.exe`. Its predecessor (`aefd4e59cc6a14a74796703e914be25642c8a91729a0e730b9aa3ff445db6d59`) is backed up under ignored `build/launcher-backup-2026-10-16-before-pgo/oceanblast.exe`. In the 1.2-billion-instruction GUI/audio title check ([intervals](validation/2026-10-16_pgo_title.csv)), final SDRAM (`c3ce3acc5bd6e7b93da652ffd4d1175b85488a18832ae5c41ce5fb22b10e3057`), active framebuffer (`c85cd821b24007196739577c87d7664ef27126832d3ecfb2c3bc0a9fd76f222c`) and CPU state (`PC = 0x5dc30`, zero dropped samples) match the previous PGO title check exactly, while running under the lower host power limit (`~46-48` MIPS, `176` empty-queue events). No new GitHub release archive was published.
+
