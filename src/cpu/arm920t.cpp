@@ -1222,6 +1222,32 @@ void ARM920T::executeDataProcessing(u32 instr) {
 }
 
 void ARM920T::executeSingleDataTransfer(u32 instr) {
+    u32 rd = (instr >> 12) & 0xF;
+    if ((instr & 0x03600000u) == 0x01000000u && rd != 15) {
+        lastCycles = 1;
+        u32 rn = (instr >> 16) & 0xF;
+        u32 baseVal = (rn == 15) ? (state.r[15] + 4) : state.r[rn];
+        u32 offset = instr & 0xFFFu;
+        u32 targetAddr = (instr & (1u << 23)) ? (baseVal + offset) : (baseVal - offset);
+        if (instr & (1u << 20)) {
+            u32 val = ((targetAddr & 3u) == 0) ? bus.read32(targetAddr) : readRotatedWord(bus, targetAddr);
+            if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                bus.clearLastFault();
+                return;
+            }
+            state.r[rd] = val;
+        } else {
+            bus.write32(targetAddr & ~3u, state.r[rd]);
+            if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                bus.clearLastFault();
+                return;
+            }
+        }
+        return;
+    }
+
     bool isImm = (instr & (1 << 25)) == 0;
     bool pre = (instr & (1 << 24)) != 0;
     bool up = (instr & (1 << 23)) != 0;
@@ -1229,7 +1255,6 @@ void ARM920T::executeSingleDataTransfer(u32 instr) {
     bool writeback = (instr & (1 << 21)) != 0;
     bool isLoad = (instr & (1 << 20)) != 0;
     u32 rn = (instr >> 16) & 0xF;
-    u32 rd = (instr >> 12) & 0xF;
 
     lastCycles = (isLoad && rd == 15) ? 5 : 1;
     u32 baseVal = (rn == 15) ? (state.r[15] + 4) : state.r[rn];

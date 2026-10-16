@@ -76,4 +76,7 @@ The [active-scene guest instruction mix](docs/67_active_scene_instruction_mix.md
 
 The [register-ALU no-flags shortcut](docs/68_register_noflags_shortcut.md) passes all 58 CPU checks (with the constant-shift matrix expanded across all nine supported opcodes and both S states) and 87 timing checks, preserves identical CPU, SDRAM and framebuffer hashes in the active Superstar Chefs scene, and improves active-section throughput from 42.72 to 49.33 MIPS (+15.45%, whole-run CPU time -16.23%) in its single matched pair. The shortcut is retained; together with the immediate no-flags shortcut, direct flagless paths now cover 52.04% of active-scene instructions.
 
+The [pre-indexed immediate word transfer shortcut](docs/69_word_transfer_shortcut.md) specializes non-PC, no-writeback `LDR`/`STR` word instructions with an immediate offset (8.76% of active-scene steps) at the entry of `executeSingleDataTransfer`. It passes all 58 CPU and 87 timing checks, preserves identical active-scene hashes, and improves active-section throughput from 42.56 to 50.60 MIPS (whole-run CPU time 63.88 s to 47.73 s) in its single matched pair. The change is retained; absolute wall-clock rates remain subject to host clock/power variance.
+
+
 
