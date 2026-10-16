@@ -6,6 +6,8 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ## 2026-10-16 — Fixed-Ratio Batch Experiment
 
+* **[Controlled Total Comparison](docs/80_controlled_total_comparison.md):** Fresh pre-optimization and current normal builds were compared in two reversed-order Wade pairs under observed AC/Balanced conditions and identical processor affinity. Both pairs favor current code; means show 32.13% more fight throughput and 22.91% less complete-replay CPU time with matching guest state. These are scene/host-specific combined results, not additive validation of earlier individual percentages. No launcher was replaced.
+
 * **[Legacy Batch Specialization](docs/79_legacy_fixed_ratio_experiment.md):** An isolated ratio-3/6 unrolling candidate passes 58 CPU and 90 timing checks, including every initial phase and IRQ return coverage. Its one Wade fight comparison preserves guest state but supplies no throughput benefit, so the candidate was rejected. The generic loop, prior optimizations and installed launcher remain unchanged.
 
 ## 2026-10-15 — Prioritized Roadmap and Bounded Validation

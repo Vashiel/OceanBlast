@@ -1,0 +1,27 @@
+{
+  "reference_revision": "6c7870f",
+  "current_revision": "28ef4b3",
+  "runtime_source_revision": "2880b0d",
+  "compiler_flags": "-std=c++17 -Wall -Wextra -O3 -march=native -g -Isrc; Makefile unity inlining parameters",
+  "compiler_version": "g++.exe (GCC) 16.2.0",
+  "reference_executable_sha256": "25e0d4bb2caef73029872488329bb24720a81ecba330cb55eb0c870717b39d45",
+  "current_executable_sha256": "47f90a01197f8a2aded8a4109fe276022af51a094acbd0e25212095696928249",
+  "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+  "input_sha256": "68d303ff3e4b3a7a2b6709b84525cf17cd03213d6e61e3fa9f0d320601667f86",
+  "initial_eeprom_sha256": "e5a00aa9991ac8a5ee3109844d84a55583bd20572ad3ffcd42792f3c36b183ad",
+  "host_cpu": "Intel Core i7-1185G7; 4 cores/8 logical processors",
+  "steps": 8500000000,
+  "scene_start_step": 7000000000,
+  "ratio": 6,
+  "order": [
+    "before",
+    "current",
+    "current",
+    "before"
+  ],
+  "power_scheme": "381b4222-f694-41f0-9685-ff5bb260df2e",
+  "ac_required": true,
+  "affinity_mask": 4,
+  "logical_processor": 2,
+  "inspection_during_runs": false
+}

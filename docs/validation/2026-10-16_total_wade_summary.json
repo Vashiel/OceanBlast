@@ -1,0 +1,27 @@
+{
+  "pairs": [
+    {
+      "repeat": 0,
+      "scene_gain_percent": 30.420684110386077,
+      "cpu_time_reduction_percent": 24.774618858068877
+    },
+    {
+      "repeat": 1,
+      "scene_gain_percent": 33.872043024077136,
+      "cpu_time_reduction_percent": 21.03091510474091
+    }
+  ],
+  "before_scene_mips_mean": 81.58115000000001,
+  "after_scene_mips_mean": 107.7913,
+  "mean_scene_gain_percent": 32.127703519746895,
+  "before_cpu_seconds_mean": 113.8906,
+  "after_cpu_seconds_mean": 87.79685,
+  "mean_cpu_time_reduction_percent": 22.91124113842582,
+  "all_guest_states_match": true,
+  "power_observations": 148,
+  "all_observed_ac": true,
+  "power_scheme_count": 1,
+  "power_observation_seconds": 416.401,
+  "maximum_power_sample_gap_seconds": 16.741000000000003,
+  "host_cpu_percent_median": 13.578
+}

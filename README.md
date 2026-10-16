@@ -120,6 +120,8 @@ The Nikko digiBLAST hardware is built around the Samsung S3C2410A / OCEAN-L-20 p
 
 ## Development Roadmap
 
+A [controlled before/after comparison](docs/80_controlled_total_comparison.md) runs two reversed-order Wade pairs with fresh normal builds, observed AC/Balanced power and identical processor affinity. Current source delivers about 32% more fight throughput and 23% less complete-replay CPU time on the measured host, with matching guest state. This combined result does not establish the same gain for other games, older hardware or the installed PGO build; earlier individual percentages must not be added.
+
 The [active-scene check](docs/62_active_scene_acceptance.md) adds movement and A/B/C to a short first-level replay and records the limits of its performance evidence.
 
 The [prioritized roadmap](ROADMAP.md) defines the path toward better performance on weaker CPUs: short baseline checks, an interchangeable CPU execution structure, shared timing boundaries, clearer memory semantics, and a measured block-execution/JIT prototype. It includes task budgets and early-stop rules: if the relevant problem is already visible on the title screen, stop the test there. These are planned milestones, not claims of completed performance improvements.
