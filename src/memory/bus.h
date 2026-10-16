@@ -237,15 +237,18 @@ public:
     void tickAdcI2c(size_t cycles);
     void updateUart0TxInterrupt(bool emptyTransition = false);
 
+    inline bool hasLevelInterruptSource() const {
+        return uart0TxLevelActive || usbHostEnabled;
+    }
+
     inline void tick(size_t cycles = 1) {
-        // An already latched source needs no repeated MMIO-map lookup or write.
-        // Register writes handle subpending/mask changes; tick reasserts after
-        // the guest clears the main source while the empty level remains active.
+        if (__builtin_expect(!cycles, 0)) {
+            if (uart0TxLevelActive && !(regSrcpnd & (1u << 28))) updateUart0TxInterrupt();
+            if (usbHostEnabled && usbHost.irq() && !(regSrcpnd & (1u << 26))) requestIrq(26);
+            return;
+        }
         if (uart0TxLevelActive && !(regSrcpnd & (1u << 28))) updateUart0TxInterrupt();
         if (usbHostEnabled && usbHost.irq() && !(regSrcpnd & (1u << 26))) requestIrq(26);
-        // Ratio execution also calls tick with no elapsed time. Preserve the
-        // level-triggered UART check, but do not revisit timed devices then.
-        if (!cycles) return;
         if (usbHostEnabled && usbHost.needsTicks()) {
             usbHost.advance(cycles, sdramPtr, ADDR_SDRAM_SIZE, ADDR_SDRAM_BASE);
             if (usbHost.irq() && !(regSrcpnd & (1u << 26))) requestIrq(26);

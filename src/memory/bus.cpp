@@ -678,6 +678,7 @@ void Bus::writeMmio(u32 addr, u32 val) {
             regSrcpnd &= ~val;
             mmioRegs[0x4A000000] = regSrcpnd;
             updateExtInterrupts();
+            if (uart0TxLevelActive && !(regSrcpnd & (1u << 28))) updateUart0TxInterrupt();
             return;
         case 0x4A000008: // INTMSK
             regIntmsk = val;

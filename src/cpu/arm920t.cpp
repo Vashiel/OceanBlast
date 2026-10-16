@@ -314,7 +314,9 @@ void ARM920T::step(size_t peripheralTicks) {
         stepARM(instruction);
     }
 
-    bus.tick(peripheralTicks);
+    if (peripheralTicks || bus.hasLevelInterruptSource()) {
+        bus.tick(peripheralTicks);
+    }
 }
 
 bool ARM920T::evaluateCondition(u32 cond) const {
