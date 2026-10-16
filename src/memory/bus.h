@@ -106,15 +106,15 @@ public:
     // 1 KB span stays within a small-page access-permission subregion. Mode
     // changes and all guest TLB invalidations discard the cached address.
     inline u32 readInstruction(u32 va, bool thumb, MmuFault& fault) {
-        const u32 page = va & ~1023u;
-        const bool aligned = (va & (thumb ? 1u : 3u)) == 0;
-        if (page != instructionPage || !aligned) {
+        const u32 mask = thumb ? ~1022u : ~1020u;
+        if (__builtin_expect(((va ^ instructionPage) & mask) != 0, 0)) {
+            const bool aligned = (va & (thumb ? 1u : 3u)) == 0;
             const u32 pa = translate(va, &fault);
             if (fault != MmuFault::NONE) return 0;
             if (!aligned || pa < ADDR_SDRAM_BASE || pa - ADDR_SDRAM_BASE >= ADDR_SDRAM_SIZE)
                 return thumb ? read16Phys(pa) : read32Phys(pa);
             instructionPointer = sdramPtr + ((pa - ADDR_SDRAM_BASE) & ~1023u);
-            instructionPage = page;
+            instructionPage = va & ~1023u;
         }
         fault = MmuFault::NONE;
         if (thumb) {
