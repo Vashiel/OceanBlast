@@ -1,0 +1,17 @@
+{
+  "initial_eeprom_sha256": "d0ff1b294b5288d1ae1421eadf5b2d38a8752b76d472ff30bed9028e25b1c5b8",
+  "executable_sha256": "e0cd83d6b4ff69cc1608336d07719e3d200d34abce96c8d59a3622c4bc0160aa",
+  "rom_sha256": "465ddcd7f9722d73b4fd748d3b8d822bc99c06ea91c301bd768f583a1d52b2ff",
+  "input_sha256": "f96d2bca3f33a128c9062f377cd1024d22ded2caafd428bf30362451b302dcee",
+  "section_start_step": 3000000000,
+  "section_end_step": 4000000000,
+  "sample_requested_ms": 6000,
+  "sample_interval_ms": 2,
+  "sample_elapsed_seconds": 6.1964,
+  "sample_started_after_launch_seconds": 64.3659,
+  "sample_ended_before_section_end": true,
+  "final_sdram_sha256": "4dc004cc589c46e7c70ec1468070bfd9a9be57619765295ab02ec5d3a78e6d87",
+  "final_framebuffer_sha256": "f1460da33fb68b4746fb3328f4a28e429a04f201d3fe49d3720294917626399d",
+  "final_cpu_sha256": "0f10c4d81e5522cb6d06f9c6ab177e4ce8ed5d43f88d5796d0ee7ff689aefa92",
+  "final_state_matches_active_reference": true
+}
