@@ -1,0 +1,75 @@
+--- a/src/core/execution_batch.h
++++ b/src/core/execution_batch.h
+@@ -32,0 +33,2 @@
++        if (ratio == 3) return runLegacyFixed<3>(budget, phase, guestTicks);
++        if (ratio == 6) return runLegacyFixed<6>(budget, phase, guestTicks);
+@@ -61,0 +64,35 @@
++    // A completed group has one timed step followed by Ratio-1 zero-time steps.
++    // Commit a partial phase if execution halts between any two instructions.
++    template<size_t Ratio, size_t Index = 1>
++    bool finishLegacyGroup(size_t& retired, size_t& phase) {
++        if constexpr (Index == Ratio) {
++            phase = 0;
++            return true;
++        } else {
++            if (cpu.isHalted()) { phase = Index; return false; }
++            cpu.step(0);
++            ++retired;
++            return finishLegacyGroup<Ratio, Index+1>(retired, phase);
++        }
++    }
++
++    template<size_t Ratio>
++    size_t runLegacyFixed(size_t budget, size_t& phase, uint64_t& guestTicks) {
++        size_t retired = 0;
++        while (phase && retired < budget && !cpu.isHalted()) {
++            stepLegacy(Ratio, phase, guestTicks);
++            ++retired;
++        }
++        while (budget-retired >= Ratio && !cpu.isHalted()) {
++            cpu.step(1);
++            ++guestTicks;
++            ++retired;
++            if (!finishLegacyGroup<Ratio>(retired, phase)) return retired;
++        }
++        while (retired < budget && !cpu.isHalted()) {
++            stepLegacy(Ratio, phase, guestTicks);
++            ++retired;
++        }
++        return retired;
++    }
++
+--- a/tests/emulation_timing.cpp
++++ b/tests/emulation_timing.cpp
+@@ -179 +179 @@
+-    { Bus scalarBus, batchBus; ARM920T scalar(scalarBus), batch(batchBus);
++    for (size_t ratio : {2u,3u,6u}) { Bus scalarBus, batchBus; ARM920T scalar(scalarBus), batch(batchBus);
+@@ -191,2 +191,2 @@
+-      InterpreterExecution(batch,batchBus).runLegacy(701,2,phase,ticks);
+-      for(size_t i=0;i<701;++i)scalar.step(i%2==0?1:0);
++      InterpreterExecution(batch,batchBus).runLegacy(701,ratio,phase,ticks);
++      for(size_t i=0;i<701;++i)scalar.step(i%ratio==0?1:0);
+@@ -298,0 +299,23 @@
++    { bool same=true;
++      for(size_t ratio : {1u,2u,3u,6u,16u}) for(size_t initial=0;initial<ratio;++initial) {
++        Bus a,b; ARM920T scalar(a),batch(b);
++        for(Bus* bus:{&a,&b}) {
++          bus->write32(0,0xe2800001);bus->write32(4,0xeafffffd);
++          bus->write32(0x5100003c,29);
++          bus->write32(0x51000008,(1u<<20)|(1u<<21)|(1u<<22));
++        }
++        size_t scalarPhase=initial,batchPhase=initial;
++        uint64_t scalarTicks=19,batchTicks=19;
++        InterpreterExecution reference(scalar,a),candidate(batch,b);
++        for(size_t budget : {size_t(0),size_t(1),size_t(2),ratio-1,ratio,ratio+1,size_t(17),size_t(4096)}) {
++          const auto retired=candidate.runLegacy(budget,ratio,batchPhase,batchTicks);
++          for(size_t i=0;i<budget;++i)reference.stepLegacy(ratio,scalarPhase,scalarTicks);
++          same=same&&retired==budget&&scalarPhase==batchPhase&&scalarTicks==batchTicks&&
++               scalar.getCPSR()==batch.getCPSR()&&scalar.getLastCycles()==batch.getLastCycles()&&
++               a.getMmio(0x51000040)==b.getMmio(0x51000040)&&
++               a.getMmio(0x4a000000)==b.getMmio(0x4a000000);
++          for(int reg=0;reg<16;++reg)same=same&&scalar.getReg(reg)==batch.getReg(reg);
++        }
++      }
++      check("Fixed-ratio groups preserve every entry phase and split budget against scalar execution",same);
++    }
