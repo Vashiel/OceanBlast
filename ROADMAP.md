@@ -78,5 +78,8 @@ The [register-ALU no-flags shortcut](docs/68_register_noflags_shortcut.md) passe
 
 The [pre-indexed immediate word transfer shortcut](docs/69_word_transfer_shortcut.md) specializes non-PC, no-writeback `LDR`/`STR` word instructions with an immediate offset (8.76% of active-scene steps) at the entry of `executeSingleDataTransfer`. It passes all 58 CPU and 87 timing checks, preserves identical active-scene hashes, and improves active-section throughput from 42.56 to 50.60 MIPS (whole-run CPU time 63.88 s to 47.73 s) in its single matched pair. The change is retained; absolute wall-clock rates remain subject to host clock/power variance.
 
+The [pre-indexed immediate halfword transfer shortcut](docs/70_halfword_transfer_shortcut.md) specializes no-writeback immediate `LDRH`/`LDRSH`/`STRH` instructions (the fourth-largest active-scene category at 7.38%, concentrated in the second-hottest user-space loop) at the entry of `executeHalfwordTransfer`. It passes all 58 CPU and 87 timing checks, preserves identical active-scene hashes, and improves active-section throughput from 55.10 to 57.91 MIPS (+5.11%, whole-run CPU time 69.97 s to 60.42 s, -13.64%) in its single matched pair. The change is retained; specialized paths now cover roughly 68% of active-scene instructions.
+
+
 
 

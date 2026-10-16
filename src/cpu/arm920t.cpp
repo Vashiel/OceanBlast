@@ -1307,6 +1307,32 @@ void ARM920T::executeSingleDataTransfer(u32 instr) {
 }
 
 void ARM920T::executeHalfwordTransfer(u32 instr) {
+    u32 op = (instr >> 5) & 3;
+    if ((instr & 0x01600000u) == 0x01400000u && (op & 1u)) {
+        u32 rn = (instr >> 16) & 0xF;
+        u32 rd = (instr >> 12) & 0xF;
+        u32 baseVal = (rn == 15) ? (state.r[15] + 4) : state.r[rn];
+        u32 offset = ((instr >> 4) & 0xF0u) | (instr & 0xFu);
+        u32 targetAddr = (instr & (1u << 23)) ? (baseVal + offset) : (baseVal - offset);
+        if (instr & (1u << 20)) {
+            u16 raw = bus.read16(targetAddr);
+            if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                bus.clearLastFault();
+                return;
+            }
+            state.r[rd] = (op == 1) ? static_cast<u32>(raw) : static_cast<u32>(static_cast<i32>(static_cast<i16>(raw)));
+        } else {
+            bus.write16(targetAddr, static_cast<u16>(state.r[rd]));
+            if (bus.getLastFault() != Bus::MmuFault::NONE) {
+                handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+                bus.clearLastFault();
+                return;
+            }
+        }
+        return;
+    }
+
     bool pre = (instr & (1 << 24)) != 0;
     bool up = (instr & (1 << 23)) != 0;
     bool isImm = (instr & (1 << 22)) != 0;
@@ -1314,7 +1340,6 @@ void ARM920T::executeHalfwordTransfer(u32 instr) {
     bool isLoad = (instr & (1 << 20)) != 0;
     u32 rn = (instr >> 16) & 0xF;
     u32 rd = (instr >> 12) & 0xF;
-    u32 op = (instr >> 5) & 3;
 
     u32 baseVal = (rn == 15) ? (state.r[15] + 4) : state.r[rn];
     u32 offset = 0;
