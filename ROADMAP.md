@@ -84,9 +84,4 @@ The subsequent [SUBS/CMP simple-ALU experiment](docs/71_subs_cmp_experiment.md) 
 
 The [combined instruction-fetch check](docs/72_instruction_fetch_check.md) replaces the separate 1 KB subpage comparison and alignment test in `Bus::readInstruction` (which hits on 97.89% of active-scene instruction fetches) with a single bitwise XOR-and-mask check (`((va ^ instructionPage) & mask) != 0`). It passes all 58 CPU and 87 timing checks, preserves identical active-scene hashes, and improves active-section throughput from 51.92 to 55.71 MIPS (+7.31%, whole-run CPU time 66.58 s to 44.02 s, -33.89%) in its single matched pair. The change is retained.
 
-
-
-
-
-
-
+The [data MMU and bus read/write fast-path streamlining](docs/73_mmu_bus_fastpath.md) simplifies the user-mode access-permission check in `Arm920TMmu::translate` to a single comparison (`ap <= (isWrite ? 2u : 1u)`), removes redundant `lastFault = MmuFault::NONE` stores on non-faulting reads and writes, and folds physical SDRAM range checks into single unsigned comparisons. It passes all 8 MMU, 58 CPU and 87 timing checks, preserves identical active-scene hashes, and improves active-section throughput from 54.53 to 65.87 MIPS (+20.80%, whole-run CPU time 53.97 s to 43.70 s, -19.02%) in its single matched pair. The change is retained.

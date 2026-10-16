@@ -78,14 +78,14 @@ public:
     void write32PhysSlow(u32 addr, u32 val);
 
     inline u8 read8Phys(u32 pa) {
-        if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) < ADDR_SDRAM_SIZE) {
+        if (__builtin_expect((pa - ADDR_SDRAM_BASE) < ADDR_SDRAM_SIZE, 1)) {
             return sdramPtr[pa - ADDR_SDRAM_BASE];
         }
         return read8PhysSlow(pa);
     }
 
     inline u16 read16Phys(u32 pa) {
-        if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 2) && (pa & 1) == 0) {
+        if (__builtin_expect((pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 2) && (pa & 1) == 0, 1)) {
             u16 val;
             std::memcpy(&val, sdramPtr + (pa - ADDR_SDRAM_BASE), 2);
             return val;
@@ -94,7 +94,7 @@ public:
     }
 
     inline u32 read32Phys(u32 pa) {
-        if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 4) && (pa & 3) == 0) {
+        if (__builtin_expect((pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 4) && (pa & 3) == 0, 1)) {
             u32 val;
             std::memcpy(&val, sdramPtr + (pa - ADDR_SDRAM_BASE), 4);
             return val;
@@ -124,7 +124,7 @@ public:
     }
 
     inline void write8Phys(u32 pa, u8 val) {
-        if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) < ADDR_SDRAM_SIZE) {
+        if (__builtin_expect((pa - ADDR_SDRAM_BASE) < ADDR_SDRAM_SIZE, 1)) {
             sdramPtr[pa - ADDR_SDRAM_BASE] = val;
             captureFrameWrite(pa, 1);
             return;
@@ -135,49 +135,45 @@ public:
     inline u8 read8(u32 addr) {
         MmuFault fault = MmuFault::NONE;
         u32 pa = translate(addr, &fault);
-        if (fault != MmuFault::NONE) {
+        if (__builtin_expect(fault != MmuFault::NONE, 0)) {
             lastFault = fault;
             lastFaultAddr = addr;
             return 0;
         }
-        lastFault = MmuFault::NONE;
         return read8Phys(pa);
     }
 
     inline u16 read16(u32 addr) {
         MmuFault fault = MmuFault::NONE;
         u32 pa = translate(addr, &fault);
-        if (fault != MmuFault::NONE) {
+        if (__builtin_expect(fault != MmuFault::NONE, 0)) {
             lastFault = fault;
             lastFaultAddr = addr;
             return 0;
         }
-        lastFault = MmuFault::NONE;
         return read16Phys(pa);
     }
 
     inline u32 read32(u32 addr) {
         MmuFault fault = MmuFault::NONE;
         u32 pa = translate(addr, &fault);
-        if (fault != MmuFault::NONE) {
+        if (__builtin_expect(fault != MmuFault::NONE, 0)) {
             lastFault = fault;
             lastFaultAddr = addr;
             return 0;
         }
-        lastFault = MmuFault::NONE;
         return read32Phys(pa);
     }
 
     inline void write8(u32 addr, u8 val) {
         MmuFault fault = MmuFault::NONE;
         u32 pa = translate(addr, &fault, true);
-        if (fault != MmuFault::NONE) {
+        if (__builtin_expect(fault != MmuFault::NONE, 0)) {
             lastFault = fault;
             lastFaultAddr = addr;
             return;
         }
-        lastFault = MmuFault::NONE;
-        if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) < ADDR_SDRAM_SIZE) {
+        if (__builtin_expect((pa - ADDR_SDRAM_BASE) < ADDR_SDRAM_SIZE, 1)) {
             sdramPtr[pa - ADDR_SDRAM_BASE] = val;
             captureFrameWrite(pa, 1);
             return;
@@ -188,13 +184,12 @@ public:
     inline void write16(u32 addr, u16 val) {
         MmuFault fault = MmuFault::NONE;
         u32 pa = translate(addr, &fault, true);
-        if (fault != MmuFault::NONE) {
+        if (__builtin_expect(fault != MmuFault::NONE, 0)) {
             lastFault = fault;
             lastFaultAddr = addr;
             return;
         }
-        lastFault = MmuFault::NONE;
-        if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 2) && (pa & 1) == 0) {
+        if (__builtin_expect((pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 2) && (pa & 1) == 0, 1)) {
             std::memcpy(sdramPtr + (pa - ADDR_SDRAM_BASE), &val, 2);
             captureFrameWrite(pa, 2);
             return;
@@ -205,13 +200,12 @@ public:
     inline void write32(u32 addr, u32 val) {
         MmuFault fault = MmuFault::NONE;
         u32 pa = translate(addr, &fault, true);
-        if (fault != MmuFault::NONE) {
+        if (__builtin_expect(fault != MmuFault::NONE, 0)) {
             lastFault = fault;
             lastFaultAddr = addr;
             return;
         }
-        lastFault = MmuFault::NONE;
-        if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 4) && (pa & 3) == 0) {
+        if (__builtin_expect((pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 4) && (pa & 3) == 0, 1)) {
             std::memcpy(sdramPtr + (pa - ADDR_SDRAM_BASE), &val, 4);
             captureFrameWrite(pa, 4);
             return;

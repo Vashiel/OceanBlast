@@ -50,6 +50,7 @@ bool Bus::saveEeprom(const std::string& path) const {
 void Bus::reset() {
     usbHost.reset();
     flushTlb();
+    clearLastFault();
     sdramPtr = sdram.data();
     std::fill(steppingstone.begin(), steppingstone.end(), 0);
     std::fill(sdram.begin(), sdram.end(), 0);

@@ -35,17 +35,17 @@ public:
     u32 translateSlow(u32 va, const u8* ram, MmuFault* fault, bool isWrite) const;
 
     inline u32 translate(u32 va, const u8* ram, MmuFault* fault = nullptr, bool isWrite = false) const {
-        if (!mmuEnabled) {
+        if (__builtin_expect(!mmuEnabled, 0)) {
             if (fault) *fault = MmuFault::NONE;
             return va;
         }
         u32 vpn = va >> 12;
         u32 idx = vpn & (TLB_SIZE - 1);
         const TlbEntry& entry = tlb[idx];
-        if (entry.valid && entry.vpn == vpn) {
+        if (__builtin_expect(entry.valid && entry.vpn == vpn, 1)) {
             if (userMode) {
                 const u32 ap = (entry.accessPermissions >> (((va >> 10) & 3) * 2)) & 3;
-                if (ap == 0 || ap == 1 || (ap == 2 && isWrite)) {
+                if (__builtin_expect(ap <= (isWrite ? 2u : 1u), 0)) {
                     if (fault) *fault = entry.section ? MmuFault::SECTION_PERMISSION_FAULT : MmuFault::PAGE_PERMISSION_FAULT;
                     return 0xFFFFFFFF;
                 }
