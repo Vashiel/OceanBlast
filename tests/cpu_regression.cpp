@@ -136,10 +136,10 @@ int main() {
     { Bus fastBus,referenceBus; ARM920T fast(fastBus),reference(referenceBus);
       reference.setSimpleAluExecution(false); bool equivalent=true;
       const u32 edges[]={0,1,0x7fffffff,0x80000000,0xffffffff};
-      for (unsigned nzcv=0;nzcv<16;++nzcv) for (unsigned type=0;type<4;++type)
+      for (unsigned nzcv=0;nzcv<16;++nzcv) for (u32 opcode:{0u,1u,2u,3u,4u,12u,13u,14u,15u}) for (unsigned type=0;type<4;++type)
         for (unsigned amount=0;amount<32;++amount) for (u32 value:edges)
           for (bool pcSource:{false,true}) for (bool flags:{false,true}) {
-            const u32 instruction=0xe1810000|(u32(flags)<<20)|(amount<<7)|(type<<5)|(pcSource?15u:2u);
+            const u32 instruction=0xe0010000|(opcode<<21)|(u32(flags)<<20)|(amount<<7)|(type<<5)|(pcSource?15u:2u);
             for (Bus* b:{&fastBus,&referenceBus}) {
               b->write32(0x30000000,0xe128f004);b->write32(0x30000004,instruction);
             }

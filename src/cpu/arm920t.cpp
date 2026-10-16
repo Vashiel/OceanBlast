@@ -239,6 +239,43 @@ static inline bool executeImmediateNoFlags(ARM920TState& state,u32 instr) {
     return true;
 }
 
+// Register ALU operations that preserve flags and use no register-controlled
+// shift need no shifter carry or NZCV update.
+static inline bool executeRegisterNoFlags(ARM920TState& state,u32 instr) {
+    const u32 opcode=(instr>>21)&15, rn=(instr>>16)&15, rd=(instr>>12)&15, rm=instr&15;
+    if (rn==15 || rd==15 || rm==15 || (opcode>=5 && opcode<=11)) return false;
+    u32 right=state.r[rm];
+    const u32 shift=(instr>>4)&255;
+    if (shift) {
+        const u32 amount=shift>>3;
+        switch ((shift>>1)&3) {
+            case 0: right<<=amount; break;
+            case 1: right=amount?(right>>amount):0u; break;
+            case 2: right=amount?u32(i32(right)>>amount):u32(i32(right)>>31); break;
+            case 3:
+                right=amount?((right>>amount)|(right<<(32-amount)))
+                            :(((state.cpsr&FLAG_C)?0x80000000u:0u)|(right>>1));
+                break;
+        }
+    }
+    const u32 left=state.r[rn];
+    u32 result;
+    switch (opcode) {
+        case 0: result=left&right; break;
+        case 1: result=left^right; break;
+        case 2: result=left-right; break;
+        case 3: result=right-left; break;
+        case 4: result=left+right; break;
+        case 12: result=left|right; break;
+        case 13: result=right; break;
+        case 14: result=left&~right; break;
+        case 15: result=~right; break;
+        default: return false;
+    }
+    state.r[rd]=result;
+    return true;
+}
+
 void ARM920T::step(size_t peripheralTicks) {
     lastCycles = 1;
     if (state.halted) return;
@@ -268,8 +305,10 @@ void ARM920T::step(size_t peripheralTicks) {
     if (thumb) {
         stepThumb(static_cast<u16>(instruction));
     } else if (simpleAluExecution && !debugLogging &&
-               (instruction & 0xfe000000u) == 0xe2000000u &&
-               executeImmediateNoFlags(state,instruction)) {
+               ((instruction & 0xfe000000u) == 0xe2000000u
+                    ? executeImmediateNoFlags(state,instruction)
+                    : ((instruction & 0xfe100010u) == 0xe0000000u &&
+                       executeRegisterNoFlags(state,instruction)))) {
         state.r[15] += 4;
     } else {
         stepARM(instruction);
