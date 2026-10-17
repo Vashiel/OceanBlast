@@ -10,7 +10,47 @@ static void program(Bus& bus) {
     bus.write32(0,0xe2800001); // ADD r0,r0,#1
     bus.write32(4,0xeafffffd); // B 0
 }
+// An observable wrapper verifies generic batch dispatch using real interpreter
+// execution. It is a test adapter, not a simulated native backend.
+class ObservedEngine final : public ExecutionEngine {
+public:
+    InterpreterEngine interpreter;
+    size_t entries=0,batches=0;
+    bool busy=false;
+    ObservedEngine(ARM920T& cpu,Bus& bus) : interpreter(cpu,bus) {}
+    const ARM920TState& state() const override { return interpreter.state(); }
+    const Bus& memory() const override { return interpreter.memory(); }
+    bool canHandoff() const override { return !busy && interpreter.canHandoff(); }
+    void enter(bool clocks) override { ++entries; interpreter.enter(clocks); }
+    ExecutionExit runToBoundary(ExecutionTimeline& timeline,size_t budget,uint64_t stopTicks) override {
+        ++batches; return interpreter.runToBoundary(timeline,budget,stopTicks);
+    }
+};
 int main() {
+    {
+        Machine machine,reference;
+        program(machine.bus()); program(reference.bus());
+        machine.configureExecution(false,3); reference.configureExecution(false,3);
+        machine.execution().run(2); reference.execution().run(2);
+        ObservedEngine engine(machine.cpu(),machine.bus());
+        machine.execution().selectEngine(engine);
+        const size_t steps=machine.execution().run(17);
+        reference.execution().run(17);
+        check("Generic engine dispatch preserves the shared timeline and program",
+            engine.entries==1 && engine.batches==1 && steps==17 &&
+            machine.cpu().getReg(0)==reference.cpu().getReg(0) && machine.cpu().getPC()==reference.cpu().getPC() &&
+            machine.execution().time().ticks==reference.execution().time().ticks);
+        engine.busy=true;
+        bool rejected=false;
+        try { machine.execution().selectInterpreter(machine.cpu()); } catch(const std::logic_error&) { rejected=true; }
+        check("Unsafe engine handoff is rejected before changing selection",rejected && engine.entries==1);
+        engine.busy=false;
+        machine.execution().selectInterpreter(machine.cpu());
+        machine.execution().run(1); reference.execution().run(1);
+        check("Interpreter fallback resumes at the exact next guest step",
+            machine.cpu().getReg(0)==reference.cpu().getReg(0) && machine.cpu().getPC()==reference.cpu().getPC() &&
+            machine.execution().time().ticks==reference.execution().time().ticks);
+    }
     for (size_t ratio : {1u,3u,6u,16u}) {
         Machine reference,machine;
         program(reference.bus()); program(machine.bus());

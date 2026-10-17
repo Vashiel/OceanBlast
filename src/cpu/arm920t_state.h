@@ -11,6 +11,9 @@ constexpr u32 FLAG_I = 1u << 7;
 constexpr u32 FLAG_F = 1u << 6;
 constexpr u32 FLAG_T = 1u << 5;
 
+enum class CpuStepEvent { Instruction, Interrupt, PrefetchAbort, DataAbort,
+                          UndefinedInstruction, SupervisorCall, Waiting, Halted, LegacyAcceleration };
+
 // Guest-visible CPU state, independent of the bus and instruction interpreter.
 // This is an in-memory representation, not a portable save-state file format.
 struct ARM920TState {

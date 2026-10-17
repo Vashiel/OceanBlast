@@ -17,8 +17,7 @@ public:
     ARM920T& operator=(ARM920T&&) = delete;
     ~ARM920T();
 
-    enum class StepEvent { Instruction, Interrupt, PrefetchAbort, DataAbort,
-                           UndefinedInstruction, SupervisorCall, Waiting, Halted, LegacyAcceleration };
+    using StepEvent = CpuStepEvent;
     StepEvent getLastEvent() const { return lastEvent; }
     bool sharesContext(const ARM920T& other) const { return &state == &other.state && &bus == &other.bus; }
     bool usesBus(const Bus& candidate) const { return &bus == &candidate; }
