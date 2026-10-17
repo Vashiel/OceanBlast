@@ -1,0 +1,51 @@
+{
+  "first_nonzero_callback": 2659,
+  "first_nonzero_guest_seconds": 12.3930005,
+  "first_nonzero_pcm_seconds": 10.213561769583224,
+  "windows": [
+    {
+      "music_guest_window": [
+        0,
+        2
+      ],
+      "callbacks": 343,
+      "max_interval_excess_seconds": 0.00013780378663753867,
+      "min_interval_excess_seconds": -4.621336246145302e-08,
+      "total_interval_excess_seconds": 0.010976118077553294,
+      "over_1ms": 0,
+      "rate_values": [
+        21972
+      ]
+    },
+    {
+      "music_guest_window": [
+        2,
+        5
+      ],
+      "callbacks": 515,
+      "max_interval_excess_seconds": 3.786637539117399e-09,
+      "min_interval_excess_seconds": -4.621336246145302e-08,
+      "total_interval_excess_seconds": -1.0899881667501138e-05,
+      "over_1ms": 0,
+      "rate_values": [
+        21972
+      ]
+    },
+    {
+      "music_guest_window": [
+        5,
+        10
+      ],
+      "callbacks": 859,
+      "max_interval_excess_seconds": 3.786637539117399e-09,
+      "min_interval_excess_seconds": -4.621336246145302e-08,
+      "total_interval_excess_seconds": -1.8247278354143436e-05,
+      "over_1ms": 0,
+      "rate_values": [
+        21972
+      ]
+    }
+  ],
+  "music_gaps_over_1ms": [],
+  "pcm_matches_previous": true
+}

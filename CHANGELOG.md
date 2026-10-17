@@ -6,6 +6,10 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ## 2026-10-17 — Current Wade Profile and Chefs Check
 
+* **[Wade Single-Buffer Music Startup](docs/90_wade_music_single_buffer.md):** The ratio-6 capture loops one 1,024-byte DMA buffer until music second 1.85, then alternates both ring halves. The identical replay is about 16 ms at that handover. The rest of the mismatched opening is freshly written. Ratio 12 still leaves the first second wrong and would speed the fight, so no preset, DMA or playback change is installed.
+
+* **[Wade Music Startup Delivery](docs/89_wade_music_startup_delivery.md):** The title-music mismatch is already in offline PCM. Delivery gaps stay under 1 ms and the IIS rate does not change at music onset. Extra guest CPU shortens the bad interval without removing its start. One later DMA period rereads 16 ms of unreplaced audio.
+
 * **[digiBLAST Soundtrack Reference](docs/88_digiblast_soundtrack_reference.md):** The supplied video is an XM asset conversion, not a console recording. Its musical structure matches generated OceanBlast PCM near unity tempo, so the GBA difference does not justify a tempo correction. Live output stutter and startup differences remain open; no runtime change is made.
 
 * **[Local GBA Wade Comparison](docs/87_local_gba_wade_comparison.md):** Captured the supplied GBA port in isolated mGBA. START blinks 4.6% faster in OceanBlast; corresponding generated music structure advances about 8.7% faster, with consistent split-window fits and no matching uniform pitch increase. Cross-port timing and recurring live stutter remain unresolved; no runtime change is made.

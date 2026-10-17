@@ -1,0 +1,135 @@
+{
+  "date": "2026-10-17",
+  "source_revision": "f3e3212ca0086e78229a2f754f9326217a96ea06",
+  "compiler": "GCC 16.2.0",
+  "flags": "-std=c++17 -O3 -march=x86-64 unity; inline-unit-growth=400, large-unit-insns=100000, max-inline-insns-single=1000, max-inline-insns-auto=200",
+  "budget_minutes": 20,
+  "normal_probe": {
+    "ratio": 6,
+    "instruction_limit": 3000000000,
+    "batch_size": 4096,
+    "host_audio": false
+  },
+  "cpu_budget_probe": {
+    "ratio": 12,
+    "guest_tick_limit": 320000000,
+    "batch_size": 4096,
+    "host_audio": false
+  },
+  "ring_probe": {
+    "ratio": 6,
+    "instruction_limit": 3000000000,
+    "tracked_physical_byte_range": [
+      "0x30350000",
+      "0x303507ff"
+    ],
+    "host_audio": false
+  },
+  "files": {
+    "rom": {
+      "name": "Wade Hixton's Counter Punch [G] (EN).bin",
+      "bytes": 17301504,
+      "sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a"
+    },
+    "initial_eeprom": {
+      "name": "board.nvram",
+      "bytes": 2048,
+      "sha256": "dbb6b373859f4ad14adf58998ae870b08da5c8279d5f5bee52d050c4e6a06084"
+    },
+    "installed_executable": {
+      "name": "oceanblast.exe",
+      "bytes": 4464725,
+      "sha256": "57fac1d7b69e91c61337ac3ca08927bcce6cb67eaab420d3b1e935e2de828410"
+    },
+    "capture.cpp": {
+      "name": "capture.cpp",
+      "bytes": 1875,
+      "sha256": "1201e1cb2e47e11cbb10e57ea04ecbbc639758a62aa1246b04cac17c8f628ab7"
+    },
+    "capture.exe": {
+      "name": "capture.exe",
+      "bytes": 3121872,
+      "sha256": "8c09d0a017ef6988fbfe0555df6c1db356e4597dda89034b1aa4e9e6468270c1"
+    },
+    "budget_probe.cpp": {
+      "name": "budget_probe.cpp",
+      "bytes": 1941,
+      "sha256": "b8d7efdef74d77790bda32e483465755659d9fb3b35657d6c208e2b05f826017"
+    },
+    "budget_probe.exe": {
+      "name": "budget_probe.exe",
+      "bytes": 3122384,
+      "sha256": "eb2f9d38727ba1367c011ff37618f496521010a6d5664bef6c2dee4d3d020567"
+    },
+    "ring_probe.cpp": {
+      "name": "ring_probe.cpp",
+      "bytes": 2812,
+      "sha256": "5f117bdaf78595c9b9a9317403a7d0bc6ffb9ba90c60c3bf055c171b119e5623"
+    },
+    "ring_probe.exe": {
+      "name": "ring_probe.exe",
+      "bytes": 3123846,
+      "sha256": "8a231abf723952636693bc90fe85ecf660829058dcc80eb0a20d646a75546dbf"
+    },
+    "prepare_ring_trace.py": {
+      "name": "prepare_ring_trace.py",
+      "bytes": 2538,
+      "sha256": "6d69477fe4cfd5ccc9c8041c6d8551c69a9b723f2107e71d37f2a80330bb9d41"
+    },
+    "current.pcm": {
+      "name": "current.pcm",
+      "bytes": 2464052,
+      "sha256": "3f4e612b71fb425ffc03f17b27c4da85fbf33d51c097605a6b3986d19b8faf58"
+    },
+    "current.converted.pcm": {
+      "name": "current.converted.pcm",
+      "bytes": 2011956,
+      "sha256": "262a3e942725da6a0fa0ccf928eb72e095699ad7532cc6ac22a77fe879c7f642"
+    },
+    "current.csv": {
+      "name": "current.csv",
+      "bytes": 430237,
+      "sha256": "9200b54c9595a86218fdac5821d8e1bf5eeae36b8232998be294fc9d701d9325"
+    },
+    "current.sdram": {
+      "name": "current.sdram",
+      "bytes": 33554432,
+      "sha256": "553452cd0dad01ff6adfa7410cd312d56bb5fb247f31ddeaccc6a532f9cd4f37"
+    },
+    "ratio12.pcm": {
+      "name": "ratio12.pcm",
+      "bytes": 1541804,
+      "sha256": "7832318b781ff8fcbdd7096ddcf6a4357b2de091e19e5ccb1bbeabdbaf43bbe3"
+    },
+    "ratio12.converted.pcm": {
+      "name": "ratio12.converted.pcm",
+      "bytes": 1286364,
+      "sha256": "3937cab4505a033370e8e25a99746e583da068d13a14862d6efda63c0f25c70a"
+    },
+    "ratio12.csv": {
+      "name": "ratio12.csv",
+      "bytes": 267823,
+      "sha256": "0dcd6bd0006bd9d74ddbd34d7e77f85e3e61b65c2765eba2dbc27038d35a2976"
+    },
+    "ring.pcm": {
+      "name": "ring.pcm",
+      "bytes": 2464052,
+      "sha256": "3f4e612b71fb425ffc03f17b27c4da85fbf33d51c097605a6b3986d19b8faf58"
+    },
+    "ring.csv": {
+      "name": "ring.csv",
+      "bytes": 430237,
+      "sha256": "9200b54c9595a86218fdac5821d8e1bf5eeae36b8232998be294fc9d701d9325"
+    },
+    "ring.ring.csv": {
+      "name": "ring.ring.csv",
+      "bytes": 64065,
+      "sha256": "509b7398047f68d095f1eb05eebb57578fe7a7acf5538c206dc66eaedb73500a"
+    },
+    "ring.sdram": {
+      "name": "ring.sdram",
+      "bytes": 33554432,
+      "sha256": "553452cd0dad01ff6adfa7410cd312d56bb5fb247f31ddeaccc6a532f9cd4f37"
+    }
+  }
+}

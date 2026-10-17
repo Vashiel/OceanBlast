@@ -1,0 +1,83 @@
+{
+  "tracked_physical_byte_range": [
+    "0x30350000",
+    "0x303507ff"
+  ],
+  "pcm_matches_uninstrumented": true,
+  "sdram_matches_uninstrumented": true,
+  "windows": [
+    {
+      "stale_bytes": 1454,
+      "fresh_bytes": 173196,
+      "never_written_bytes": 0,
+      "music_guest_window": [
+        0,
+        2
+      ],
+      "callbacks": 343,
+      "total_callback_bytes": 174840
+    },
+    {
+      "stale_bytes": 0,
+      "fresh_bytes": 263680,
+      "never_written_bytes": 0,
+      "music_guest_window": [
+        2,
+        5
+      ],
+      "callbacks": 515,
+      "total_callback_bytes": 263680
+    },
+    {
+      "stale_bytes": 0,
+      "fresh_bytes": 439808,
+      "never_written_bytes": 0,
+      "music_guest_window": [
+        5,
+        10
+      ],
+      "callbacks": 859,
+      "total_callback_bytes": 439808
+    }
+  ],
+  "stale_music_callbacks": [
+    {
+      "callback": 2971,
+      "guest_seconds_after_music": 1.8281768000000014,
+      "stale_bytes": 412,
+      "fresh_bytes": 100,
+      "sample_count": 256,
+      "zero_sample_fraction": 0.0,
+      "exact_match_recent_callbacks": []
+    },
+    {
+      "callback": 2972,
+      "guest_seconds_after_music": 1.8340023500000004,
+      "stale_bytes": 512,
+      "fresh_bytes": 0,
+      "sample_count": 256,
+      "zero_sample_fraction": 0.0,
+      "exact_match_recent_callbacks": [
+        2970
+      ]
+    },
+    {
+      "callback": 2980,
+      "guest_seconds_after_music": 1.8721014,
+      "stale_bytes": 428,
+      "fresh_bytes": 84,
+      "sample_count": 256,
+      "zero_sample_fraction": 0.0,
+      "exact_match_recent_callbacks": []
+    },
+    {
+      "callback": 2981,
+      "guest_seconds_after_music": 1.8779269500000009,
+      "stale_bytes": 102,
+      "fresh_bytes": 410,
+      "sample_count": 256,
+      "zero_sample_fraction": 0.00390625,
+      "exact_match_recent_callbacks": []
+    }
+  ]
+}
