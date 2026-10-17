@@ -1,5 +1,7 @@
 # Local GBA Wade Comparison
 
+Follow-up: the [digiBLAST XM soundtrack comparison](88_digiblast_soundtrack_reference.md) matches the generated PCM at approximately the same tempo. The GBA discrepancy below is not sufficient evidence for an OceanBlast tempo defect or a speed correction.
+
 ## Scope and inputs
 
 The supplied GBA version of Wade Hixton's Counter Punch is run in the supplied mGBA 0.10.5 win32 application. The application, portable configuration and ROM are copied to an ignored working directory with a separate save. The original ROM, save and mGBA configuration are left in place. The task allowance is 20 minutes, including capture, analysis and reporting; title-screen evidence is sufficient, so no fight or second cartridge is tested.

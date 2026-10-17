@@ -1,0 +1,63 @@
+{
+  "audio": {
+    "reference_origin_seconds": 0,
+    "oceanblast_pcm_music_start": 10.211791383219955,
+    "broad_envelope_alignment": {
+      "correlation": 0.8900272775406807,
+      "reference_seconds_per_digi_second": 1.0000000000000004,
+      "reference_offset_seconds": 32.04,
+      "scale_search": [
+        0.5,
+        2
+      ],
+      "reference_search_seconds": [
+        0,
+        44.92
+      ],
+      "digi_interval_seconds": [
+        0.2,
+        10
+      ],
+      "method": "Normalized sliding RMS-envelope correlation; exploratory, not proof of pitch or emulation accuracy."
+    },
+    "split_window_alignment": [
+      {
+        "digi_seconds": [
+          0.2,
+          5
+        ],
+        "correlation": 0.7838415988032199,
+        "reference_seconds_per_digi_second": 1.001,
+        "reference_intercept_seconds": 31.840000000000046
+      },
+      {
+        "digi_seconds": [
+          5,
+          10
+        ],
+        "correlation": 0.9926142409960779,
+        "reference_seconds_per_digi_second": 0.998,
+        "reference_intercept_seconds": 31.850000000000048
+      },
+      {
+        "digi_seconds": [
+          0.2,
+          10
+        ],
+        "correlation": 0.8950193207959635,
+        "reference_seconds_per_digi_second": 0.998,
+        "reference_intercept_seconds": 31.850000000000048
+      }
+    ],
+    "spectral_peak_alignment": {
+      "median_correlation": 0.55727363668679,
+      "oceanblast_frequency_over_reference_frequency": 0.9980000000000001,
+      "ratio_search": [
+        0.85,
+        1.2
+      ],
+      "method": "4096-sample Hann windows, log magnitude minus 31-bin local mean, 150-7000 Hz; median across fixed envelope-aligned times 2-9.9 seconds. Exploratory soundtrack-reference spectral-peak correspondence, not listening acceptance.",
+      "unshifted_median_correlation": 0.37615235636187566
+    }
+  }
+}

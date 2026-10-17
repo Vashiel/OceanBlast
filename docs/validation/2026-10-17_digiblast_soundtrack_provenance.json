@@ -1,0 +1,32 @@
+{
+  "title": "Wade Hixton's Counter Punch (digiBLAST) - full soundtrack",
+  "uploader": "iDog Hacker",
+  "duration": 826,
+  "description": "Converted directly from the XM files in the game data\nInterestingly, this is a port of a GBA game\n\nComposed by Bart Roijmans (from what I can find).",
+  "source_url": "https://www.youtube.com/watch?v=KRqyABxFj2I",
+  "retrieved_date": "2026-10-17",
+  "interval_seconds": [
+    0,
+    45
+  ],
+  "format_id": "140",
+  "source_kind": "XM asset conversion according to uploader; not console capture",
+  "budget_minutes": 15,
+  "inputs": [
+    {
+      "name": "reference.m4a",
+      "bytes": 729061,
+      "sha256": "930ebfa13449b550dbbc6ac09b8128f7bcd1cd9deec5f0fba5d35c724aa53e4f"
+    },
+    {
+      "name": "audio.wav",
+      "bytes": 1984590,
+      "sha256": "de22749575c8536052c296862cd9351983165fdb6db4bf5cc9a5098f7fe051c5"
+    },
+    {
+      "name": "wade-title-offline.wav",
+      "bytes": 2012000,
+      "sha256": "de0667d6fded9eb2f47f61aeaf7867ef2b4d7f3f76f7bf5b97ebfaa9d854d3b5"
+    }
+  ]
+}
