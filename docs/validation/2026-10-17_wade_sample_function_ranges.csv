@@ -1,0 +1,41 @@
+module_offset,samples,pe_function_begin,pe_function_end,unwind_rva,source_group,resolved_function,source
+0x4326e,55,0x430f0,0x461d0,0x1dd330,cpu,oceanblast::ARM920T::stepARM(unsigned int),src/cpu/arm920t.cpp:605
+0x430fc,49,0x430f0,0x461d0,0x1dd330,cpu,oceanblast::ARM920T::stepARM(unsigned int),src/cpu/arm920t.cpp:516
+0x430f0,46,0x430f0,0x461d0,0x1dd330,cpu,oceanblast::ARM920T::stepARM(unsigned int),src/cpu/arm920t.cpp:516
+0x43228,41,0x430f0,0x461d0,0x1dd330,cpu,oceanblast::ARM920T::stepARM(unsigned int),src/cpu/arm920t.cpp:518
+0xa1452,39,0xa1300,0xa4b69,0x1df6e8,cpu,oceanblast::ARM920T::step(unsigned long long),src/cpu/arm920t.cpp:307
+0x33fce,37,0x33d00,0x37a1f,0x1dd248,memory,"oceanblast::Arm920TMmu::translate(unsigned int, unsigned char const*, oceanblast::Arm920TMmu::MmuFault*, bool) const",src/memory/arm920t_mmu.h:45
+0xa146b,37,0xa1300,0xa4b69,0x1df6e8,cpu,oceanblast::ARM920T::step(unsigned long long),src/cpu/arm920t.cpp:307
+0xa14ff,35,0xa1300,0xa4b69,0x1df6e8,cpu,oceanblast::ARM920T::step(unsigned long long),src/cpu/arm920t.cpp:287
+0x4326a,31,0x430f0,0x461d0,0x1dd330,cpu,oceanblast::ARM920T::stepARM(unsigned int),src/cpu/arm920t.cpp:605
+0xa141a,30,0xa1300,0xa4b69,0x1df6e8,cpu,oceanblast::ARM920T::step(unsigned long long),src/cpu/arm920t.cpp:294
+0xa149a,27,0xa1300,0xa4b69,0x1df6e8,memory,oceanblast::Bus::hasLevelInterruptSource() const,src/memory/bus.h:241
+0x34427,26,0x33d00,0x37a1f,0x1dd248,memory,oceanblast::Bus::getLastFault() const,src/memory/bus.h:230
+0x343bd,25,0x33d00,0x37a1f,0x1dd248,memory,"oceanblast::Arm920TMmu::translate(unsigned int, unsigned char const*, oceanblast::Arm920TMmu::MmuFault*, bool) const",src/memory/arm920t_mmu.h:45
+0xa1440,25,0xa1300,0xa4b69,0x1df6e8,memory,"oceanblast::Bus::readInstruction(unsigned int, bool, oceanblast::Arm920TMmu::MmuFault&)",src/memory/bus.h:123
+0x43271,24,0x430f0,0x461d0,0x1dd330,cpu,oceanblast::ARM920T::stepARM(unsigned int),src/cpu/arm920t.cpp:605
+0xa1464,24,0xa1300,0xa4b69,0x1df6e8,cpu,oceanblast::ARM920T::step(unsigned long long),src/cpu/arm920t.cpp:308
+0xa1476,23,0xa1300,0xa4b69,0x1df6e8,cpu,oceanblast::ARM920T::step(unsigned long long),src/cpu/arm920t.cpp:310
+0xa142a,22,0xa1300,0xa4b69,0x1df6e8,memory,"oceanblast::Bus::readInstruction(unsigned int, bool, oceanblast::Arm920TMmu::MmuFault&)",src/memory/bus.h:109
+0xa14cd,22,0xa1300,0xa4b69,0x1df6e8,core,"oceanblast::InterpreterExecution::runLegacy(unsigned long long, unsigned long long, unsigned long long&, unsigned long long&)",src/core/execution_batch.h:44
+0x43570,19,0x430f0,0x461d0,0x1dd330,cpu,oceanblast::ARM920T::stepARM(unsigned int),src/cpu/arm920t.cpp:607
+0x3804c,18,0x37a20,0x3b320,0x1dd260,memory,oceanblast::Bus::getLastFault() const,src/memory/bus.h:230
+0x432c8,16,0x430f0,0x461d0,0x1dd330,cpu,oceanblast::ARM920T::stepARM(unsigned int),src/cpu/arm920t.cpp:629
+0xa1944,16,0xa1300,0xa4b69,0x1df6e8,core,"oceanblast::InterpreterExecution::runLegacy(unsigned long long, unsigned long long, unsigned long long&, unsigned long long&)",src/core/execution_batch.h:39
+0x33d2b,15,0x33d00,0x37a1f,0x1dd248,cpu,oceanblast::ARM920T::executeSingleDataTransfer(unsigned int),src/cpu/arm920t.cpp:1228
+0x3415a,15,0x33d00,0x37a1f,0x1dd248,cpu,oceanblast::ARM920T::executeSingleDataTransfer(unsigned int),src/cpu/arm920t.cpp:1309
+0x344aa,15,0x33d00,0x37a1f,0x1dd248,memory,oceanblast::Bus::getLastFault() const,src/memory/bus.h:230
+0x37f29,15,0x37a20,0x3b320,0x1dd260,memory,"oceanblast::Arm920TMmu::translate(unsigned int, unsigned char const*, oceanblast::Arm920TMmu::MmuFault*, bool) const",src/memory/arm920t_mmu.h:45
+0xa14ed,15,0xa1300,0xa4b69,0x1df6e8,cpu,oceanblast::ARM920T::step(unsigned long long),src/cpu/arm920t.cpp:287
+0x6f50,13,0x6f50,0x75bb,0x1dc424,cpu,oceanblast::ARM920T::executeSimpleDataProcessing(unsigned int),src/cpu/arm920t.cpp:421
+0x33fb1,13,0x33d00,0x37a1f,0x1dd248,memory,"oceanblast::Arm920TMmu::translate(unsigned int, unsigned char const*, oceanblast::Arm920TMmu::MmuFault*, bool) const",src/memory/arm920t_mmu.h:44
+0x432da,13,0x430f0,0x461d0,0x1dd330,cpu,oceanblast::ARM920T::stepARM(unsigned int),src/cpu/arm920t.cpp:649
+0xa1488,13,0xa1300,0xa4b69,0x1df6e8,cpu,oceanblast::ARM920T::step(unsigned long long),src/cpu/arm920t.cpp:314
+0xa14b6,12,0xa1300,0xa4b69,0x1df6e8,core,"oceanblast::InterpreterExecution::runLegacy(unsigned long long, unsigned long long, unsigned long long&, unsigned long long&)",src/core/execution_batch.h:44
+0x6f5c,11,0x6f50,0x75bb,0x1dc424,cpu,oceanblast::ARM920T::executeSimpleDataProcessing(unsigned int),src/cpu/arm920t.cpp:424
+0x33fbf,11,0x33d00,0x37a1f,0x1dd248,memory,"oceanblast::Arm920TMmu::translate(unsigned int, unsigned char const*, oceanblast::Arm920TMmu::MmuFault*, bool) const",src/memory/arm920t_mmu.h:45
+0x344bf,11,0x33d00,0x37a1f,0x1dd248,cpu,oceanblast::ARM920T::executeSingleDataTransfer(unsigned int),src/cpu/arm920t.cpp:1241
+0x43250,11,0x430f0,0x461d0,0x1dd330,cpu,oceanblast::ARM920T::evaluateCondition(unsigned int) const,src/cpu/arm920t.cpp:341
+0x49080,11,0x49080,0x4c0fa,0x1dd358,cpu,oceanblast::ARM920T::step(unsigned long long),src/cpu/arm920t.cpp:279
+0xa145b,11,0xa1300,0xa4b69,0x1df6e8,cpu,oceanblast::ARM920T::step(unsigned long long),src/cpu/arm920t.cpp:307
+0xa279e,11,0xa1300,0xa4b69,0x1df6e8,cpu,executeImmediateNoFlags,src/cpu/arm920t.cpp:226

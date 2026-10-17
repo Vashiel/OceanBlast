@@ -1,6 +1,6 @@
 # Development Roadmap
 
-Updated: 2026-10-16. The priority table defines completion criteria; delivered work and remaining validation appear under Implementation status.
+Updated: 2026-10-17. The priority table defines completion criteria; delivered work and remaining validation appear under Implementation status.
 
 ## Goal and priorities
 
@@ -99,3 +99,5 @@ The [zero-tick peripheral bypass](docs/78_zerotick_peripheral_bypass.md) elimina
 The [fixed-ratio legacy batch experiment](docs/79_legacy_fixed_ratio_experiment.md) checks compile-time groups for ratios 3 and 6 against scalar phase/IRQ behavior. Its Wade-first pair supplies no throughput gain, so the implementation was rejected without a Chefs follow-up or launcher rebuild. The generic loop and zero-tick bypass remain unchanged.
 
 The [controlled total before/after comparison](docs/80_controlled_total_comparison.md) now validates the combined retained runtime changes (`6c7870f` versus `2880b0d`) with two reversed-order Wade pairs, fresh matching normal builds, observed AC/Balanced power and identical affinity. Both pairs favor current code, with mean fight throughput +32.13% and complete-replay CPU time -22.91%, while preserving final guest state. Use this current source as the next candidate baseline; do not add earlier single-pair percentages or apply this result to the installed PGO build or other devices.
+
+The [current Wade profile and short Chefs counter-check](docs/81_current_wade_profile_and_chefs_check.md) complete the next diagnostic/compatibility slice without a rebuild. Wade matches the controlled reference state; Chefs reaches the active reference state at 60 MIPS with no empty queues or dropped samples. The next bounded hypothesis is compact TLB metadata with unchanged permissions/fault/invalidation behavior; the sample does not establish a gain or justify repeating the rejected loop specializations.

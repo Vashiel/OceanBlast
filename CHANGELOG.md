@@ -4,6 +4,10 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ---
 
+## 2026-10-17 — Current Wade Profile and Chefs Check
+
+* **[Current Wade Costs](docs/81_current_wade_profile_and_chefs_check.md):** Reused the validated executable for one matched-symbol fight sample. MMU translation remains a material sampled cost; compact TLB metadata is the next proposed experiment, with no gain assumed. A subsequent short Chefs replay holds 60 MIPS with matching guest state, no empty queues and no dropped samples. No runtime or launcher change was made.
+
 ## 2026-10-16 — Fixed-Ratio Batch Experiment
 
 * **[Controlled Total Comparison](docs/80_controlled_total_comparison.md):** Fresh pre-optimization and current normal builds were compared in two reversed-order Wade pairs under observed AC/Balanced conditions and identical processor affinity. Both pairs favor current code; means show 32.13% more fight throughput and 22.91% less complete-replay CPU time with matching guest state. These are scene/host-specific combined results, not additive validation of earlier individual percentages. No launcher was replaced.

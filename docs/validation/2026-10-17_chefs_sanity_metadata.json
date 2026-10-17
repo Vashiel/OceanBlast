@@ -1,0 +1,14 @@
+{
+  "executable_sha256": "47f90a01197f8a2aded8a4109fe276022af51a094acbd0e25212095696928249",
+  "steps": 4000000000,
+  "ratio": 3,
+  "input_sha256": "f96d2bca3f33a128c9062f377cd1024d22ded2caafd428bf30362451b302dcee",
+  "initial_eeprom_sha256": "d0ff1b294b5288d1ae1421eadf5b2d38a8752b76d472ff30bed9028e25b1c5b8",
+  "final_cpu_sha256": "0f10c4d81e5522cb6d06f9c6ab177e4ce8ed5d43f88d5796d0ee7ff689aefa92",
+  "final_sdram_sha256": "4dc004cc589c46e7c70ec1468070bfd9a9be57619765295ab02ec5d3a78e6d87",
+  "final_framebuffer_sha256": "f1460da33fb68b4746fb3328f4a28e429a04f201d3fe49d3720294917626399d",
+  "audio_empty_queue_events": 0,
+  "dropped_samples": 0,
+  "measured_mips": 60.000024603408434,
+  "matches_active_reference": true
+}

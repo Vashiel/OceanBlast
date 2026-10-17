@@ -1,0 +1,42 @@
+{
+  "runtime_revision": "2880b0d",
+  "repository_revision": "8914c98",
+  "executable_sha256": "47f90a01197f8a2aded8a4109fe276022af51a094acbd0e25212095696928249",
+  "pdata_sha256": "4c651aeab8c4e06b9a5c8408dbe066c279583ec8d7ff8dcc060d593d2f2e83d9",
+  "disassembly_sha256": "07649de25f9a345b17bdba98fbf36401f8d1cdd0642d0299282047ed7291a9b4",
+  "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+  "input_sha256": "68d303ff3e4b3a7a2b6709b84525cf17cd03213d6e61e3fa9f0d320601667f86",
+  "initial_eeprom_sha256": "e5a00aa9991ac8a5ee3109844d84a55583bd20572ad3ffcd42792f3c36b183ad",
+  "section_start_step": 7000000000,
+  "section_end_step": 8500000000,
+  "affinity_mask": 4,
+  "power_at_launch": {
+    "ac_line_status": 0,
+    "battery_percent": 92
+  },
+  "sample_requested_ms": 6000,
+  "sample_interval_ms": 2,
+  "power_at_sample_start": {
+    "ac_line_status": 1,
+    "battery_percent": 91
+  },
+  "power_at_sample_end": {
+    "ac_line_status": 1,
+    "battery_percent": 92
+  },
+  "sample_started_after_launch_seconds": 104.3074,
+  "sample_elapsed_seconds": 6.1254,
+  "sample_ended_before_section_end": true,
+  "power_at_finish": {
+    "ac_line_status": 1,
+    "battery_percent": 92
+  },
+  "final_sdram_sha256": "ed7b0b7f20fe5b22973c8561ad8b59d2206504d185fe2845f7fd17cabf7886a5",
+  "final_framebuffer_sha256": "3c2ddd71d41804001c6f240373bc4976cb9f56c7894ce114f6786877afbf6ea9",
+  "final_cpu_sha256": "f8c2d85935b413491d89beaccda77d33c3e6eb6a9e9ab06a0b340c853cde0bf7",
+  "final_state_matches_controlled_reference": true,
+  "in_module_samples": 2133,
+  "outside_module_samples": 18,
+  "failed_samples": 0,
+  "tlb_hit_excerpt_sha256": "3f43c7f2cabd21ca3d77e7c415d3db978b9ee14c589852098c127c97dab136f7"
+}

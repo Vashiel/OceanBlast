@@ -1,0 +1,51 @@
+0000000140033d00 <oceanblast::ARM920T::executeSingleDataTransfer(unsigned int)>:
+Sampled address 0x140033fce; count=37; source arm920t_mmu.h:45
+   140033fa2:	84 c0                	test   %al,%al
+   140033fa4:	0f 84 4c 18 00 00    	je     1400357f6 <oceanblast::ARM920T::executeSingleDataTransfer(unsigned int)+0x1af6>
+   140033faa:	41 89 f1             	mov    %esi,%r9d
+   140033fad:	41 c1 e9 0c          	shr    $0xc,%r9d
+   140033fb1:	45 89 c8             	mov    %r9d,%r8d
+   140033fb4:	41 81 e0 ff 07 00 00 	and    $0x7ff,%r8d
+   140033fbb:	4b 8d 14 00          	lea    (%r8,%r8,1),%rdx
+   140033fbf:	4a 8d 04 02          	lea    (%rdx,%r8,1),%rax
+   140033fc3:	49 8d 0c 82          	lea    (%r10,%rax,4),%rcx
+   140033fc7:	80 b9 7e 07 00 00 00 	cmpb   $0x0,0x77e(%rcx)
+   140033fce:	0f 84 0c 16 00 00    	je     1400355e0 <oceanblast::ARM920T::executeSingleDataTransfer(unsigned int)+0x18e0>
+   140033fd4:	44 3b 89 74 07 00 00 	cmp    0x774(%rcx),%r9d
+   140033fdb:	0f 85 ff 15 00 00    	jne    1400355e0 <oceanblast::ARM920T::executeSingleDataTransfer(unsigned int)+0x18e0>
+   140033fe1:	41 80 ba 69 07 00 00 	cmpb   $0x0,0x769(%r10)
+   140033fe8:	00
+   140033fe9:	0f 84 91 04 00 00    	je     140034480 <oceanblast::ARM920T::executeSingleDataTransfer(unsigned int)+0x780>
+   140033fef:	89 f2                	mov    %esi,%edx
+   140033ff1:	0f b6 81 7c 07 00 00 	movzbl 0x77c(%rcx),%eax
+   140033ff8:	c1 ea 09             	shr    $0x9,%edx
+   140033ffb:	83 e2 06             	and    $0x6,%edx
+   140033ffe:	c4 e2 6a f7 c0       	sarx   %edx,%eax,%eax
+   140034003:	a8 02                	test   $0x2,%al
+   140034005:	0f 85 75 04 00 00    	jne    140034480 <oceanblast::ARM920T::executeSingleDataTransfer(unsigned int)+0x780>
+
+0000000140033d00 <oceanblast::ARM920T::executeSingleDataTransfer(unsigned int)>:
+Sampled address 0x1400343bd; count=25; source arm920t_mmu.h:45
+   140034390:	41 89 de             	mov    %ebx,%r14d
+   140034393:	41 c1 ee 0c          	shr    $0xc,%r14d
+   140034397:	45 89 f4             	mov    %r14d,%r12d
+   14003439a:	44 89 74 24 28       	mov    %r14d,0x28(%rsp)
+   14003439f:	41 81 e4 ff 07 00 00 	and    $0x7ff,%r12d
+   1400343a6:	4b 8d 04 24          	lea    (%r12,%r12,1),%rax
+   1400343aa:	48 89 44 24 30       	mov    %rax,0x30(%rsp)
+   1400343af:	4c 01 e0             	add    %r12,%rax
+   1400343b2:	49 8d 0c 82          	lea    (%r10,%rax,4),%rcx
+   1400343b6:	80 b9 7e 07 00 00 00 	cmpb   $0x0,0x77e(%rcx)
+   1400343bd:	0f 84 25 0b 00 00    	je     140034ee8 <oceanblast::ARM920T::executeSingleDataTransfer(unsigned int)+0x11e8>
+   1400343c3:	44 3b b1 74 07 00 00 	cmp    0x774(%rcx),%r14d
+   1400343ca:	0f 85 18 0b 00 00    	jne    140034ee8 <oceanblast::ARM920T::executeSingleDataTransfer(unsigned int)+0x11e8>
+   1400343d0:	41 80 ba 69 07 00 00 	cmpb   $0x0,0x769(%r10)
+   1400343d7:	00
+   1400343d8:	74 1f                	je     1400343f9 <oceanblast::ARM920T::executeSingleDataTransfer(unsigned int)+0x6f9>
+   1400343da:	41 89 dc             	mov    %ebx,%r12d
+   1400343dd:	0f b6 81 7c 07 00 00 	movzbl 0x77c(%rcx),%eax
+   1400343e4:	41 c1 ec 09          	shr    $0x9,%r12d
+   1400343e8:	41 83 e4 06          	and    $0x6,%r12d
+   1400343ec:	c4 e2 1a f7 c0       	sarx   %r12d,%eax,%eax
+   1400343f1:	a8 02                	test   $0x2,%al
+   1400343f3:	0f 84 9e 0f 00 00    	je     140035397 <oceanblast::ARM920T::executeSingleDataTransfer(unsigned int)+0x1697>
