@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-17",
+  "scope": "ROM-free J0 foundation, initial J1 frontend and bounded Windows x86-64 native execution",
+  "task_budget_minutes": 45,
+  "compiler": "GCC 16.2.0",
+  "structural_build_flags": "-std=c++17 -O2 -march=x86-64 -Wall -Wextra -Isrc",
+  "native_build_flags": "-march=x86-64 -O3 -DNDEBUG -std=c++20 -Wall -Wextra -DASMJIT_STATIC -DASMJIT_NO_FOREIGN -DASMJIT_NO_UJIT",
+  "asmjit_revision": "0464e1c8f1f43c861a0c73d4e59437fff255cdd9",
+  "pgo": false,
+  "checks": {
+    "machine": {
+      "passed_checks": 4,
+      "failures": 0,
+      "executable_sha256": "a9682fb39247ddddbaec3b498792007f71aaaadc7cbf8694f52a2f88a020687d"
+    },
+    "cpu_regression": {
+      "passed_checks": 58,
+      "failures": 0,
+      "executable_sha256": "2abed2c76361665914951a3acea5b5fe329c13102714570d9cc25a4b2fc986de"
+    },
+    "emulation_timing": {
+      "passed_checks": 87,
+      "failures": 0,
+      "executable_sha256": "559502b4a5a2e19f658b531f55725a6560c0113835e79b6aaf04a74cc71a62d2"
+    },
+    "execution_boundary": {
+      "passed_checks": 44,
+      "failures": 0,
+      "executable_sha256": "0e552d0ba0c25ebf2d792d1b97ad07c93eae37230f54da2f51b0f7bcffc04587"
+    },
+    "translation_frontend": {
+      "passed_checks": 15,
+      "failures": 0,
+      "executable_sha256": "f213c15c08b76f75a53a9ceed8359e2a69ae6a4bda4fb8ea60980bda5c5f2f79"
+    },
+    "x64_execution": {
+      "passed_checks": 23,
+      "failures": 0,
+      "executable_sha256": "5381b98636d79caa9154b7dea77ab9dbbfcd8e30f9be0c5fbcb32c285909f36e"
+    },
+    "native_semantics": {
+      "passed_checks": 16,
+      "failures": 0,
+      "executable_sha256": "d0b49214242a043ad4a199f1134086b08bd7b703c0cc69f05204cd5d1ca2305c"
+    }
+  },
+  "semantic_cases_per_executor": 4580,
+  "native_semantic_coverage": {
+    "generated_steps": 4580,
+    "fallback_steps": 0,
+    "compilation_failures": 0
+  },
+  "native_ctest_total_seconds": 1.72,
+  "developer_app": {
+    "build_only": true,
+    "sha256": "152d56407efbf13fde4e3f77d1ed7dad8cd0da44fe6e30600d4cbb167a3d484a"
+  },
+  "installed_launcher": {
+    "changed": false,
+    "sha256": "858c64effd03fb43738d3bb12b1e98c98063b463d4f6d112293c907607942ab2"
+  },
+  "acceptance": {
+    "game_performance": false,
+    "live_audio": false,
+    "weak_device_reserve": false,
+    "android": false,
+    "production_engine_switch": false
+  },
+  "next": "Checked memory/fault lowering, physical-page/mapping invalidation and wider machine coverage before a matched Wade acceptance check.",
+  "source_hash_normalization": "CRLF normalized to LF; SHA-256 of repository source content",
+  "source_sha256_lf": {
+    "src/cpu/arm920t.cpp": "43615eef3261be255340d3614294460f678eb06e95d740bbe3937c97088f4925",
+    "src/cpu/arm920t.h": "f4417b08eaa733b29dfc750b9184af7a52ae2848ece50e6d08887de13eae4a4a",
+    "src/cpu/arm920t_state.h": "7897976542a8c10b28108b6cbddbfca339668c489d78bfb44f247e37164b3600",
+    "src/core/machine.h": "d45753fc103d2eab0a35411888eafcb303a293996b6727d7234e02b4682f0072",
+    "src/core/execution_engine.h": "8d018a863e3e202f85757d08b67f82d5ffd9820089fa6e8041c1d5583e5dc37c",
+    "src/core/interpreter_engine.h": "ce9cdee6d7faaf6741927d717dcf34264424c3a666a75be6130ae518cb524534",
+    "src/core/execution_scheduler.h": "db6af222291d7ecc00d8e5d2fb16794b3e9b0abb49c21df03218c242d816dce7",
+    "src/cpu/translation_ir.h": "3d2448c01cc993310fdefe12d204ee398252148668313ebacb0f0e75717a0293",
+    "src/cpu/translation_frontend.h": "01fc7c0ff682a06dbccaf1b89f08a2d84ccf70e0d3c32773b1eec5479ab85b93",
+    "src/cpu/x64_execution_engine.cpp": "d7fa37c4c711c522853064c14a1a05a5b87a7c5dfabe8ca9872eafa5565c02bc",
+    "src/cpu/x64_execution_engine.h": "3297e3925b66a1a82f2ffacf2c32f037a98f0042ab2dd53a45699eef4d1e66b9",
+    "jit/CMakeLists.txt": "136133b3a42832854c58dbd775d7d09196d90cab193e16432df71aca1eaef100",
+    "tests/execution_boundary.cpp": "76fd1d06ce564522bec38f97c0a6aac920ad914de977464f349fe75d22f17bd7",
+    "tests/translation_frontend.cpp": "f45ba9f48384a2e416552e5e677ace75793b3ac3d734be224109528907f178fc",
+    "tests/x64_execution.cpp": "b0db0202723f2855185208dc76605ac5dc15c66e69dce9fb0c35c39c285eb6b9",
+    "src/memory/bus.h": "6a4d3e22ac7f5b0dfa87eea25467abc47ada401c3b17d56a794f567b953e59e8"
+  },
+  "dependency_build_flags": "-march=x86-64 -O3 -DNDEBUG -std=c++20 -fvisibility=hidden -Wall -Wextra -Wconversion -Wdouble-promotion -Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wlogical-not-parentheses -Wrestrict -fno-math-errno -fno-threadsafe-statics -fno-semantic-interposition -O2 -fmerge-all-constants -fno-enforce-eh-specs -DASMJIT_STATIC -DASMJIT_NO_FOREIGN -DASMJIT_NO_UJIT"
+}

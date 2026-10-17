@@ -242,6 +242,11 @@ public:
     inline bool hasLevelInterruptSource() const {
         return uart0TxLevelActive || usbHostEnabled;
     }
+    // A zero-time tick may reassert these sources after acknowledgement.
+    inline bool needsLevelInterruptRefresh() const {
+        return (uart0TxLevelActive && !(regSrcpnd & (1u << 28))) ||
+               (usbHostEnabled && usbHost.irq() && !(regSrcpnd & (1u << 26)));
+    }
 
     inline void tick(size_t cycles = 1) {
         if (__builtin_expect(!cycles, 0)) {

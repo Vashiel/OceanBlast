@@ -6,7 +6,11 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ## 2026-10-17 — Current Wade Profile and Chefs Check
 
-* **[Shared State and Execution Boundary](docs/94_shared_state_execution_boundary.md):** Machine-owned CPU state, checked interpreter-view handoff without resetting timing, and explicit reference exits for deadlines, context changes, waits, interrupts and exceptions. Added ROM-free boundary checks. J0 native dispatch remains open; no speedup or audio acceptance is claimed.
+* **[Initial Native x86-64 Execution](docs/96_initial_x64_execution.md):** Added an optional pinned AsmJit developer target, native ARM/Thumb integer/flag/condition lowering, bounded source-validated code cache, scheduler deadline accounting and scalar fallback. The 4,580 semantic fixtures also execute generated code; targeted alias/permission/IRQ/cache tests remain ROM-free. Installed launcher unchanged; game performance and live audio are unaccepted.
+
+* **[Shared Translation Frontend](docs/95_shared_translation_frontend.md):** Added bounded host-independent ARM/Thumb integer blocks with explicit carry, condition, flags and pre-execution fallback representation. Unsupported memory/control operations stop before execution.
+
+* **[Shared State and Execution Boundary](docs/94_shared_state_execution_boundary.md):** Machine-owned CPU state, a generic batch backend contract, handoff without resetting timing, and explicit reference exits for deadlines, context changes, waits, interrupts and exceptions. Added ROM-free boundary/dispatch checks; no speedup or audio acceptance is claimed.
 
 * **[Planning Retrospective](docs/93_personal_planning_note.md):** Personal note on defining performance goals and choosing an execution architecture before a prolonged sequence of local optimizations.
 

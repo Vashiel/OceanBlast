@@ -120,11 +120,11 @@ The Nikko digiBLAST hardware is built around the Samsung S3C2410A / OCEAN-L-20 p
 
 ## Development Roadmap
 
-A [controlled before/after comparison](docs/80_controlled_total_comparison.md) runs two reversed-order Wade pairs with fresh normal builds, observed AC/Balanced power and identical processor affinity. Current source delivers about 32% more fight throughput and 23% less complete-replay CPU time on the measured host, with matching guest state. This combined result does not establish the same gain for other games, older hardware or the installed PGO build; earlier individual percentages must not be added.
+A [controlled before/after comparison](docs/80_controlled_total_comparison.md) ran two reversed-order Wade pairs with fresh normal builds, observed AC/Balanced power and identical processor affinity. The recorded interpreter revisions measured about 32% more fight throughput and 23% less complete-replay CPU time on that host, with matching guest state. This historical result does not establish performance of the new JIT, other games, older hardware or the installed PGO build; earlier individual percentages must not be added.
 
 The [active-scene check](docs/62_active_scene_acceptance.md) adds movement and A/B/C to a short first-level replay and records the limits of its performance evidence.
 
-The [prioritized roadmap](ROADMAP.md) defines the path toward better performance on weaker CPUs: short baseline checks, an interchangeable CPU execution structure, shared timing boundaries, clearer memory semantics, and a measured block-execution/JIT prototype. It includes task budgets and early-stop rules: if the relevant problem is already visible on the title screen, stop the test there. These are planned milestones, not claims of completed performance improvements.
+The [prioritized roadmap](ROADMAP.md) commits to a shared ARM/Thumb JIT architecture, with Windows x86-64 first and Android ARM64 next. [Machine-owned CPU state and batch backend selection](docs/94_shared_state_execution_boundary.md), an [initial integer frontend](docs/95_shared_translation_frontend.md) and [bounded native execution](docs/96_initial_x64_execution.md) now pass short ROM-free checks. Checked memory lowering, broader machine coverage, live audio and measured weak-host reserve remain open. Task budgets and title-screen early-stop rules still apply.
 
 The [machine-core implementation report](docs/59_machine_core_and_decoder_experiment.md) records the extracted CPU state, scheduler, standalone MMU and shared machine owner, together with targeted checks and a rejected decoder-cache experiment. These foundations do not yet establish full-speed support on weak hardware.
 
@@ -137,6 +137,8 @@ The subsequent [ARM dispatch measurement](docs/61_arm_dispatch_measurement.md) r
 ### Prerequisites
 * A C++17 compiler (`g++` / MinGW-w64 or MSVC) and `windres` on Windows
 * `make` (optional, for automated builds and test suites)
+
+Optional native-backend development uses CMake 3.24 or later and C++20 with a pinned AsmJit dependency; see the [separate JIT developer build](docs/96_initial_x64_execution.md). It does not change the installed launcher or default engine.
 
 ### Building from Source
 ```bash

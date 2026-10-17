@@ -1,6 +1,6 @@
 # Execution Architecture Decision: Block-Based Dynamic Translation
 
-Status: accepted, 2026-10-17. This decision replaces the alternative-engine experiment gate in the earlier roadmap. Implementation is not yet delivered.
+Status: accepted, 2026-10-17. This decision replaces the alternative-engine experiment gate in the earlier roadmap. Shared state/backend contracts, an initial frontend and a bounded Windows native slice are delivered; complete runtime and production acceptance remain open. See [J0](94_shared_state_execution_boundary.md), [J1](95_shared_translation_frontend.md) and [native execution](96_initial_x64_execution.md).
 
 ## Direction
 
