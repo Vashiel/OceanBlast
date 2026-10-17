@@ -1,0 +1,17 @@
+PASS Disabled MMU preserves physical addresses
+PASS Standalone MMU translates a user-accessible section
+PASS Cached mapping survives descriptor changes until invalidation
+PASS Single-entry invalidation reveals the changed physical mapping
+PASS Denied cold translation preserves a colliding cached entry
+PASS Full invalidation applies current section permissions
+PASS Standalone MMU translates all offsets of an accessible small page
+PASS Unmapped address returns a translation fault
+PASS Cached small-page permissions cover every AP combination and mode transition
+PASS Cached and cold section permission faults have the same section type
+PASS Invalid entries cannot match the lowest or highest virtual page
+PASS Highest virtual page retains its mapping until single-entry invalidation
+PASS Full invalidation restores section denial at the highest virtual page
+PASS Cached denial survives descriptor edits and null fault reporting until invalidation
+PASS Cached large-page rights preserve every AP field and privilege transition
+PASS Synthetic kernel fallback retains read and write policy across cached mode changes
+0 failure(s)

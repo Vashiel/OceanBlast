@@ -19,6 +19,16 @@ Current measurements place most host cost in CPU execution and memory translatio
 
 P1-P3 prepare the execution core; they do not promise an immediate FPS increase. P4 is a decision gate, not a commitment to a full JIT. No whole-project rewrite is planned. A newly introduced boot, display or audio regression takes priority over the next structural milestone.
 
+## Current delivery plan
+
+| Step | Status | Result or next acceptance gate |
+| --- | --- | --- |
+| Compact translation-cache entries | Complete | [Eight-byte layout](docs/82_compact_tlb_entries.md), 173 targeted checks and one favorable Wade pair with matching state. |
+| Consolidate the current executable | Complete locally | [Conservative x86-64 PGO build](docs/83_consolidated_pgo_acceptance.md), Wade state match and short paced/visible Chefs check. Previous executable backed up. |
+| Check available old hardware | Open; suitable device unavailable in this session | Budget 10-15 minutes for setup and one affected-game check; record CPU, executable hash, settings, pacing and audio counters. Stop at the first relevant failure. |
+
+Actual weak-device evidence is the remaining gate for this delivery plan. Further core development can use a separately scoped P4 experiment; the available time is not a reason to keep adding unmeasured shortcuts.
+
 ## Task budgets and decision rules
 
 Break milestones into independently reviewable tasks. The following are default elapsed-time budgets per task, including investigation, implementation, build and validation; they are not estimates for an entire milestone.
@@ -47,7 +57,7 @@ The contributor's short self-test is the primary routine acceptance check. When 
 
 Long gameplay sweeps, repeated benchmark pairs and broad cartridge coverage are reserved for a specific late-occurring problem, a justified shared-core risk, or release validation. Define their scope and time budget separately. Earlier research reports retain their historical methods; their long runs are not the default workflow for every new task.
 
-## Implementation status (2026-10-16)
+## Implementation status (2026-10-17)
 
 The [first execution slice](docs/58_execution_boundary_and_short_checks.md) and [subsequent core changes](docs/59_machine_core_and_decoder_experiment.md) record the implementation and its limits.
 
@@ -101,3 +111,7 @@ The [fixed-ratio legacy batch experiment](docs/79_legacy_fixed_ratio_experiment.
 The [controlled total before/after comparison](docs/80_controlled_total_comparison.md) now validates the combined retained runtime changes (`6c7870f` versus `2880b0d`) with two reversed-order Wade pairs, fresh matching normal builds, observed AC/Balanced power and identical affinity. Both pairs favor current code, with mean fight throughput +32.13% and complete-replay CPU time -22.91%, while preserving final guest state. Use this current source as the next candidate baseline; do not add earlier single-pair percentages or apply this result to the installed PGO build or other devices.
 
 The [current Wade profile and short Chefs counter-check](docs/81_current_wade_profile_and_chefs_check.md) complete the next diagnostic/compatibility slice without a rebuild. Wade matches the controlled reference state; Chefs reaches the active reference state at 60 MIPS with no empty queues or dropped samples. The next bounded hypothesis is compact TLB metadata with unchanged permissions/fault/invalidation behavior; the sample does not establish a gain or justify repeating the rejected loop specializations.
+
+The [compact TLB implementation](docs/82_compact_tlb_entries.md) completes that hypothesis: entries shrink from 12 to eight bytes, preserving all 2,048 slots. All 173 targeted checks pass. One direct Wade pair preserves guest state and observes 21.31% more fight throughput with 14.19% less complete-replay CPU time. The change is retained; this single-pair result is not additive to earlier measurements or evidence for weak hardware. The next delivery is one consolidated conservative x86-64 PGO executable with short Wade-state and paced Chefs acceptance checks, followed by measurement on available old hardware. Further interpreter experiments require a new bounded hypothesis rather than an open-ended sequence of micro-optimizations.
+
+The [consolidated PGO delivery](docs/83_consolidated_pgo_acceptance.md) is now locally installed with its predecessor backed up. Wade matches the reference state; Chefs averages 59.97 MIPS with matching state, zero empty queues and zero drops, and its stopped first-level image is checked. This completes the executable build and bounded acceptance step. Next: run a short check on available old hardware and record processor, settings, pacing and audio counters. That evidence is still unavailable; no minimum-hardware claim is made. A future execution-engine experiment remains P4 work, with its own hypothesis and budget.

@@ -71,6 +71,67 @@ int main() {
     mmu.flushTlb(); mmu.translate(va,ram.data(),&fault,true);
     check("Cached and cold section permission faults have the same section type",
         warmFault==Fault::SECTION_PERMISSION_FAULT && fault==warmFault);
+    { Arm920TMmu edges;
+      write(table,0);write(table+0x3ffc,0);
+      edges.setTtb(table);edges.setEnabled(true);
+      edges.translate(0x42,ram.data(),&fault);
+      bool invalid=fault==Fault::SECTION_TRANSLATION_FAULT;
+      edges.translate(0xffffffff,ram.data(),&fault);
+      invalid=invalid&&fault==Fault::SECTION_TRANSLATION_FAULT;
+      check("Invalid entries cannot match the lowest or highest virtual page",invalid);
+      write(table,0x30000c02);write(table+0x3ffc,0x30000c02);
+      edges.setUserMode(true);
+      bool valid=edges.translate(0x42,ram.data(),&fault)==0x30000042&&fault==Fault::NONE;
+      valid=valid&&edges.translate(0xfffff07a,ram.data(),&fault)==0x300ff07a&&fault==Fault::NONE;
+      write(table+0x3ffc,0x30400c02);
+      valid=valid&&edges.translate(0xffffffff,ram.data(),&fault)==0x300fffff&&fault==Fault::NONE;
+      edges.flushTlbEntry(0xfffff000);
+      valid=valid&&edges.translate(0xffffffff,ram.data(),&fault)==0x304fffff&&fault==Fault::NONE;
+      check("Highest virtual page retains its mapping until single-entry invalidation",valid);
+      write(table+0x3ffc,0x30000402);edges.flushTlb();
+      edges.translate(0xffffffff,ram.data(),&fault);
+      check("Full invalidation restores section denial at the highest virtual page",fault==Fault::SECTION_PERMISSION_FAULT);
+    }
+    { Arm920TMmu denied;
+      write(table+0x1000,0x30108001);write(0x30108000,0x30000552);
+      denied.setTtb(table);denied.setEnabled(true);
+      bool consistent=denied.translate(va+0x234,ram.data(),&fault)==0x30000234;
+      write(0x30108000,0x30000ff2);denied.setUserMode(true);
+      denied.translate(va+0x234,ram.data(),&fault);
+      consistent=consistent&&fault==Fault::PAGE_PERMISSION_FAULT&&
+        denied.translate(va+0x234,ram.data(),nullptr,true)==UINT32_MAX;
+      denied.flushTlb();
+      consistent=consistent&&denied.translate(va+0x234,ram.data(),&fault)==0x30000234&&fault==Fault::NONE;
+      check("Cached denial survives descriptor edits and null fault reporting until invalidation",consistent);
+    }
+    { Arm920TMmu large;bool equivalent=true;
+      write(table+0x1000,0x30108001);large.setTtb(table);large.setEnabled(true);
+      for(u32 rights=0;rights<256;++rights) {
+        for(u32 slot=0;slot<16;++slot)write(0x30108000+slot*4,0x30020001|(rights<<4));
+        large.flushTlb();large.setUserMode(false);
+        for(u32 part=0;part<4;++part)large.translate(va+part*0x4000+0x234,ram.data(),&fault);
+        for(bool user:{true,false,true}) {
+          large.setUserMode(user);
+          for(u32 part=0;part<4;++part)for(bool store:{false,true}) {
+            const u32 ap=(rights>>(part*2))&3;
+            const bool allowed=!user||ap==3||(ap==2&&!store);
+            const auto result=large.translate(va+part*0x4000+0x234,ram.data(),&fault,store);
+            equivalent=equivalent&&(allowed
+              ? result==0x30020234+part*0x4000&&fault==Fault::NONE
+              : result==UINT32_MAX&&fault==Fault::PAGE_PERMISSION_FAULT);
+          }
+        }
+      }
+      check("Cached large-page rights preserve every AP field and privilege transition",equivalent);
+    }
+    { Arm920TMmu fallback;fallback.setEnabled(true);bool allowed=true;
+      for(bool user:{false,true,false,true}) {
+        fallback.setUserMode(user);
+        for(bool store:{false,true})allowed=allowed&&
+          fallback.translate(0xc0001034,ram.data(),&fault,store)==0x30001034&&fault==Fault::NONE;
+      }
+      check("Synthetic kernel fallback retains read and write policy across cached mode changes",allowed);
+    }
     std::cout << failures << " failure(s)\n";
     return failures?1:0;
 }

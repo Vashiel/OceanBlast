@@ -1,0 +1,12 @@
+PASS UART0 empty condition latches TXD0 while masked
+PASS UART0 submask prevents parent interrupt
+PASS UART0 sub-unmask delivers main IRQ 28
+PASS UART0 empty level reasserts after subpending W1C
+PASS UART0 empty level reasserts after main acknowledgement
+PASS Zero-time tick retains UART level reassertion
+PASS UART0 masking stops repeated parent delivery
+PASS UART0 main mask preserves pending source without IRQ
+PASS UART0 main-unmask delivers the pending source
+PASS UART0 edge trigger does not continuously relatch empty
+PASS UART0 byte transmit completes and latches TXD0
+PASS UART0 DMA mode does not generate TX IRQ

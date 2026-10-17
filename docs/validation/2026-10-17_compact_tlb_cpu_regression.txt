@@ -1,0 +1,59 @@
+PASS CPU state exposes active and banked registers across mode changes
+PASS Copied CPU state is independent of later interpreter execution
+PASS RAM instruction fetch observes modified code ARM Thumb and subregion boundaries
+PASS RAM instruction fetch invalidates on TTB MMU and guest TLB changes
+PASS RAM instruction fetch rechecks permissions on entry to user mode
+PASS Instruction fetch preserves SRAM unaligned RAM end and reset behavior
+PASS Immediate ALU path preserves rotations edge arithmetic flags and cycle counts
+PASS Flag-setting ALU path preserves carry overflow test destinations and cycle counts
+PASS Simple ALU path preserves reference registers flags cycles and PC operands
+PASS Constant ALU shifts preserve all amounts carry flags PC operands and RRX
+PASS Simple ALU path reevaluates every condition against current NZCV flags
+PASS ARM memory RRX offset uses CPSR carry
+PASS ARM unaligned LDR rotates an aligned word
+PASS ARM unaligned LDR rotates an aligned word
+PASS ARM unaligned LDR rotates an aligned word
+PASS ARM unaligned STR aligns without corrupting next word
+PASS Thumb unaligned LDR rotates an aligned word
+PASS Input replay parses timed presses and release
+PASS Input replay rejects unordered events
+PASS Input replay accepts third action and media transport/seek bits
+PASS Input replay rejects unsupported button bits
+PASS ARM TST receives carry from shifted operand
+PASS ARM TEQ receives carry and zero without register write
+PASS Thumb STR register
+PASS Thumb STRH register
+PASS Thumb STRB register
+PASS Thumb LDSB register
+PASS Thumb LDR register
+PASS Thumb LDRH register
+PASS Thumb LDRB register
+PASS Thumb LDSH register
+PASS Thumb PUSH stores low register and LR
+PASS Thumb POP restores registers and branches
+PASS DMA current source starts at configured buffer
+PASS DMA pointer advances through latched source
+PASS DMA fixed IIS destination does not advance
+PASS DMA completion exposes end pointer
+PASS DMA current count is independent of queued count
+PASS DMA autoreload latches queued buffer before IRQ
+PASS DMA NORELOAD stops after current buffer
+PASS ARM immediate LSR zero encoding means 32
+PASS ARM immediate ASR zero encoding means 32
+PASS ARM RRX uses old carry and bit zero
+PASS ARM ADC uses CPSR carry rather than shifter carry
+PASS ARM register ROR 32 updates carry from bit31
+PASS ARM ADDS overflow-to-zero carries
+PASS Thumb aliased ADDS uses original operands for carry
+PASS Thumb LSLS updates carry
+PASS Thumb BX returns to ARM
+PASS Thumb LDR word executes
+PASS Thumb SWI enters supervisor vector with Thumb return address
+PASS User MSR cannot switch to privileged SVC mode
+PASS Diagnostic CPU steps execute without advancing DMA time
+PASS Default CPU steps still advance the peripheral clock
+PASS CPU ratio preserves DMA completion and timer elapsed time
+PASS CPU ratio preserves DMA completion and timer elapsed time
+PASS CPU ratio preserves DMA completion and timer elapsed time
+PASS IRQ entry advances the caller's peripheral budget
+0 failure(s)

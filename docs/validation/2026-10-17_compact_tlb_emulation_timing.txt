@@ -1,0 +1,88 @@
+PASS Scheduler preserves scalar state across mixed legacy execution
+PASS Scheduler stops legacy execution at its peripheral deadline
+PASS Scheduler preserves scalar state across mixed legacy execution
+PASS Scheduler stops legacy execution at its peripheral deadline
+PASS Scheduler preserves scalar state across mixed legacy execution
+PASS Scheduler stops legacy execution at its peripheral deadline
+PASS Scheduler preserves scalar state across mixed legacy execution
+PASS Scheduler stops legacy execution at its peripheral deadline
+PASS Clocked scheduler returns at Timer 4 event with scalar-equivalent state
+PASS Scheduler idle respects external and device deadlines without retiring instructions
+PASS Scheduler wakes a waiting CPU when an IRQ is pending
+PASS Diagnostic RAM inspection reads physical SDRAM
+PASS Diagnostic section inspection does not change guest privilege
+PASS Diagnostic coarse-page inspection reads mapped RAM
+PASS Diagnostic RAM inspection rejects unmapped and unaligned addresses
+PASS Diagnostic RAM inspection never reads MMIO
+PASS OABI syscall observation precedes exception entry and preserves arguments
+PASS Zero-immediate EABI syscall observation uses r7
+PASS Jiffies discovery requires agreeing kernel export pairs
+PASS Jiffies inspection verifies section mapping without changing privilege
+PASS Jiffies inspection rejects an unexpected physical mapping
+PASS Jiffies discovery rejects disagreeing exports
+PASS MMIO profile excludes host register inspection
+PASS Clocked batch preserves CPU, fractional clock and timer state
+PASS Clocked batch yields at the modeled time deadline
+PASS Clocked batch yields immediately after wait instruction
+PASS Clocked batch does not retire an already waiting CPU
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Batch limit ends at exact peripheral deadline for every phase
+PASS Single-step to batch transition preserves registers and peripheral phase
+PASS Batched CPU preserves timer and pending interrupts
+PASS Single-step to batch transition preserves registers and peripheral phase
+PASS Batched CPU preserves timer and pending interrupts
+PASS Single-step to batch transition preserves registers and peripheral phase
+PASS Batched CPU preserves timer and pending interrupts
+PASS Batch preserves unmasked IRQ entry and exception return
+PASS Batch preserves every consumed DMA audio sample
+PASS Batch preserves DMA completion registers
+PASS 180 MHz cycles advance 20 MHz peripheral time
+PASS Clock reports accumulated modeled seconds
+PASS Clock changes preserve fractional elapsed time
+PASS Idle advancement retains modeled time
+PASS Cached data operation baseline is one cycle
+PASS Register controlled shift adds a cycle
+PASS Failed condition does not charge taken branch cycles
+PASS Taken ARM branch charges refill cycles
+PASS Short multiply uses early termination
+PASS Large multiplier charges additional cycles
+PASS Multiple register load charges transferred words
+PASS Load to PC charges pipeline refill
+PASS Reset FastBus execution uses HCLK
+PASS Synchronous cached execution uses FCLK
+PASS Asynchronous cached execution uses FCLK
+PASS CP15 wait enters idle state
+PASS Idle CPU neither fetches nor retires the following instruction
+PASS Pending IRQ wakes idle even with CPSR IRQ masked
+PASS Unmasked IRQ wakes idle into vector with correct return link
+PASS Reset clears idle state
+PASS Legacy stepping retains previous wait behavior
+PASS Idle bound ends at Timer 4 deadline
+PASS Idle timer deadline raises interrupt
+PASS Idle DMA advancement captures every sample before completion
+PASS FPA11 FLT/MUF/ADF/FIX/CMF executes in hardware
+PASS FPA11 LDFS/STFS/LDFD/STFD preserves mixed-endian double layout
+PASS FPA11 SFM/LFM round-trips 12-byte register frames and writeback
+PASS Disabling FPA11 falls back to Undefined Instruction trap
+0 failure(s)

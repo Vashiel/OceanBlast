@@ -1,0 +1,27 @@
+{
+  "executable_sha256": "57fac1d7b69e91c61337ac3ca08927bcce6cb67eaab420d3b1e935e2de828410",
+  "steps": 8500000000,
+  "ratio": 6,
+  "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+  "input_sha256": "68d303ff3e4b3a7a2b6709b84525cf17cd03213d6e61e3fa9f0d320601667f86",
+  "initial_eeprom_sha256": "e5a00aa9991ac8a5ee3109844d84a55583bd20572ad3ffcd42792f3c36b183ad",
+  "final_cpu_sha256": "f8c2d85935b413491d89beaccda77d33c3e6eb6a9e9ab06a0b340c853cde0bf7",
+  "final_sdram_sha256": "ed7b0b7f20fe5b22973c8561ad8b59d2206504d185fe2845f7fd17cabf7886a5",
+  "final_framebuffer_sha256": "3c2ddd71d41804001c6f240373bc4976cb9f56c7894ce114f6786877afbf6ea9",
+  "audio_empty_queue_events": 54,
+  "dropped_samples": 48822,
+  "measured_mips": 118.56763899210044,
+  "power_before": [
+    1,
+    99,
+    "381b4222-f694-41f0-9685-ff5bb260df2e"
+  ],
+  "power_after": [
+    1,
+    100,
+    "381b4222-f694-41f0-9685-ff5bb260df2e"
+  ],
+  "inspection": false,
+  "matches_reference": true,
+  "visible_check": "No new visible inspection; matching final guest state only."
+}

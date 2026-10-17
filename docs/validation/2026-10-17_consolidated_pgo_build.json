@@ -1,0 +1,30 @@
+{
+  "compiler": "GCC 16.2.0",
+  "optimization": "O3",
+  "architecture": "x86-64",
+  "unity": true,
+  "timing": "legacy",
+  "training_steps_per_rom": 900000000,
+  "training_ratio": 3,
+  "training_roms": [
+    "Superstar Chefs [G] (EN).bin",
+    "Rayman 3 [G] (M10).bin"
+  ],
+  "source_base": "c71eb87",
+  "source_change": "Compact TLB entries and added MMU checks",
+  "executable_sha256": "57fac1d7b69e91c61337ac3ca08927bcce6cb67eaab420d3b1e935e2de828410",
+  "previous_installed_sha256": "9d3fea8f6a0bd04bc28bd77e4e560960b59685f8291d447c77a5fae9fe7a5f5c",
+  "training_logs_sha256": {
+    "session-0": "84f213e0d916648506fcd80ebff50ddfb5fc39f76a151c4b82810afb7edcf7d7",
+    "session-1": "5b29449fa9e9d7e6f92587be87ea5a974660e3f408eda968376d4b4f1ec94139"
+  },
+  "profile_data_sha256": {
+    "build#pgo-c982c8b638c34ef19377ed469fc36791#oceanblast_profiled-unity.gcda": "08a9f067339a804324524f2405a0fa4dd8437f63b612a46983fe57ca5c1dd425"
+  },
+  "installed_sha256": "57fac1d7b69e91c61337ac3ca08927bcce6cb67eaab420d3b1e935e2de828410",
+  "installed_matches_tested": true,
+  "elapsed_task_minutes_approx": 15,
+  "task_budget_minutes": 45,
+  "src/memory/arm920t_mmu.h_sha256": "2e3e6d516b3317248d4cf0336864d551c7ec43d52ccf4ac911e07a63a90f495c",
+  "tests/mmu_translation.cpp_sha256": "dbab4a072e4eb0b648a65e5d46bcb84fa9f0460b2a6d68e4d647c21804e283ad"
+}

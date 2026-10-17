@@ -26,10 +26,10 @@ public:
     void setTtb(u32 value) { ttb = value; flushTlb(); }
     u32 getTtb() const { return ttb; }
     void setDacr(u32 value) { dacr = value; }
-    void flushTlbEntry(u32 va) const { tlb[(va >> 12) & (TLB_SIZE - 1)].valid = false; }
+    void flushTlbEntry(u32 va) const { tlb[(va >> 12) & (TLB_SIZE - 1)].tag = 0; }
     void flushTlb() const {
         if (tlbEmpty) return;
-        for (auto& entry : tlb) entry.valid = false;
+        for (auto& entry : tlb) entry.tag = 0;
         tlbEmpty = true;
     }
     u32 translateSlow(u32 va, const u8* ram, MmuFault* fault, bool isWrite) const;
@@ -42,11 +42,12 @@ public:
         u32 vpn = va >> 12;
         u32 idx = vpn & (TLB_SIZE - 1);
         const TlbEntry& entry = tlb[idx];
-        if (__builtin_expect(entry.valid && entry.vpn == vpn, 1)) {
+        const u32 tag = entry.tag;
+        if (__builtin_expect((tag & TLB_KEY_MASK) == (vpn | TLB_VALID), 1)) {
             if (userMode) {
-                const u32 ap = (entry.accessPermissions >> (((va >> 10) & 3) * 2)) & 3;
+                const u32 ap = (tag >> (TLB_AP_SHIFT + ((va >> 10) & 3) * 2)) & 3;
                 if (__builtin_expect(ap <= (isWrite ? 2u : 1u), 0)) {
-                    if (fault) *fault = entry.section ? MmuFault::SECTION_PERMISSION_FAULT : MmuFault::PAGE_PERMISSION_FAULT;
+                    if (fault) *fault = (tag & TLB_SECTION) ? MmuFault::SECTION_PERMISSION_FAULT : MmuFault::PAGE_PERMISSION_FAULT;
                     return 0xFFFFFFFF;
                 }
             }
@@ -63,13 +64,20 @@ private:
     u32  ttb = 0;
     u32  dacr = 0;
 
+    // Bits 0-19: virtual page; 20-27: four AP fields; 28: section; 29: valid.
+    static constexpr u32 TLB_VALID = 1u << 29;
+    static constexpr u32 TLB_SECTION = 1u << 28;
+    static constexpr unsigned TLB_AP_SHIFT = 20;
+    static constexpr u32 TLB_KEY_MASK = TLB_VALID | 0x000fffffu;
+    static constexpr u32 makeTlbTag(u32 vpn, u8 permissions, bool section) {
+        return vpn | (u32(permissions) << TLB_AP_SHIFT) | TLB_VALID |
+               (section ? TLB_SECTION : 0);
+    }
     struct TlbEntry {
-        u32 vpn = 0xFFFFFFFF;
+        u32 tag = 0;
         u32 paBase = 0;
-        u8 accessPermissions = 0; // Four 1-KB subregion AP fields.
-        bool section = false;
-        bool valid = false;
     };
+    static_assert(sizeof(TlbEntry) == 8, "TLB entries must remain two words");
     static constexpr size_t TLB_SIZE = 2048;
     mutable std::array<TlbEntry, TLB_SIZE> tlb = {};
     mutable bool tlbEmpty = true;
@@ -99,11 +107,8 @@ inline u32 Arm920TMmu::translateSlow(u32 va, const u8* ram, MmuFault* fault, boo
                 }
             }
             u32 pa = (desc & 0xFFF00000) | (va & 0x000FFFFF);
-            tlb[idx].vpn = vpn;
             tlb[idx].paBase = pa & ~0xFFF;
-            tlb[idx].accessPermissions = static_cast<u8>(ap * 0x55);
-            tlb[idx].section = true;
-            tlb[idx].valid = true;
+            tlb[idx].tag = makeTlbTag(vpn, static_cast<u8>(ap * 0x55), true);
             tlbEmpty = false;
             return pa;
         } else if ((desc & 3) == 1) { // Coarse Page Table
@@ -123,11 +128,8 @@ inline u32 Arm920TMmu::translateSlow(u32 va, const u8* ram, MmuFault* fault, boo
                         }
                     }
                     u32 pa = (pte & 0xFFFFF000) | (va & 0xFFF);
-                    tlb[idx].vpn = vpn;
                     tlb[idx].paBase = pa & ~0xFFF;
-                    tlb[idx].accessPermissions = static_cast<u8>((pte >> 4) & 0xff);
-                    tlb[idx].section = false;
-                    tlb[idx].valid = true;
+                    tlb[idx].tag = makeTlbTag(vpn, static_cast<u8>((pte >> 4) & 0xff), false);
                     tlbEmpty = false;
                     return pa;
                 } else if ((pte & 3) == 1) { // Large Page (64KB)
@@ -140,11 +142,8 @@ inline u32 Arm920TMmu::translateSlow(u32 va, const u8* ram, MmuFault* fault, boo
                         }
                     }
                     u32 pa = (pte & 0xFFFF0000) | (va & 0xFFFF);
-                    tlb[idx].vpn = vpn;
                     tlb[idx].paBase = pa & ~0xFFF;
-                    tlb[idx].accessPermissions = static_cast<u8>(ap * 0x55);
-                    tlb[idx].section = false;
-                    tlb[idx].valid = true;
+                    tlb[idx].tag = makeTlbTag(vpn, static_cast<u8>(ap * 0x55), false);
                     tlbEmpty = false;
                     return pa;
                 } else {
@@ -161,11 +160,8 @@ inline u32 Arm920TMmu::translateSlow(u32 va, const u8* ram, MmuFault* fault, boo
     // Direct kernel linear SDRAM mapping (0xC0000000 -> 0x30000000)
     if (va >= 0xC0000000 && va < (0xC0000000 + ADDR_SDRAM_SIZE)) {
         u32 pa = (va - 0xC0000000) + ADDR_SDRAM_BASE;
-        tlb[idx].vpn = vpn;
         tlb[idx].paBase = pa & ~0xFFF;
-        tlb[idx].accessPermissions = 0xff;
-        tlb[idx].section = false;
-        tlb[idx].valid = true;
+        tlb[idx].tag = makeTlbTag(vpn, 0xff, false);
         tlbEmpty = false;
         return pa;
     }
