@@ -6,6 +6,8 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ## 2026-10-17 — Current Wade Profile and Chefs Check
 
+* **[Local GBA Wade Comparison](docs/87_local_gba_wade_comparison.md):** Captured the supplied GBA port in isolated mGBA. START blinks 4.6% faster in OceanBlast; corresponding generated music structure advances about 8.7% faster, with consistent split-window fits and no matching uniform pitch increase. Cross-port timing and recurring live stutter remain unresolved; no runtime change is made.
+
 * **[GBA Reference Analysis](docs/86_gba_title_reference.md):** Measured START cycles from the supplied playthrough and the restored emulator: 0.5358 versus 0.5122 seconds, using the source stream's exact frame rate. Created local waveform/spectrogram references; weak cross-version audio matches do not justify a tempo correction. No timing change was made.
 * **[PCM Comparison and Rejected Recovery](docs/85_wade_pcm_and_audio_recovery.md):** Three-billion-step probes produce identical raw/converted PCM before and after the retained core shortcuts. A two-block recovery candidate passes device checks but sounds worse in direct feedback, so its audio/test changes are removed. The previous executable remains installed; correct live audio is still unaccepted.
 

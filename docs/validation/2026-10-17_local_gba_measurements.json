@@ -1,0 +1,202 @@
+{
+  "mGBA": {
+    "fps": 59.7275,
+    "window": [
+      0,
+      10
+    ],
+    "rising_edges": [
+      0.15068435812649114,
+      0.6864509647984597,
+      1.2222175714704282,
+      1.7579841781423968,
+      2.2937507848143652,
+      2.8295173914863336,
+      3.3652839981583025,
+      3.901050604830271,
+      4.436817211502239,
+      4.972583818174208,
+      5.508350424846176,
+      6.044117031518145,
+      6.579883638190114,
+      7.115650244862082,
+      7.651416851534051,
+      8.18718345820602,
+      8.722950064877988,
+      9.258716671549957,
+      9.794483278221925
+    ],
+    "falling_edges": [
+      0.4185676614624754,
+      0.954334268134444,
+      1.4901008748064124,
+      2.025867481478381,
+      2.5616340881503494,
+      3.0974006948223183,
+      3.6331673014942867,
+      4.168933908166255,
+      4.7047005148382235,
+      5.240467121510192,
+      5.77623372818216,
+      6.31200033485413,
+      6.847766941526098,
+      7.383533548198066,
+      7.919300154870035,
+      8.455066761542003,
+      8.990833368213972,
+      9.52659997488594
+    ],
+    "fitted_period": 0.5357666066719684,
+    "white_pixel_centers": [
+      19.0,
+      306.0
+    ]
+  },
+  "OceanBlast": {
+    "fps": 30,
+    "window": [
+      14.5,
+      24.5
+    ],
+    "rising_edges": [
+      14.8,
+      15.333333333333334,
+      15.833333333333334,
+      16.333333333333332,
+      16.866666666666667,
+      17.366666666666667,
+      17.9,
+      18.4,
+      18.9,
+      19.4,
+      19.933333333333334,
+      20.433333333333334,
+      20.933333333333334,
+      21.466666666666665,
+      21.966666666666665,
+      22.5,
+      23.0,
+      23.5,
+      24.033333333333335
+    ],
+    "falling_edges": [
+      14.533333333333333,
+      15.066666666666666,
+      15.566666666666666,
+      16.066666666666666,
+      16.6,
+      17.1,
+      17.633333333333333,
+      18.133333333333333,
+      18.633333333333333,
+      19.166666666666668,
+      19.666666666666668,
+      20.2,
+      20.7,
+      21.2,
+      21.7,
+      22.233333333333334,
+      22.766666666666666,
+      23.266666666666666,
+      23.766666666666666,
+      24.266666666666666
+    ],
+    "fitted_period": 0.5121929824561404,
+    "white_pixel_centers": [
+      18.058441558441558,
+      306.0
+    ]
+  },
+  "audio": {
+    "reset_silence": [
+      40.77233560090703,
+      47.29750566893424
+    ],
+    "mgba_music_start": 47.29750566893424,
+    "oceanblast_pcm_music_start": 10.211791383219955,
+    "mgba_source_rate": 65536,
+    "analysis_rate": 22050,
+    "mgba_duration": 107.0,
+    "rms_envelope_fit": {
+      "correlation": 0.39108727714560965,
+      "reference_seconds_per_digi_second": 1.1650000000000005,
+      "reference_offset_seconds": 1.5000000000000027,
+      "scale_search": [
+        0.65,
+        1.4
+      ],
+      "offset_search": [
+        -1.5,
+        1.5
+      ]
+    },
+    "broad_envelope_alignment": {
+      "correlation": 0.8647107118130848,
+      "reference_seconds_per_digi_second": 1.0850000000000004,
+      "reference_offset_after_reset_music_seconds": 2.2,
+      "scale_search": [
+        0.5,
+        2
+      ],
+      "reference_search_seconds": [
+        0,
+        59.620000000000005
+      ],
+      "digi_interval_seconds": [
+        0.2,
+        10
+      ],
+      "method": "Normalized sliding RMS-envelope correlation; exploratory, not proof of pitch or emulation accuracy."
+    },
+    "split_window_alignment": [
+      {
+        "digi_seconds": [
+          0.2,
+          5
+        ],
+        "correlation": 0.7627760121122762,
+        "reference_seconds_per_digi_second": 1.0879999999999947,
+        "reference_intercept_seconds": 1.9730000000000003
+      },
+      {
+        "digi_seconds": [
+          5,
+          10
+        ],
+        "correlation": 0.9503491857745844,
+        "reference_seconds_per_digi_second": 1.0869999999999949,
+        "reference_intercept_seconds": 1.9730000000000003
+      },
+      {
+        "digi_seconds": [
+          0.2,
+          10
+        ],
+        "correlation": 0.86400793058423,
+        "reference_seconds_per_digi_second": 1.0869999999999949,
+        "reference_intercept_seconds": 1.9730000000000003
+      }
+    ],
+    "spectral_peak_alignment": {
+      "median_correlation": 0.4462730479226194,
+      "oceanblast_frequency_over_gba_frequency": 0.9960000000000001,
+      "ratio_search": [
+        0.85,
+        1.2
+      ],
+      "method": "4096-sample Hann windows, log magnitude minus 31-bin local mean, 150-7000 Hz; median across fixed envelope-aligned times 2-9.9 seconds. Exploratory cross-version spectral-peak correspondence, not listening acceptance.",
+      "unshifted_median_correlation": 0.22314076627914053
+    },
+    "recording_packet_check": {
+      "decoded_frames": 214,
+      "sample_count": 7012352,
+      "sample_rate": 65536,
+      "decoded_seconds": 107.0,
+      "timestamp_gaps_over_2ms": [],
+      "container_audio_duration_tag": 139.268,
+      "container_video_duration_tag": 107.572,
+      "note": "Container duration tags disagree with decoded audio length. Audio frame timestamps and sample counts are checked independently; tags are not used as a tempo ratio or global AV-sync measurement."
+    }
+  },
+  "blink_rate_ratio": 1.0460248871485596
+}

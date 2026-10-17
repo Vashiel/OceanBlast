@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-17",
+  "scope": "Local GBA/mGBA title reference versus digiBLAST/OceanBlast title; no runtime changes",
+  "budget_minutes": 20,
+  "mgba_version": "0.10.5 win32 supplied locally",
+  "recording": "Built-in lossless recording at native resolution; reset within title recording; no gameplay input. Isolated copied application, configuration and ROM. Original save not modified.",
+  "oceanblast_recording": "Reused installed PGO executable capture, ratio 6, 120-MIPS cap, fresh frontend settings, copied EEPROM, no input. Audio analysis uses existing normal-build generated PCM, not a recording of the installed PGO live output.",
+  "files": {
+    "gba_rom": {
+      "name": "Wade Hixton's Counter Punch (USA, Europe).gba",
+      "bytes": 8388608,
+      "sha256": "98887216a00c5e99a341abcb4a0f7bfc86cb58890c2cbb0b7c0d534c937bbd0b"
+    },
+    "mgba_executable": {
+      "name": "mGBA.exe",
+      "bytes": 43182649,
+      "sha256": "feb3695aea18a57841a5058729fb1a679ad12a5a4e00f0de00ff1c0ba1a6798c"
+    },
+    "oceanblast_installed_executable": {
+      "name": "oceanblast.exe",
+      "bytes": 4464725,
+      "sha256": "57fac1d7b69e91c61337ac3ca08927bcce6cb67eaab420d3b1e935e2de828410"
+    },
+    "mgba_recording": {
+      "name": "reference.mkv",
+      "bytes": 26570166,
+      "sha256": "18e153f81c37c192a914367ff4777753cdf7a3090d47cd6c1636ae464404d4b3"
+    },
+    "mgba_analysis_wav": {
+      "name": "audio.wav",
+      "bytes": 4718778,
+      "sha256": "e509a1432ce36c1215608b2d6de1f33462cd2e81248d6c969813538fc40bc268"
+    },
+    "oceanblast_generated_pcm_wav": {
+      "name": "wade-title-offline.wav",
+      "bytes": 2012000,
+      "sha256": "de0667d6fded9eb2f47f61aeaf7867ef2b4d7f3f76f7bf5b97ebfaa9d854d3b5"
+    },
+    "oceanblast_lcd_recording": {
+      "name": "lcd.rgb",
+      "bytes": 86515200,
+      "sha256": "677202382499b02732cd8798296cebf8eae6cad6671378922922b9bd21efc003"
+    }
+  }
+}
