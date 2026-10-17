@@ -360,6 +360,8 @@ int main(int argc, char* argv[]) {
         automaticPreset, explicitRatio, cpuStepsPerTick, autoTiming);
     cpuStepsPerTick = cartridgeSettings.cpuStepsPerTick;
     if (!explicitClock) clockMips *= cpuStepsPerTick;
+    if (const auto* identity = identifyCartridge(cartridge.size(), cartridgeCrc))
+        bus.setWadeTitleBlit(identity->crc == 0xeba2a2c3u);
     std::cout << "[Preset] " << cartridgeSettings.name << "; CPU ratio: " << cpuStepsPerTick
               << "; selection: " << (automaticPreset ? "automatic" : "disabled") << '\n';
     const DisplayProfile displayProfile = identifyDisplayProfile(cartridge.size(), cartridgeCrc);

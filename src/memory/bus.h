@@ -233,6 +233,8 @@ public:
 
     // S3C2410 Interrupts & Timers
     bool hasPendingIrq() const { return regIntpnd != 0; }
+    void setWadeTitleBlit(bool enabled) { wadeTitleBlit = enabled; }
+    bool wadeTitleBlitEnabled() const { return wadeTitleBlit; }
     void tickDma2();
     void tickAdcI2c(size_t cycles);
     void updateUart0TxInterrupt(bool emptyTransition = false);
@@ -375,6 +377,7 @@ private:
     u32 dma2EmittedBytes = 0;
     std::vector<int16_t> dma2PcmPending;
     uint64_t dma2RedundantEnables = 0;
+    bool wadeTitleBlit = false;
     size_t dma2NextAudioTimer = 0;
     void streamDma2Audio(bool complete);
     void scheduleDma2Audio();

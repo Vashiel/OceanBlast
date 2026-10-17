@@ -63,6 +63,7 @@ private:
     bool executeSimpleDataProcessing(u32 instruction);
     bool cycleTiming = false;
     uint32_t lastCycles = 1;
+    uint32_t acceleratedBlitStall = 0;
     bool debugLogging = false;
     bool faultLogging = false;
     SyscallObserver syscallObserver;
@@ -73,6 +74,7 @@ private:
     void handlePrefetchAbort(u32 faultPC);
     void handleDataAbort(u32 faultAddr, Bus::MmuFault faultType);
     void handleUndefinedInstruction(u32 instr);
+    bool accelerateTitleBlit(size_t peripheralTicks);
 
     // Helper functions
     bool evaluateCondition(u32 cond) const;

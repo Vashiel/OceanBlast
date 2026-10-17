@@ -276,9 +276,106 @@ static inline bool executeRegisterNoFlags(ARM920TState& state,u32 instr) {
     return true;
 }
 
+namespace {
+u32 blitChannel(u32 pixel, u32 mask, u32 shift, u32 loss) {
+    if (!mask) return 0;
+    return ((pixel & mask) >> shift) << loss;
+}
+}
+
+// Wade's title spends the opening inside this SDL soft blit while IIS DMA is
+// already running, so the mixer writes a bad first stretch. Doing the blit on
+// the host and keeping a quarter of its guest time lets the mixer catch up
+// without raising the fight ratio or interpreting the pixel loop.
+bool ARM920T::accelerateTitleBlit(size_t peripheralTicks) {
+    const u32 info = state.r[0];
+    const u32 src = bus.read32(info + 0);
+    const int width = int(bus.read32(info + 4));
+    const int height = int(bus.read32(info + 8));
+    const u32 sskip = bus.read32(info + 12);
+    const u32 dst = bus.read32(info + 16);
+    const u32 dskip = bus.read32(info + 28);
+    const u32 srcFmt = bus.read32(info + 36);
+    const u32 dstFmt = bus.read32(info + 44);
+    if (!src || !dst || !srcFmt || !dstFmt) return false;
+    if (width < 1 || height < 1 || width > 720 || height > 480) return false;
+    const u32 sbpp = bus.read8(srcFmt + 5);
+    const u32 dbpp = bus.read8(dstFmt + 5);
+    if (sbpp < 1 || sbpp > 4 || dbpp < 1 || dbpp > 4) return false;
+    const u32 sRmask = bus.read32(srcFmt + 16), sGmask = bus.read32(srcFmt + 20), sBmask = bus.read32(srcFmt + 24);
+    const u32 dRmask = bus.read32(dstFmt + 16), dGmask = bus.read32(dstFmt + 20), dBmask = bus.read32(dstFmt + 24);
+    const u32 sRshift = bus.read8(srcFmt + 10), sGshift = bus.read8(srcFmt + 11), sBshift = bus.read8(srcFmt + 12);
+    const u32 dRshift = bus.read8(dstFmt + 10), dGshift = bus.read8(dstFmt + 11), dBshift = bus.read8(dstFmt + 12);
+    const u32 sRloss = bus.read8(srcFmt + 6), sGloss = bus.read8(srcFmt + 7), sBloss = bus.read8(srcFmt + 8);
+    const u32 dRloss = bus.read8(dstFmt + 6), dGloss = bus.read8(dstFmt + 7), dBloss = bus.read8(dstFmt + 8);
+    const u32 alpha = bus.read8(srcFmt + 36);
+    struct Page { u32 base = 0xffffffffu; u8* ptr = nullptr; bool write = false; } srcPage, dstPage;
+    auto byte = [&](Page& page, u32 va, bool write) -> u8* {
+        const u32 base = va & ~1023u;
+        if (page.base != base || page.write != write) {
+            Bus::MmuFault fault = Bus::MmuFault::NONE;
+            const u32 pa = bus.translate(va, &fault, write);
+            if (fault != Bus::MmuFault::NONE || pa < ADDR_SDRAM_BASE || pa >= ADDR_SDRAM_BASE + ADDR_SDRAM_SIZE) return nullptr;
+            if ((pa & 1023u) != (va & 1023u)) return nullptr;
+            page.ptr = const_cast<u8*>(bus.getSdramPtr()) + ((pa & ~1023u) - ADDR_SDRAM_BASE);
+            page.base = base;
+            page.write = write;
+        }
+        return page.ptr + (va & 1023u);
+    };
+    auto loadPixel = [&](Page& page, u32 va, u32 bpp) -> u32 {
+        u32 pixel = 0;
+        for (u32 b = 0; b < bpp; ++b) {
+            u8* p = byte(page, va + b, false);
+            pixel |= u32(p ? *p : bus.read8(va + b)) << (8 * b);
+        }
+        return pixel;
+    };
+    auto storePixel = [&](u32 va, u32 pixel) {
+        for (u32 b = 0; b < dbpp; ++b) bus.write8(va + b, u8(pixel >> (8 * b)));
+    };
+    u32 sva = src, dva = dst;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const u32 pixel = loadPixel(srcPage, sva, sbpp);
+            sva += sbpp;
+            u32 r = blitChannel(pixel, sRmask, sRshift, sRloss);
+            u32 g = blitChannel(pixel, sGmask, sGshift, sGloss);
+            u32 b = blitChannel(pixel, sBmask, sBshift, sBloss);
+            if (alpha < 255) {
+                const u32 under = loadPixel(dstPage, dva, dbpp);
+                const u32 keep = 256u - alpha;
+                r = (r * alpha + blitChannel(under, dRmask, dRshift, dRloss) * keep) >> 8;
+                g = (g * alpha + blitChannel(under, dGmask, dGshift, dGloss) * keep) >> 8;
+                b = (b * alpha + blitChannel(under, dBmask, dBshift, dBloss) * keep) >> 8;
+            }
+            u32 out = 0;
+            if (dRmask) out |= (r >> dRloss) << dRshift;
+            if (dGmask) out |= (g >> dGloss) << dGshift;
+            if (dBmask) out |= (b >> dBloss) << dBshift;
+            storePixel(dva, out);
+            dva += dbpp;
+        }
+        sva += sskip;
+        dva += dskip;
+    }
+    state.r[15] = state.r[14] & ~1u;
+    // About a quarter of a generic ARM blit. Empty steps keep DMA and frame
+    // time in the range that still matches the soundtrack.
+    acceleratedBlitStall = u32(width) * u32(height) * 4u;
+    lastCycles = 1;
+    bus.tick(peripheralTicks);
+    return true;
+}
+
 void ARM920T::step(size_t peripheralTicks) {
     lastCycles = 1;
     if (state.halted) return;
+    if (acceleratedBlitStall) {
+        --acceleratedBlitStall;
+        bus.tick(peripheralTicks);
+        return;
+    }
     if (state.waitingForInterrupt) {
         if (!bus.hasPendingIrq()) { lastCycles = 0; bus.tick(peripheralTicks); return; }
         state.waitingForInterrupt = false;
@@ -289,6 +386,11 @@ void ARM920T::step(size_t peripheralTicks) {
         lastCycles = 3;
         bus.tick(peripheralTicks);
         return;
+    }
+
+    if (!isThumb() && state.r[15] == 0x40110cc4u) {
+        const u32 rate = bus.getAudioSampleRate();
+        if (bus.wadeTitleBlitEnabled() && rate >= 20000 && rate <= 24000 && accelerateTitleBlit(peripheralTicks)) return;
     }
 
     u32 currentPC = state.r[15];
