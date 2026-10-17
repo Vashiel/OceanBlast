@@ -15,6 +15,7 @@
 #include <gdiplus.h>
 #include "windows_input.h"
 #include "../core/mp3_storage.h"
+#include "../core/cartridge_nvram.h"
 #include <algorithm>
 #include <cstdio>
 #include <filesystem>
@@ -197,7 +198,7 @@ static constexpr UiText kUiText[7]{
         L"Selected digiBLAST ROM", L"No ROM selected yet", L"File...",
         L"Start Game", L"Stop Game",
         L"Persistent Device Storage (2 KB I2C EEPROM)",
-        L"Save device settings and game progress (sessions\\board.nvram)",
+        L"Save device settings and game progress",
         L"Tip: You can drag & drop ROM files (*.bin; *.rom) directly into the main window at any time or open them with Ctrl+O.",
         L"Select Controller", L"Keyboard Only", L"Saved Controller (disconnected)", L"Refresh",
         L"Preset",
@@ -288,7 +289,7 @@ static constexpr UiText kUiText[7]{
         L"Ausgewähltes digiBLAST-ROM", L"Noch kein ROM ausgewählt", L"Datei...",
         L"Spiel starten", L"Spiel stoppen",
         L"Persistenter Gerätespeicher (2 KB I2C-EEPROM)",
-        L"Geräteeinstellungen und Spielstände speichern (sessions\\board.nvram)",
+        L"Geräteeinstellungen und Spielstände speichern",
         L"Tipp: Du kannst ROM-Dateien (*.bin; *.rom) jederzeit direkt per Drag & Drop in das Hauptfenster ziehen oder mit Strg+O öffnen.",
         L"Controller auswählen", L"Nur Tastatur", L"Gespeicherter Controller (nicht verbunden)", L"Aktualisieren",
         L"Preset",
@@ -379,7 +380,7 @@ static constexpr UiText kUiText[7]{
         L"ROM de digiBLAST seleccionada", L"Ninguna ROM seleccionada", L"Archivo...",
         L"Iniciar juego", L"Detener juego",
         L"Memoria persistente del dispositivo (EEPROM I2C de 2 KB)",
-        L"Guardar ajustes del dispositivo y partidas (sessions\\board.nvram)",
+        L"Guardar ajustes del dispositivo y partidas",
         L"Consejo: Puedes arrastrar y soltar archivos ROM (*.bin; *.rom) directamente en la ventana principal o abrirlos con Ctrl+O.",
         L"Seleccionar mando", L"Solo teclado", L"Mando guardado (desconectado)", L"Actualizar",
         L"Perfil",
@@ -470,7 +471,7 @@ static constexpr UiText kUiText[7]{
         L"ROM digiBLAST selezionata", L"Nessuna ROM selezionata", L"File...",
         L"Avvia gioco", L"Ferma gioco",
         L"Memoria persistente del dispositivo (EEPROM I2C da 2 KB)",
-        L"Salva impostazioni del dispositivo e progressi (sessions\\board.nvram)",
+        L"Salva impostazioni del dispositivo e progressi",
         L"Suggerimento: Puoi trascinare i file ROM (*.bin; *.rom) direttamente nella finestra principale o aprirli con Ctrl+O.",
         L"Seleziona controller", L"Solo tastiera", L"Controller salvato (scollegato)", L"Aggiorna",
         L"Preset",
@@ -561,7 +562,7 @@ static constexpr UiText kUiText[7]{
         L"Geselecteerde digiBLAST-ROM", L"Nog geen ROM geselecteerd", L"Bestand...",
         L"Spel starten", L"Spel stoppen",
         L"Permanent apparaatgeheugen (2 KB I2C-EEPROM)",
-        L"Apparaatinstellingen en voortgang opslaan (sessions\\board.nvram)",
+        L"Apparaatinstellingen en voortgang opslaan",
         L"Tip: Je kunt ROM-bestanden (*.bin; *.rom) altijd direct naar het hoofdvenster slepen of openen met Ctrl+O.",
         L"Controller selecteren", L"Alleen toetsenbord", L"Opgeslagen controller (niet verbonden)", L"Vernieuwen",
         L"Profiel",
@@ -652,7 +653,7 @@ static constexpr UiText kUiText[7]{
         L"ROM digiBLAST sélectionnée", L"Aucune ROM sélectionnée", L"Fichier...",
         L"Démarrer le jeu", L"Arrêter le jeu",
         L"Mémoire persistante de l'appareil (EEPROM I2C de 2 Ko)",
-        L"Enregistrer les réglages et la progression (sessions\\board.nvram)",
+        L"Enregistrer les réglages et la progression",
         L"Astuce : Vous pouvez glisser-déposer des fichiers ROM (*.bin; *.rom) directement dans la fenêtre principale ou les ouvrir avec Ctrl+O.",
         L"Sélectionner la manette", L"Clavier uniquement", L"Manette enregistrée (déconnectée)", L"Actualiser",
         L"Profil",
@@ -743,7 +744,7 @@ static constexpr UiText kUiText[7]{
         L"Seçilen digiBLAST ROM", L"Henüz ROM seçilmedi", L"Dosya...",
         L"Oyunu Başlat", L"Oyunu Durdur",
         L"Kalıcı Cihaz Belleği (2 KB I2C-EEPROM)",
-        L"Cihaz ayarlarını ve oyun kayıtlarını sakla (sessions\\board.nvram)",
+        L"Cihaz ayarlarını ve oyun kayıtlarını sakla",
         L"İpucu: ROM dosyalarını (*.bin; *.rom) istediğiniz zaman doğrudan ana pencereye sürükleyip bırakabilir veya Ctrl+O ile açabilirsiniz.",
         L"Kontrolcü Seçin", L"Yalnızca Klavye", L"Kayıtlı Kontrolcü (bağlı değil)", L"Yenile",
         L"Profil",
@@ -961,7 +962,15 @@ static bool launchRom(const std::wstring& romFile) {
     else if (settings.displayFormat == 3) command += L" --display-format rgb565";
     else if (settings.displayFormat == 4) command += L" --display-format lcd";
 
-    if (settings.keepNvram) command += L" --nvram \"" + folder + L"\\board.nvram\"";
+    if (settings.keepNvram) {
+        try {
+            command += L" --nvram \"" + prepareCartridgeNvram(folder, romFile).wstring() + L"\"";
+        } catch (const std::exception& error) {
+            const std::string message=error.what();
+            MessageBoxA(window,message.c_str(),"OceanBlast",MB_ICONERROR);
+            return false;
+        }
+    }
     {
         static constexpr const wchar_t* kCartLangModes[10]{
             L"auto", L"ask", L"en", L"de", L"es", L"it", L"nl", L"fr", L"tr", L"keep"

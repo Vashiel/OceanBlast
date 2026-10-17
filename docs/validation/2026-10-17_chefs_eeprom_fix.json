@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-17",
+  "base_revision": "a8be6d484d5b9418187051e9941510adee3fa609",
+  "diagnosis_budget_minutes": 20,
+  "original_budget_exceeded": true,
+  "approved_extension_minutes": 15,
+  "cartridge": {
+    "size": 17301504,
+    "crc32": "93209877",
+    "sha256": "465ddcd7f9722d73b4fd748d3b8d822bc99c06ea91c301bd768f583a1d52b2ff"
+  },
+  "previous_installed_executable_sha256": "1b40a54ec29c5d3529834ff2cb0353e3774c0b9ce1e6cb9a3a63732eaf3c92e9",
+  "candidate_and_installed_executable_sha256": "858c64effd03fb43738d3bb12b1e98c98063b463d4f6d112293c907607942ab2",
+  "legacy_eeprom_sha256": "dca61f6648053ebb409fbd569a45ec33a0dc245c9169e29aec24706d044c58d8",
+  "legacy_eeprom_unchanged": true,
+  "migrated_eeprom_sha256": "fc334d44d67db6db1943805563133e5b2d0923cc2dfed2eedfffea2add2621b7",
+  "migration_differences": [
+    {
+      "offset": 4,
+      "previous": 80,
+      "current": 1
+    }
+  ],
+  "failure": {
+    "difficulty": 80,
+    "valid_difficulties": [
+      0,
+      1,
+      2
+    ],
+    "player_health": 0,
+    "death_state_store_pc": "0x24cac",
+    "life_decrement_store_pc": "0x24b4c"
+  },
+  "validation": {
+    "steps": 1600000000,
+    "ratio": 3,
+    "input_script_sha256": "7f5e369bdf97a453cd2307e2dda63a4d7b7b5f7dce5877917d29335de28c246d",
+    "host_audio": false,
+    "gui": false,
+    "inspected_frame_step": 1500000000,
+    "inspected_frame_score": 100,
+    "inspected_frame_lives": 5,
+    "final_lives": 5,
+    "final_health": 1,
+    "sdram_sha256": "a28db7797d70311b64c4a6ff92562afd7bd8368923a26f6cd224553609f8d130",
+    "test": "cartridge_nvram.cpp; storage, identity, migration, malformed image checks passed"
+  },
+  "build": {
+    "compiler": "GCC 16.2.0",
+    "architecture": "x86-64",
+    "optimization": "O3 unity using existing profile data; new/mismatched functions permit fallback",
+    "fresh_profile_training": false,
+    "build_log_sha256": "9c749a1c115290bfc9f10d886c5b19e6308e2e899beaed3856be15cefa2af2b5"
+  },
+  "local_title_blit_source_sha256": {
+    "src/cpu/arm920t.cpp": "4b7b8b850787d53f4a2931baa9b06b7b76ed7fabcb8b964089ce109c126e5641",
+    "src/cpu/arm920t.h": "032ccaf93db09859ce72926f7dbea5e8975654a36e706458908661e8c671eb3f",
+    "src/main.cpp": "36607597be40f1d42e956b38711d2613fff72232882d83af69532cf0960a6b7c",
+    "src/memory/bus.h": "a826f63e25c1733c7fcca3425144be07d2f419b00307a3910b1921cad8d8661d"
+  },
+  "limits": "No complete-game, physical-controller, live audio or performance acceptance. Existing local title-blit edits preserved outside this commit. Private ROM, save, RAM and screenshots not published."
+}

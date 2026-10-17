@@ -21,6 +21,7 @@ HEADERS = src/core/types.h \
           src/core/host_pacer.h \
           src/core/cartridge_settings.h \
           src/core/cartridge_language.h \
+          src/core/cartridge_nvram.h \
           src/core/button_pulses.h \
           src/core/mp3_storage.h \
           src/cpu/arm920t.h \
@@ -77,6 +78,7 @@ test: build/frame_latch.exe build/emulation_timing.exe build/cpu_regression.exe 
 	./build/mp3_storage.exe
 	./build/usb_storage.exe
 	./build/cartridge_settings.exe
+	./build/cartridge_nvram.exe
 	./build/cartridge_loading.exe
 	./build/frame_latch.exe
 	./build/emulation_timing.exe
@@ -231,6 +233,10 @@ build/cartridge_settings.exe: tests/cartridge_settings.cpp src/core/cartridge_se
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $<
 test: build/cartridge_settings.exe
+test: build/cartridge_nvram.exe
+build/cartridge_nvram.exe: tests/cartridge_nvram.cpp src/core/cartridge_nvram.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $<
 test: build/cartridge_loading.exe
 
 build/cartridge_loading.exe: tests/cartridge_loading.cpp src/memory/bus.cpp $(HEADERS)

@@ -23,6 +23,7 @@ P1-P3 prepare the execution core; they do not promise an immediate FPS increase.
 
 | Step | Status | Result or next acceptance gate |
 | --- | --- | --- |
+| Resolve Chefs immediate life loss | Fixed and installed; short first-level check passed | [Invalid persisted difficulty](docs/91_chefs_eeprom_health.md) leaves player health at zero. Content-keyed launcher EEPROM files preserve the legacy image and repair only unsupported Chefs difficulty during migration. Short movement/jump replay retains five lives and reaches 100 points; full-game acceptance remains separate. |
 | Resolve reported Wade title audio stutter | Open, P0 | [PCM comparison and listening](docs/85_wade_pcm_and_audio_recovery.md) reject the Wade-trained build and a two-block recovery candidate; preceding executable restored. [Local GBA comparison](docs/87_local_gba_wade_comparison.md) finds cross-port timing differences, but the [digiBLAST XM soundtrack](docs/88_digiblast_soundtrack_reference.md) matches generated PCM at approximately unity tempo. Neither is a console recording. Compare actual live output against generated PCM and trace queue/sample delivery before another throughput experiment. |
 | Compact translation-cache entries | Complete | [Eight-byte layout](docs/82_compact_tlb_entries.md), 173 targeted checks and one favorable Wade pair with matching state. |
 | Consolidate the current executable | Complete locally | [Conservative x86-64 PGO build](docs/83_consolidated_pgo_acceptance.md), Wade state match and short paced/visible Chefs check. Previous executable backed up. |
