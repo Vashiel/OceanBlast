@@ -1,0 +1,33 @@
+{
+  "source_commit": "759f567",
+  "runtime_source_changed": false,
+  "compiler": "GCC 16.2.0",
+  "optimization": "O3",
+  "architecture": "x86-64",
+  "unity": true,
+  "training_roms": [
+    "Superstar Chefs [G] (EN).bin",
+    "Rayman 3 [G] (M10).bin",
+    "Wade Hixton's Counter Punch [G] (EN).bin"
+  ],
+  "training_steps": [
+    900000000,
+    900000000,
+    3000000000
+  ],
+  "training_ratio": 3,
+  "executable_sha256": "ea41ea3cdc16b63b64759d18b4ea951fd09d2c84110f7effa6dce0de7a4bee44",
+  "profile_data_sha256": {
+    "build#pgo-47d4959ffd824cb2967251af936cd1d5#oceanblast_profiled-unity.gcda": "7e66072d425983fb860f7abae6739c77de34f3ddad2bfa4a6b68ec34a64b198e"
+  },
+  "training_log_sha256": {
+    "session-0": "84f213e0d916648506fcd80ebff50ddfb5fc39f76a151c4b82810afb7edcf7d7",
+    "session-1": "5b29449fa9e9d7e6f92587be87ea5a974660e3f408eda968376d4b4f1ec94139",
+    "session-2": "990d97e760f2e95ae98bae478c47b0a9d36edadecca5846905f79f78b7d028bd"
+  },
+  "candidate_retention": "Improved in this bounded observation; residual audio starvation remains. Not complete audio acceptance.",
+  "installed_sha256": "ea41ea3cdc16b63b64759d18b4ea951fd09d2c84110f7effa6dce0de7a4bee44",
+  "previous_installed_sha256": "57fac1d7b69e91c61337ac3ca08927bcce6cb67eaab420d3b1e935e2de828410",
+  "installed_matches_tested": true,
+  "elapsed_task_minutes_approx": 10
+}

@@ -6,6 +6,8 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ## 2026-10-17 — Current Wade Profile and Chefs Check
 
+* **[Wade Title Audio Diagnosis](docs/84_wade_title_audio_starvation.md):** Reproduced reported stutter with repeated empty audio queues below the 120-MIPS target. Additional Wade PGO training preserves guest state and reduces observed queue events to six, versus 138 and 25 in surrounding previous-build runs. Host variability and remaining startup events exclude complete audio acceptance; the issue now precedes further throughput work in the roadmap.
+
 * **[Consolidated PGO Executable](docs/83_consolidated_pgo_acceptance.md):** Rebuilt the local launcher from current source with conservative x86-64 PGO and preserved the preceding executable. Wade retains the established guest state; the short active Chefs replay averages 59.97 MIPS with matching state, zero empty queues and zero drops. The stopped gameplay image is checked. This is bounded local acceptance, without an old/new PGO performance claim or a new release upload.
 
 * **[Compact TLB Entries](docs/82_compact_tlb_entries.md):** Packed translation metadata reduces the 2,048-entry array from 24 to 16 KiB. All 173 targeted checks pass; one controlled Wade pair preserves final guest state and measures 21.31% more fight throughput and 14.19% less complete-replay CPU time. The layout is retained, with single-pair and host-specific limits recorded.

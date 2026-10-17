@@ -1,0 +1,22 @@
+{
+  "executable_sha256": "57fac1d7b69e91c61337ac3ca08927bcce6cb67eaab420d3b1e935e2de828410",
+  "initial_eeprom_sha256": "dbb6b373859f4ad14adf58998ae870b08da5c8279d5f5bee52d050c4e6a06084",
+  "steps": 3000000000,
+  "ratio": 6,
+  "clock_mips": 120,
+  "scale": 2,
+  "window_mode": "plain",
+  "requested_steps_completed": true,
+  "sampled_mips": 115.6307481595884,
+  "last_observed_empty_queues": 25,
+  "dropped_samples": 0,
+  "title_interval_min_mips": 79.8264,
+  "title_interval_mean_mips": 116.07052902719245,
+  "note": "Return to the unchanged installed build after candidate; resolves host-speed ambiguity.",
+  "sdram.bin_sha256": "553452cd0dad01ff6adfa7410cd312d56bb5fb247f31ddeaccc6a532f9cd4f37",
+  "fb_active.raw_sha256": "342431a9bb3dc578d9472f981d6931fa1a8c13dfe5f0d33d65ef85fdd799dd5f",
+  "final_cpu_sha256": "7a65c4321ab7c943b133c87f2531d8bcb2b8dd93a64c957944e23651759ab0da",
+  "guest_state_matches": true,
+  "run": "return",
+  "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a"
+}

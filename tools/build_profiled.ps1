@@ -2,6 +2,7 @@ param(
     [Parameter(Mandatory=$true)][string[]]$Roms,
     [string]$Compiler = 'g++',
     [UInt64]$Steps = 600000000,
+    [UInt64[]]$StepsPerRom = @(),
     [string]$DeviceSettings = '',
     [string]$InputScript = '',
     [ValidateRange(1,16)][int]$CpuStepsPerTick = 2,
@@ -17,6 +18,9 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 if (!$Steps) { throw 'Steps must be positive.' }
+if ($StepsPerRom.Count -and ($StepsPerRom.Count -ne $Roms.Count -or $StepsPerRom -contains 0)) {
+    throw 'StepsPerRom must contain one positive instruction limit per ROM.'
+}
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $romPaths = @($Roms | ForEach-Object { (Resolve-Path -LiteralPath $_).Path })
 if ($InputScript) { $InputScript = (Resolve-Path -LiteralPath $InputScript).Path }
@@ -57,9 +61,10 @@ try {
 } finally { Pop-Location }
 $index = 0
 foreach ($rom in $romPaths) {
+    $trainingSteps = if ($StepsPerRom.Count) { $StepsPerRom[$index] } else { $Steps }
     $sessionRoot = Join-Path $outputRoot ('session-' + $index++)
     New-Item -ItemType Directory -Force -Path $sessionRoot | Out-Null
-    $arguments = @($rom,'--steps',$Steps.ToString())
+    $arguments = @($rom,'--steps',$trainingSteps.ToString())
     if ($Gui) { $arguments += @('--gui','--exit-on-limit') }
     if ($Timing -eq 'auto') { $arguments += @('--timing','auto') }
     else { $arguments += @('--cpu-steps-per-tick',$CpuStepsPerTick.ToString()) }

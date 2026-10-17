@@ -23,11 +23,12 @@ P1-P3 prepare the execution core; they do not promise an immediate FPS increase.
 
 | Step | Status | Result or next acceptance gate |
 | --- | --- | --- |
+| Resolve reported Wade title audio stutter | Open, P0 | [Reproduced queue starvation](docs/84_wade_title_audio_starvation.md). Additional Wade PGO training reduces observed events, but startup events remain. Diagnose startup/recovery before another throughput experiment. |
 | Compact translation-cache entries | Complete | [Eight-byte layout](docs/82_compact_tlb_entries.md), 173 targeted checks and one favorable Wade pair with matching state. |
 | Consolidate the current executable | Complete locally | [Conservative x86-64 PGO build](docs/83_consolidated_pgo_acceptance.md), Wade state match and short paced/visible Chefs check. Previous executable backed up. |
 | Check available old hardware | Open; suitable device unavailable in this session | Budget 10-15 minutes for setup and one affected-game check; record CPU, executable hash, settings, pacing and audio counters. Stop at the first relevant failure. |
 
-Actual weak-device evidence is the remaining gate for this delivery plan. Further core development can use a separately scoped P4 experiment; the available time is not a reason to keep adding unmeasured shortcuts.
+Wade audio stability and actual weak-device evidence remain open gates. The earlier Chefs acceptance did not establish Wade audio quality. Further core development can use a separately scoped P4 experiment after the reported P0 issue; the available time is not a reason to keep adding unmeasured shortcuts.
 
 ## Task budgets and decision rules
 
@@ -114,4 +115,4 @@ The [current Wade profile and short Chefs counter-check](docs/81_current_wade_pr
 
 The [compact TLB implementation](docs/82_compact_tlb_entries.md) completes that hypothesis: entries shrink from 12 to eight bytes, preserving all 2,048 slots. All 173 targeted checks pass. One direct Wade pair preserves guest state and observes 21.31% more fight throughput with 14.19% less complete-replay CPU time. The change is retained; this single-pair result is not additive to earlier measurements or evidence for weak hardware. The next delivery is one consolidated conservative x86-64 PGO executable with short Wade-state and paced Chefs acceptance checks, followed by measurement on available old hardware. Further interpreter experiments require a new bounded hypothesis rather than an open-ended sequence of micro-optimizations.
 
-The [consolidated PGO delivery](docs/83_consolidated_pgo_acceptance.md) is now locally installed with its predecessor backed up. Wade matches the reference state; Chefs averages 59.97 MIPS with matching state, zero empty queues and zero drops, and its stopped first-level image is checked. This completes the executable build and bounded acceptance step. Next: run a short check on available old hardware and record processor, settings, pacing and audio counters. That evidence is still unavailable; no minimum-hardware claim is made. A future execution-engine experiment remains P4 work, with its own hypothesis and budget.
+The [consolidated PGO delivery](docs/83_consolidated_pgo_acceptance.md) completes the executable build and its bounded state/Chefs checks. Subsequent [Wade title feedback and diagnosis](docs/84_wade_title_audio_starvation.md) reproduce paced audio starvation. An updated local PGO executable adds Wade training and reduces observed queue events; startup starvation remains open. Next: diagnose and resolve that P0 audio issue before another throughput experiment, then record a short check on available old hardware. Old-device evidence is still unavailable; no minimum-hardware claim is made. A future execution-engine experiment remains P4 work, with its own hypothesis and budget.
