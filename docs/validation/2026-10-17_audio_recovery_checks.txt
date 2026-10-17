@@ -1,0 +1,8 @@
+[Audio] Win32 waveOut initialized (22050 Hz, 2 channels, 16-bit PCM, 16 buffers).
+PASS waveOut playback position advances through every submitted frame
+PASS starvation holds one refill block until the startup reserve is restored
+PASS restored reserve resumes every refill frame without dropping samples
+[Audio] Sound subsystem closed.
+[Audio] Win32 waveOut initialized (22050 Hz, 2 channels, 16-bit PCM, 16 buffers).
+PASS reopened audio device resets playback position
+[Audio] Sound subsystem closed.

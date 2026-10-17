@@ -6,6 +6,11 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ## 2026-10-17 — Current Wade Profile and Chefs Check
 
+* **[GBA Reference Analysis](docs/86_gba_title_reference.md):** Measured START cycles from the supplied playthrough and the restored emulator: 0.5358 versus 0.5122 seconds, using the source stream's exact frame rate. Created local waveform/spectrogram references; weak cross-version audio matches do not justify a tempo correction. No timing change was made.
+* **[PCM Comparison and Rejected Recovery](docs/85_wade_pcm_and_audio_recovery.md):** Three-billion-step probes produce identical raw/converted PCM before and after the retained core shortcuts. A two-block recovery candidate passes device checks but sounds worse in direct feedback, so its audio/test changes are removed. The previous executable remains installed; correct live audio is still unaccepted.
+
+* **Wade Audio Rollback:** Listening feedback rejects the Wade-trained PGO candidate because music remains severely incorrect/stuttering. The preceding local executable is restored. Lower queue counts are retained as historical observations and do not establish correct music or acceptable playback.
+
 * **[Wade Title Audio Diagnosis](docs/84_wade_title_audio_starvation.md):** Reproduced reported stutter with repeated empty audio queues below the 120-MIPS target. Additional Wade PGO training preserves guest state and reduces observed queue events to six, versus 138 and 25 in surrounding previous-build runs. Host variability and remaining startup events exclude complete audio acceptance; the issue now precedes further throughput work in the roadmap.
 
 * **[Consolidated PGO Executable](docs/83_consolidated_pgo_acceptance.md):** Rebuilt the local launcher from current source with conservative x86-64 PGO and preserved the preceding executable. Wade retains the established guest state; the short active Chefs replay averages 59.97 MIPS with matching state, zero empty queues and zero drops. The stopped gameplay image is checked. This is bounded local acceptance, without an old/new PGO performance claim or a new release upload.

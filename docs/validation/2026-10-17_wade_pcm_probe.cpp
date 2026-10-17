@@ -1,0 +1,26 @@
+#include "memory/bus.cpp"
+#include "cpu/arm920t.cpp"
+#include "core/machine.h"
+#include "audio/resampler.h"
+#include <fstream>
+#include <iostream>
+using namespace oceanblast;
+int main(int argc,char** argv) {
+    if(argc!=4)return 2;
+    Machine machine;auto& bus=machine.bus();auto& cpu=machine.cpu();
+    if(!bus.loadEeprom(argv[2])||!bus.loadCartridge(argv[1]))return 3;
+    cpu.reset();machine.configureExecution(false,6);
+    const std::string prefix=argv[3];std::ofstream raw(prefix+".pcm",std::ios::binary),converted(prefix+".converted.pcm",std::ios::binary),events(prefix+".csv");
+    PcmResampler resampler;uint64_t callbacks=0,samples=0,steps=0;
+    events<<"callback,sample_offset,samples,input_rate,iismod,iispsr,iiscon,dcon,source,remaining,pc\n";
+    bus.setAudioCallback([&](const int16_t* p,size_t n){
+        const auto rate=bus.getAudioSampleRate();
+        events<<callbacks++<<','<<samples<<','<<n<<','<<rate<<','<<bus.getMmio(0x55000004)<<','<<bus.getMmio(0x55000008)<<','<<bus.getMmio(0x55000000)<<','<<bus.getMmio(0x4b000090)<<','<<bus.getMmio(0x4b000098)<<','<<bus.getMmio(0x4b000094)<<','<<cpu.getPC()<<'\n';
+        raw.write(reinterpret_cast<const char*>(p),n*sizeof(int16_t));samples+=n;
+        auto pcm=resampler.process(p,n,rate,22050,2);converted.write(reinterpret_cast<const char*>(pcm.data()),pcm.size()*sizeof(int16_t));
+    });
+    while(steps<3000000000ULL&&!cpu.isHalted())steps+=machine.execution().run(std::min<uint64_t>(4096,3000000000ULL-steps));
+    std::ofstream ram(prefix+".sdram",std::ios::binary);ram.write(reinterpret_cast<const char*>(bus.getSdramPtr()),ADDR_SDRAM_SIZE);
+    std::cout<<"steps="<<steps<<" callbacks="<<callbacks<<" samples="<<samples<<'\n';cpu.dumpState();
+    return steps==3000000000ULL?0:4;
+}

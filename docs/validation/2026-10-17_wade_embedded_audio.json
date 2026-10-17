@@ -1,0 +1,19 @@
+{
+  "executable_sha256": "57fac1d7b69e91c61337ac3ca08927bcce6cb67eaab420d3b1e935e2de828410",
+  "ratio": 6,
+  "pacing_mips": 120,
+  "scale": 4,
+  "launch_path": "Copied executable, real launcher, embedded child; cloned preferences with FPS logging enabled",
+  "requested_instruction_limit": null,
+  "input_script": null,
+  "observed_intervals": 121,
+  "recorded_seconds": 121.02603,
+  "weighted_mips": 119.40528876829224,
+  "minimum_interval_mips": 107.737,
+  "last_observed_empty_queues": 11,
+  "dropped_samples": 0,
+  "last_empty_count_before_recorded_playback_reaches_nonzero_pcm": 6,
+  "stopping": "Launcher closed manually in title after diagnostic observation; no final-state acceptance",
+  "listening": "Short recurring stutter/compressed-sounding bursts with normal sections between them, including a short initial stutter.",
+  "initial_eeprom_sha256": "dbb6b373859f4ad14adf58998ae870b08da5c8279d5f5bee52d050c4e6a06084"
+}

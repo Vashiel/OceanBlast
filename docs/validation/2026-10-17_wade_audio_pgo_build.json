@@ -25,9 +25,11 @@
     "session-1": "5b29449fa9e9d7e6f92587be87ea5a974660e3f408eda968376d4b4f1ec94139",
     "session-2": "990d97e760f2e95ae98bae478c47b0a9d36edadecca5846905f79f78b7d028bd"
   },
-  "candidate_retention": "Improved in this bounded observation; residual audio starvation remains. Not complete audio acceptance.",
+  "candidate_retention": "Withdrawn; initial numerical improvement did not establish acceptable music.",
   "installed_sha256": "ea41ea3cdc16b63b64759d18b4ea951fd09d2c84110f7effa6dce0de7a4bee44",
   "previous_installed_sha256": "57fac1d7b69e91c61337ac3ca08927bcce6cb67eaab420d3b1e935e2de828410",
   "installed_matches_tested": true,
-  "elapsed_task_minutes_approx": 10
+  "elapsed_task_minutes_approx": 10,
+  "subsequent_acceptance": "Rejected after listening feedback: music severely incorrect/stuttering.",
+  "current_installed_after_rollback": "57fac1d7b69e91c61337ac3ca08927bcce6cb67eaab420d3b1e935e2de828410"
 }

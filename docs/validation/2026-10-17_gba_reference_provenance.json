@@ -1,0 +1,44 @@
+{
+  "source_url": "https://www.youtube.com/watch?v=1JeaEPX1ue4",
+  "video_id": "1JeaEPX1ue4",
+  "title": "Wade Hixton's Counter Punch (GBA) full playthrough",
+  "uploader": "Reinc",
+  "source_duration_seconds": 13231,
+  "retrieved_date": "2026-10-17",
+  "retrieved_interval_seconds": [
+    0,
+    45
+  ],
+  "video_format_id": "134",
+  "audio_format_id": "140",
+  "video_dimensions": [
+    480,
+    320
+  ],
+  "video_fps": 29.86375,
+  "downloaded_clip_sha256": "5fc37d4d4a8185d82f4a8a4bef0a38107bba0e5e46d05715fc2d8a52e3dd9f64",
+  "reference_audio_sha256": "bb69c6531b7f774517ad24733f1e4fe89694fbbd58dfd804b7916bdb54eb63cc",
+  "reference_rgb_sha256": "254e5395010f6ea7507b0cefd7f353e800e2fbf26e5b464f486f3e21b5dfc7ad",
+  "oceanblast_rgb_sha256": "677202382499b02732cd8798296cebf8eae6cad6671378922922b9bd21efc003",
+  "oceanblast_executable_sha256": "57fac1d7b69e91c61337ac3ca08927bcce6cb67eaab420d3b1e935e2de828410",
+  "analysis_scripts_sha256": {
+    "analyze.py": "c339d57a8d088b5f70fd14dcf33486d62b2bedabaeabef6751b4ac3c9c5e6902",
+    "align_audio.py": "9fafbcc1b051fde2459f0eab747a2aa7a37046882a9a6ca4e0c805426f3b2f1d",
+    "chroma.py": "213e0d672a564614289c814d7cd8e9b8c6a311197614716aab234c36bfb0677c"
+  },
+  "oceanblast_steps": 3000000000,
+  "oceanblast_recorded_frames": 751,
+  "oceanblast_ratio": 6,
+  "oceanblast_clock_mips": 120,
+  "media_location": "Ignored local build directories; not source-controlled",
+  "limits": "Cross-platform recorded reference; original physical hardware timing and sound equivalence unverified.",
+  "video_frame_rate_rational": "23891/800",
+  "rounded_extractor_fps": 30,
+  "video_frame_count": 1345,
+  "container_video_duration_seconds": 45.03788,
+  "archived_analysis_scripts_sha256": {
+    "2026-10-17_gba_align_audio.py": "c8d604c50d75015ca9793baa8d82820113a8a0d358be37f30ca6735452539494",
+    "2026-10-17_gba_analyze.py": "258b7711c6263ccc3cc01d5b254076a0eb48929ed18a79fd889deb5231b0f3e8",
+    "2026-10-17_gba_chroma.py": "30bb67b706de0b42980999255692ba9e527ec1d9a7de8db7b557c3c85b52b938"
+  }
+}

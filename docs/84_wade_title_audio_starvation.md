@@ -37,7 +37,7 @@ The candidate has fewer observed empty queues than either surrounding reference 
 
 ## Decision and remaining work
 
-Retain the additional Wade training after the short paced Chefs counter-check. It improves this observed title sequence without changing guest state or runtime semantics. The new local executable's SHA-256 is `ea41ea3cdc16b63b64759d18b4ea951fd09d2c84110f7effa6dce0de7a4bee44`; its predecessor is backed up before replacement. No new release package is uploaded.
+The initial decision was to retain the additional Wade training after the short paced Chefs counter-check. Subsequent listening feedback reports severely incorrect/stuttering music. That feedback rejects the audio result and supersedes the initial retention decision: the Wade-trained executable `ea41ea3cdc16b63b64759d18b4ea951fd09d2c84110f7effa6dce0de7a4bee44` is withdrawn. The previous executable `57fac1d7b69e91c61337ac3ca08927bcce6cb67eaab420d3b1e935e2de828410` is restored locally. The rejected file remains in ignored `build/rejected-2026-10-17-wade-trained-audio/`. This rollback is not a claim that the preceding executable has correct Wade audio. No release package was uploaded.
 
 The [Chefs counter-check](validation/2026-10-17_wade_trained_chefs.json) replays the existing four-billion-instruction movement/A/B/C fixture at normal ratio-3 pacing. It averages 59.9697 MIPS with zero empty queues, zero drops and matching CPU/SDRAM/framebuffer hashes. This check exits automatically; no new visible inspection or listening check is performed. Compilation, the short title observations, this counter-check and publication take about ten minutes within the allowance. The preceding executable remains in ignored `build/launcher-backup-2026-10-17-before-wade-training/`.
 

@@ -1,0 +1,20 @@
+{
+  "executable_sha256": "26d53e71ceb35f9cb97939f5b8d33bc21047fe07d5b82b2f7380e417e5a7b97c",
+  "source_base": "19d5518",
+  "runtime_change": "Re-prime two newly submitted output blocks after queue starvation",
+  "compiler": "GCC 16.2.0",
+  "flags": "O3 x86-64 unity PGO",
+  "training_roms": [
+    "Superstar Chefs",
+    "Rayman 3"
+  ],
+  "training_steps_each": 900000000,
+  "training_ratio": 3,
+  "acceptance": "Rejected: direct listening feedback says worse. Candidate never installed.",
+  "installed_executable_sha256": "57fac1d7b69e91c61337ac3ca08927bcce6cb67eaab420d3b1e935e2de828410",
+  "rejected_patch_sha256": "b9438aec3d91a316e83ab9dbd99eeb83c7ea069d7536e3d2e8b1cf3a70914d26",
+  "observed_empty_queue_events": 46,
+  "observed_intervals": 166,
+  "dropped_samples": 0,
+  "test_end": "Interrupted title diagnostic; no instruction-limit/final-state acceptance."
+}

@@ -1,0 +1,40 @@
+--- a/src/audio/audio.h
++++ b/src/audio/audio.h
+@@ -55,0 +56 @@
++    uint64_t m_resumeAtFrame = 0;
+--- a/src/audio/audio_win32.cpp
++++ b/src/audio/audio_win32.cpp
+@@ -73,0 +74 @@
++    m_resumeAtFrame = 2 * BUFFER_BYTES / (sizeof(int16_t) * m_channels);
+@@ -120 +121,10 @@
+-        if (!m_queueEmptyReported) ++m_emptyQueueEvents;
++        if (!m_queueEmptyReported) {
++            ++m_emptyQueueEvents;
++            // Rebuild the startup reserve after starvation instead of playing
++            // each newly completed block immediately into another short gap.
++            if (!m_preroll && waveOutPause(static_cast<HWAVEOUT>(m_hWaveOut)) == MMSYSERR_NOERROR) {
++                m_preroll = true;
++                m_resumeAtFrame = m_submittedFrames +
++                    2 * BUFFER_BYTES / (sizeof(int16_t) * m_channels);
++            }
++        }
+@@ -205 +215 @@
+-                if (m_preroll && m_submittedFrames >= 2 * BUFFER_BYTES / (sizeof(int16_t) * m_channels)) {
++                if (m_preroll && m_submittedFrames >= m_resumeAtFrame) {
+--- a/tests/audio_output_win32.cpp
++++ b/tests/audio_output_win32.cpp
+@@ -20,0 +21,14 @@
++    const uint64_t drained=after;
++    std::vector<int16_t> block(2048,0);
++    audio.writeSamples(block.data(),block.size(),audio.getSampleRate());
++    std::this_thread::sleep_for(std::chrono::milliseconds(70));
++    if(!audio.getPlayedFrames(after)||after!=drained||audio.getEmptyQueueEvents()!=1||audio.getDroppedSamples())return 1;
++    std::cout<<"PASS starvation holds one refill block until the startup reserve is restored\n";
++    audio.writeSamples(block.data(),block.size(),audio.getSampleRate());
++    for(unsigned i=0;i<40;++i){
++        if(!audio.getPlayedFrames(after)||after<drained||after>audio.getSubmittedFrames())return 1;
++        if(after==audio.getSubmittedFrames())break;
++        std::this_thread::sleep_for(std::chrono::milliseconds(10));
++    }
++    if(after!=drained+block.size()||audio.getDroppedSamples()||audio.getEmptyQueueEvents()!=1)return 1;
++    std::cout<<"PASS restored reserve resumes every refill frame without dropping samples\n";
