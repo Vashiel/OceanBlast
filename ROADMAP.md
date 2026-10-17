@@ -2,34 +2,40 @@
 
 Updated: 2026-10-17. The priority table defines completion criteria; delivered work and remaining validation appear under Implementation status.
 
+## Committed execution architecture
+
+The [accepted JIT architecture decision](docs/92_jit_architecture_decision.md) now defines the development direction: shared ARM/Thumb translation frontend and IR, Windows x86-64 backend first, Android ARM64 next, with the interpreter retained as reference and fallback. A separate decoded-block interpreter and further discretionary interpreter shortcuts are no longer the delivery strategy. The J0-J6 sequence below supersedes the earlier P4 experiment gate; historical measurements remain unchanged. No JIT implementation or speedup is claimed by this planning update.
+
 ## Goal and priorities
 
 Improve usable game performance on weaker CPUs while preserving the working cartridge compatibility. Keep the current interpreter as a reference and evolve the existing implementation in small, reviewable steps. The target is broad usability on old, low-end hardware: low single-thread throughput, modest memory and conservative CPU instruction requirements. An early second-generation Core i3 is an illustrative performance class, not a required device; weak ARM systems are also relevant. An exact device model is not a prerequisite for core optimization. This roadmap makes no minimum-hardware or universal full-speed promise.
 
 Current measurements place most host cost in CPU execution and memory translation. This makes execution architecture a higher priority than frontend cleanup. Existing throughput and gameplay observations remain build-, host- and scene-specific; see [runtime acceptance](docs/50_runtime_acceptance.md), [host costs](docs/53_host_execution_costs.md) and [candidate experiments](docs/56_host_fast_path_candidates.md).
 
-| Priority | Milestone and concrete output | Why this comes next | Completion criterion |
-| --- | --- | --- | --- |
-| P0 | Establish one short technical check and a short visible title-screen check for the affected cartridge. Record executable, cartridge, settings, observed symptom and result. Record the hardware class when measuring weak-device support; do not block portable core work on an exact model. | Fast decisions need a reproducible baseline and an explicit stopping point. Reuse existing tools and fixtures. | A contributor can perform the relevant check within the task's test budget and reach a pass/fail decision. |
-| P1 | Separate architectural CPU state from the interpreter execution strategy; introduce a bounded run interface while retaining the existing instruction implementation. | Prepares alternative execution engines and direct state comparisons without rewriting the emulator. Avoid per-access virtual dispatch in hot memory paths. | The existing interpreter runs through the new interface, the relevant CPU/timing checks pass, and the short affected-cartridge check shows no new issue. No speedup is required for this structural milestone. |
-| P2 | Give execution and peripherals a shared scheduling boundary: run until an instruction budget or the next modeled event. Centralize time advancement incrementally. | Larger execution blocks need clear interrupt, timer and DMA boundaries. The legacy ratio mode and experimental register-clock mode currently require separate treatment. | One bounded execution path uses the shared boundary with targeted event/interrupt checks passing. Preserve existing cartridge presets until replacements are validated; a single universal timing model is not an immediate acceptance requirement. |
-| P3 | Separate MMU/TLB semantics from physical RAM and device access responsibilities. Address each known permission or invalidation issue as its own change. | Correct memory semantics are needed before cached or compiled execution. This also allows fast-path costs to be evaluated against an equivalent reference. | Each changed rule has a focused regression check. A performance comparison uses matching semantics; known limitations and unsupported cases remain explicit. |
-| P4 | Prototype one alternative execution approach in isolation: a decoded block interpreter or a small ARM/Thumb JIT experiment, chosen from measured hot paths. | Repeated instruction decoding is a plausible opportunity, but previous decoder/ALU experiments did not establish a gain. A prototype must earn further investment. | A short same-build-profile comparison preserves the relevant guest state and shows enough benefit to justify the next slice. Reject clear losses; inconclusive results are reported as inconclusive rather than extended indefinitely. Any retained code cache must handle writes, mapping changes and execution boundaries correctly. |
-| P5 | Extract a reusable machine/session component from application orchestration; reduce frontend coupling as needed. | Improves testing and future platform support, but GUI cleanup has lower priority than measured CPU and translation costs. Extract only the pieces earlier milestones actually need. | The normal launcher and a bounded command-line run use the shared component with their relevant smoke checks passing. |
+| Priority | Milestone | Completion criterion |
+| --- | --- | --- |
+| J0 | Shared engine/state boundary and precise exits | Interpreter, state handoff, interrupt and timing-phase checks pass. |
+| J1 | ARM/Thumb decoder, typed IR and bounded block metadata | Focused semantics agree with the reference; unsupported cases exit explicitly. |
+| J2 | Windows x86-64 code generation and executable cache | ABI-safe generated blocks execute through the machine boundary with measured translation coverage. |
+| J3 | Memory, faults and code-cache invalidation | Checked access, alias writes, code changes and mapping changes cannot execute stale translations. |
+| J4 | Whole-machine JIT integration and broader instruction coverage | Bounded boot/title/gameplay fixtures preserve state and event behavior without guest-time shortcuts. |
+| J5 | Production Windows acceptance | Correct pacing, live audio and measured CPU reserve; interpreter fallback remains available. |
+| J6 | Android ARM64 backend and device integration | Shared checks and real-device pacing/audio/reserve gates pass. A 32-bit ARM backend is separate work. |
 
-P1-P3 prepare the execution core; they do not promise an immediate FPS increase. P4 is a decision gate, not a commitment to a full JIT. No whole-project rewrite is planned. A newly introduced boot, display or audio regression takes priority over the next structural milestone.
+The [architecture decision](docs/92_jit_architecture_decision.md) specifies contracts, scope and acceptance details. This is a commitment to the JIT execution path, not an open-ended engine experiment. Existing CPU-state, scheduler and MMU work is reused. A newly introduced boot, display or audio regression remains a release blocker; fixing one does not require restarting the architecture discussion.
 
 ## Current delivery plan
 
 | Step | Status | Result or next acceptance gate |
 | --- | --- | --- |
+| JIT execution engine | Direction accepted; implementation pending | Begin J0 state/engine contract, then J1 shared frontend and J2 Windows x86-64 lowering. See the [J0-J6 plan](docs/92_jit_architecture_decision.md). |
 | Resolve Chefs immediate life loss | Fixed and installed; short first-level check passed | [Invalid persisted difficulty](docs/91_chefs_eeprom_health.md) leaves player health at zero. Content-keyed launcher EEPROM files preserve the legacy image and repair only unsupported Chefs difficulty during migration. Short movement/jump replay retains five lives and reaches 100 points; full-game acceptance remains separate. |
-| Resolve reported Wade title audio stutter | Open, P0 | [PCM comparison and listening](docs/85_wade_pcm_and_audio_recovery.md) reject the Wade-trained build and a two-block recovery candidate; preceding executable restored. [Local GBA comparison](docs/87_local_gba_wade_comparison.md) finds cross-port timing differences, but the [digiBLAST XM soundtrack](docs/88_digiblast_soundtrack_reference.md) matches generated PCM at approximately unity tempo. Neither is a console recording. Compare actual live output against generated PCM and trace queue/sample delivery before another throughput experiment. |
+| Resolve reported Wade title audio stutter | Open, P0 | [PCM comparison and listening](docs/85_wade_pcm_and_audio_recovery.md) reject the Wade-trained build and a two-block recovery candidate; preceding executable restored. [Local GBA comparison](docs/87_local_gba_wade_comparison.md) finds cross-port timing differences, but the [digiBLAST XM soundtrack](docs/88_digiblast_soundtrack_reference.md) matches generated PCM at approximately unity tempo. Neither is a console recording. Compare actual live output against generated PCM and trace queue/sample delivery before default-engine or release acceptance. |
 | Compact translation-cache entries | Complete | [Eight-byte layout](docs/82_compact_tlb_entries.md), 173 targeted checks and one favorable Wade pair with matching state. |
 | Consolidate the current executable | Complete locally | [Conservative x86-64 PGO build](docs/83_consolidated_pgo_acceptance.md), Wade state match and short paced/visible Chefs check. Previous executable backed up. |
 | Check available old hardware | Open; suitable device unavailable in this session | Budget 10-15 minutes for setup and one affected-game check; record CPU, executable hash, settings, pacing and audio counters. Stop at the first relevant failure. |
 
-Wade audio stability and actual weak-device evidence remain open gates. The earlier Chefs acceptance did not establish Wade audio quality. Further core development can use a separately scoped P4 experiment after the reported P0 issue; the available time is not a reason to keep adding unmeasured shortcuts.
+Wade audio stability and actual weak-device evidence remain open gates. The earlier Chefs acceptance did not establish Wade audio quality. Core development follows the committed J0-J6 plan. Current runtime regressions remain release blockers; additional interpreter shortcuts and guest-time compression are not the performance strategy.
 
 ## Task budgets and decision rules
 
@@ -39,7 +45,7 @@ Break milestones into independently reviewable tasks. The following are default 
 | --- | --- | --- |
 | Small fix | 15-30 minutes | 2-5 minutes |
 | Bounded structural change | 45-60 minutes | 5-10 minutes |
-| Performance experiment | 30-45 minutes | One short reference/candidate comparison, normally within 5-10 minutes |
+| JIT performance check | 30-45 minutes | One short reference/candidate comparison, normally within 5-10 minutes |
 
 Before starting, name the expected result, scope, relevant check and budget. Compilation and PGO training count toward that budget. Reuse a suitable existing baseline where its provenance is known; do not compare unlike compiler profiles and call the difference an implementation gain.
 
@@ -59,7 +65,9 @@ The contributor's short self-test is the primary routine acceptance check. When 
 
 Long gameplay sweeps, repeated benchmark pairs and broad cartridge coverage are reserved for a specific late-occurring problem, a justified shared-core risk, or release validation. Define their scope and time budget separately. Earlier research reports retain their historical methods; their long runs are not the default workflow for every new task.
 
-## Implementation status (2026-10-17)
+## Existing foundation and historical implementation status (2026-10-17)
+
+The P0-P5 rows below describe the delivered foundation and earlier experiments. They are historical status, not the active engine-selection plan; J0-J6 above governs new execution work.
 
 The [first execution slice](docs/58_execution_boundary_and_short_checks.md) and [subsequent core changes](docs/59_machine_core_and_decoder_experiment.md) record the implementation and its limits.
 
@@ -74,7 +82,9 @@ The [first execution slice](docs/58_execution_boundary_and_short_checks.md) and 
 
 The [current ARM cost profile and direct immediate-operation path](docs/61_arm_dispatch_measurement.md) form the next retained execution slice. Diagnostic outlining, a TLB validity change and a broader register-operation shortcut were not retained after their short comparisons.
 
-Next performance slice: evaluate interpreter and memory-access candidates using the [fixed active Superstar Chefs scene](docs/62_active_scene_acceptance.md), including movement and A/B/C. Its paced pair preserves guest state at the same speed cap. One subsequent unpaced pair measures 72.22 versus 82.50 MIPS in the active section; this is a scene-specific normal-build observation, not a general gameplay or PGO gain. Use small portable experiments with short acceptance checks. Keep a simple reference path and conservative CPU requirements for distributable builds. A host-specific JIT or platform frontend needs its own scope; no Android/TV port is scheduled from the illustrative hardware examples. Actual old-device performance and full architectural fidelity remain open.
+### Historical interpreter work
+
+The following reports preserve the earlier interpreter work and its measured results. Recommendations quoted from those investigations have been superseded by the committed JIT plan. The [fixed Chefs active scene](docs/62_active_scene_acceptance.md), the interpreter reference and conservative distribution targets remain reusable validation assets. Android ARM64 is now a planned backend; actual device performance remains an acceptance gate.
 
 The subsequent [MMU table-walk outlining experiment](docs/63_mmu_outline_experiment.md) passes targeted checks but produces no useful active-scene gain. The candidate was rejected; smaller generated code alone is not an acceptance criterion.
 

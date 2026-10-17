@@ -6,6 +6,8 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ## 2026-10-17 — Current Wade Profile and Chefs Check
 
+* **[Committed JIT Architecture](docs/92_jit_architecture_decision.md):** Adopted shared ARM/Thumb block translation and IR, Windows x86-64 first and Android ARM64 next. The interpreter remains reference/fallback. Replaced the alternative-engine experiment gate with J0-J6 deliverables, precise timing/invalidation requirements and combined pacing/audio/CPU-reserve acceptance. This is an architecture decision; no JIT runtime is delivered yet.
+
 * **[Chefs EEPROM and Health](docs/91_chefs_eeprom_health.md):** Reproduced immediate life loss with unsupported persisted difficulty 80, which leaves player health at zero. Launcher saves are now separated by cartridge contents; first migration preserves the shared legacy file and changes only invalid Chefs difficulty to 1. Added targeted storage/migration checks. Existing local title-blit work is preserved.
 
 * **[Wade Single-Buffer Music Startup](docs/90_wade_music_single_buffer.md):** The ratio-6 capture loops one 1,024-byte DMA buffer until music second 1.85, then alternates both ring halves. The identical replay is about 16 ms at that handover. The rest of the mismatched opening is freshly written. Ratio 12 still leaves the first second wrong and would speed the fight, so no preset, DMA or playback change is installed.
