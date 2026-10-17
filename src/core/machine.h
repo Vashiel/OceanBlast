@@ -9,13 +9,18 @@ namespace oceanblast {
 // References inside the CPU and scheduler require a stable owner address.
 class Machine {
 public:
-    Machine() : processor(memory), scheduler(std::in_place,processor,memory,false,1) {}
+    Machine() : processor(memory,architecturalState), scheduler(std::in_place,processor,memory,false,1) {
+        processor.reset();
+    }
     Machine(const Machine&) = delete;
     Machine& operator=(const Machine&) = delete;
     Machine(Machine&&) = delete;
     Machine& operator=(Machine&&) = delete;
 
     Bus& bus() { return memory; }
+    // Execution engines may update this only while no engine is running.
+    ARM920TState& state() { return architecturalState; }
+    const ARM920TState& state() const { return architecturalState; }
     ARM920T& cpu() { return processor; }
     ExecutionScheduler& execution() { return *scheduler; }
     const Bus& bus() const { return memory; }
@@ -31,6 +36,7 @@ public:
 
 private:
     Bus memory;
+    ARM920TState architecturalState;
     ARM920T processor;
     std::optional<ExecutionScheduler> scheduler;
 };

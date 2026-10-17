@@ -75,6 +75,7 @@ $(TARGET): $(OBJS) $(RES_OBJ)
 test: build/frame_latch.exe build/emulation_timing.exe build/cpu_regression.exe build/input_test.exe build/audio_resampler.exe build/uart_interrupt.exe build/i2c_eeprom.exe build/framebuffer.exe build/timer4.exe build/audio_clock.exe build/dma_audio_stream.exe
 	./build/mmu_translation.exe
 	./build/machine.exe
+	./build/execution_boundary.exe
 	./build/mp3_storage.exe
 	./build/usb_storage.exe
 	./build/cartridge_settings.exe
@@ -245,6 +246,10 @@ build/cartridge_loading.exe: tests/cartridge_loading.cpp src/memory/bus.cpp $(HE
 
 test: build/mmu_translation.exe
 test: build/machine.exe
+test: build/execution_boundary.exe
+build/execution_boundary.exe: tests/execution_boundary.cpp src/cpu/arm920t.cpp src/memory/bus.cpp $(HEADERS)
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)
 build/machine.exe: tests/machine.cpp src/cpu/arm920t.cpp src/memory/bus.cpp $(HEADERS)
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -o $@ $(filter %.cpp,$^)

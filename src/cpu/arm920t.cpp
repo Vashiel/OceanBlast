@@ -14,13 +14,26 @@ static u32 readRotatedWord(Bus& bus, u32 address) {
     return shift ? (word >> shift) | (word << (32 - shift)) : word;
 }
 
-ARM920T::ARM920T(Bus& bus) : bus(bus) {
+ARM920T::ARM920T(Bus& bus) : bus(bus), ownedState(std::make_unique<ARM920TState>()), state(*ownedState) {
     reset();
+}
+
+ARM920T::ARM920T(Bus& bus, ARM920TState& sharedState) : bus(bus), state(sharedState) {}
+
+void ARM920T::enterExecution(bool registerClocks) {
+    cycleTiming = registerClocks;
+    bus.setMmuEnabled((state.cp15_control & 1u) != 0);
+    bus.setTtb(state.cp15_ttb);
+    bus.setDacr(state.cp15_dacr);
+    bus.setUserMode((state.cpsr & 0x1fu) == 0x10u);
+    bus.flushTlb();
 }
 
 ARM920T::~ARM920T() {}
 
 void ARM920T::reset(u32 startAddress) {
+    acceleratedBlitStall = 0;
+    lastEvent = StepEvent::Instruction;
     std::memset(state.r, 0, sizeof(state.r));
     for (auto& reg : state.fpa) {
         reg = {};
@@ -119,6 +132,7 @@ void ARM920T::switchMode(u32 newMode) {
 }
 
 void ARM920T::handleIrq() {
+    lastEvent = StepEvent::Interrupt;
     u32 oldCpsr = state.cpsr;
     switchMode(0x12); // IRQ mode
     state.spsr = oldCpsr;
@@ -129,6 +143,7 @@ void ARM920T::handleIrq() {
 }
 
 void ARM920T::handlePrefetchAbort(u32 faultPC) {
+    lastEvent = StepEvent::PrefetchAbort;
     if (faultLogging) logFaultContext("prefetch", faultPC, faultPC);
     u32 retAddr = faultPC + 4;
     u32 oldCpsr = state.cpsr;
@@ -147,6 +162,7 @@ void ARM920T::handlePrefetchAbort(u32 faultPC) {
 }
 
 void ARM920T::handleDataAbort(u32 faultAddr, Bus::MmuFault faultType) {
+    lastEvent = StepEvent::DataAbort;
     if (faultLogging) logFaultContext("data", state.r[15] - (isThumb() ? 2 : 4), faultAddr);
     state.cp15_far = faultAddr;
     state.cp15_fsr = static_cast<u32>(faultType);
@@ -168,6 +184,7 @@ void ARM920T::handleDataAbort(u32 faultAddr, Bus::MmuFault faultType) {
 }
 
 void ARM920T::handleUndefinedInstruction(u32 instr) {
+    lastEvent = StepEvent::UndefinedInstruction;
     if (faultLogging) logFaultContext("undefined", state.r[15] - (isThumb() ? 2 : 4), instr);
     u32 retAddr = state.r[15]; // address after the undefined instruction
     u32 oldCpsr = state.cpsr;
@@ -369,15 +386,17 @@ bool ARM920T::accelerateTitleBlit(size_t peripheralTicks) {
 }
 
 void ARM920T::step(size_t peripheralTicks) {
+    lastEvent = StepEvent::Instruction;
     lastCycles = 1;
-    if (state.halted) return;
+    if (state.halted) { lastEvent = StepEvent::Halted; return; }
     if (acceleratedBlitStall) {
+        lastEvent = StepEvent::LegacyAcceleration;
         --acceleratedBlitStall;
         bus.tick(peripheralTicks);
         return;
     }
     if (state.waitingForInterrupt) {
-        if (!bus.hasPendingIrq()) { lastCycles = 0; bus.tick(peripheralTicks); return; }
+        if (!bus.hasPendingIrq()) { lastEvent = StepEvent::Waiting; lastCycles = 0; bus.tick(peripheralTicks); return; }
         state.waitingForInterrupt = false;
     }
 
@@ -390,7 +409,10 @@ void ARM920T::step(size_t peripheralTicks) {
 
     if (!isThumb() && state.r[15] == 0x40110cc4u) {
         const u32 rate = bus.getAudioSampleRate();
-        if (bus.wadeTitleBlitEnabled() && rate >= 20000 && rate <= 24000 && accelerateTitleBlit(peripheralTicks)) return;
+        if (bus.wadeTitleBlitEnabled() && rate >= 20000 && rate <= 24000 && accelerateTitleBlit(peripheralTicks)) {
+            lastEvent = StepEvent::LegacyAcceleration;
+            return;
+        }
     }
 
     u32 currentPC = state.r[15];
@@ -1635,6 +1657,7 @@ void ARM920T::executeSwap(u32 instr) {
 }
 
 void ARM920T::executeSWI(u32 instr) {
+    lastEvent = StepEvent::SupervisorCall;
     lastCycles = 3;
     u32 swiNum = instr & 0x00FFFFFF;
     u32 retAddr = state.r[15];

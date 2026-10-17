@@ -2,13 +2,29 @@
 #include "arm920t_state.h"
 #include "../memory/bus.h"
 #include <string>
+#include <memory>
 
 namespace oceanblast {
 
 class ARM920T {
 public:
     explicit ARM920T(Bus& bus);
+    // Attach an execution view without resetting machine-owned architectural state.
+    ARM920T(Bus& bus, ARM920TState& sharedState);
+    ARM920T(const ARM920T&) = delete;
+    ARM920T& operator=(const ARM920T&) = delete;
+    ARM920T(ARM920T&&) = delete;
+    ARM920T& operator=(ARM920T&&) = delete;
     ~ARM920T();
+
+    enum class StepEvent { Instruction, Interrupt, PrefetchAbort, DataAbort,
+                           UndefinedInstruction, SupervisorCall, Waiting, Halted, LegacyAcceleration };
+    StepEvent getLastEvent() const { return lastEvent; }
+    bool sharesContext(const ARM920T& other) const { return &state == &other.state && &bus == &other.bus; }
+    bool usesBus(const Bus& candidate) const { return &bus == &candidate; }
+    bool canHandoff() const { return acceleratedBlitStall == 0; }
+    // Reconcile derived memory context on entry; preserve guest wait and timing state.
+    void enterExecution(bool registerClocks);
 
     void reset(u32 startAddress = 0x00000000);
     // Diagnostic clock-ratio experiments can execute with zero peripheral ticks.
@@ -50,7 +66,9 @@ public:
 
 private:
     Bus& bus;
-    ARM920TState state;
+    std::unique_ptr<ARM920TState> ownedState;
+    ARM920TState& state;
+    StepEvent lastEvent = StepEvent::Instruction;
     bool simpleAluExecution = true;
     bool fpa11Execution = true;
     using FpaReg = ARM920TState::FpaReg;

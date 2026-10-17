@@ -6,6 +6,10 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ## 2026-10-17 — Current Wade Profile and Chefs Check
 
+* **[Shared State and Execution Boundary](docs/94_shared_state_execution_boundary.md):** Machine-owned CPU state, checked interpreter-view handoff without resetting timing, and explicit reference exits for deadlines, context changes, waits, interrupts and exceptions. Added ROM-free boundary checks. J0 native dispatch remains open; no speedup or audio acceptance is claimed.
+
+* **[Planning Retrospective](docs/93_personal_planning_note.md):** Personal note on defining performance goals and choosing an execution architecture before a prolonged sequence of local optimizations.
+
 * **[Committed JIT Architecture](docs/92_jit_architecture_decision.md):** Adopted shared ARM/Thumb block translation and IR, Windows x86-64 first and Android ARM64 next. The interpreter remains reference/fallback. Replaced the alternative-engine experiment gate with J0-J6 deliverables, precise timing/invalidation requirements and combined pacing/audio/CPU-reserve acceptance. This is an architecture decision; no JIT runtime is delivered yet.
 
 * **[Chefs EEPROM and Health](docs/91_chefs_eeprom_health.md):** Reproduced immediate life loss with unsupported persisted difficulty 80, which leaves player health at zero. Launcher saves are now separated by cartridge contents; first migration preserves the shared legacy file and changes only invalid Chefs difficulty to 1. Added targeted storage/migration checks. Existing local title-blit work is preserved.
