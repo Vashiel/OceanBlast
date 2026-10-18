@@ -1,0 +1,819 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "6f398de",
+  "status": "Technical checks passed; live pacing/audio gate failed; no test-EXE readiness",
+  "build": {
+    "compiler": "GCC 16.2 w64devkit",
+    "flags": "-march=x86-64 -O3 -DNDEBUG -std=c++20 -Wall -Wextra",
+    "pgo": false,
+    "asmjit_commit": "0464e1c8f1f43c861a0c73d4e59437fff255cdd9",
+    "source_sha256": {
+      "src/cpu/translation_frontend.h": "22f8f7eea9b3a5de8e289cb7e70a40c32d0c3fcd7f7ce403a9b1b8e4ced34934",
+      "src/cpu/translation_ir.h": "5079ca18b1dcb2c5101ddc053ffd01a2d23cd28419fd4bd8ac1a81f190ff94a6",
+      "src/cpu/x64_execution_engine.cpp": "23c9603282d81635e173930873826661419437d5a5f42589fb21c26e7438516b",
+      "src/cpu/x64_execution_engine.h": "66b3591a857e31e75249a2a1f1a8dd0d33e1a03324ac2f5683156372c198b4bf",
+      "src/main.cpp": "0c2195feac0ce82bf7844f8a18c1e076edfb30e1d3a2ea6bfbbc4a4d4729a584",
+      "src/memory/arm920t_mmu.h": "081c37a6bb1a3527250597119abc4f3afa52f40d482060adcd6232c5841edd37",
+      "src/memory/bus.h": "34fb6e9f17ffbb167aff2e3fdf78e8ef14e18c1650ef1290e4b73d18729ebd2d",
+      "tests/translation_frontend.cpp": "5e3c934f08a56b18d5438a7d11f230cffde722edea9359ffe7bacddcbbb73a95",
+      "tests/x64_execution.cpp": "998ab3fe64b7ef210c7910ea3b02c871dda0c77471553b49f27702b7f2811472",
+      "tests/x64_memory.cpp": "946ab6c94fc3ebacc0cf132e2bca6568f0577038afdc449e59c8e60ef985f9d4"
+    }
+  },
+  "checks": {
+    "ctest_suites": 6,
+    "ctest_passed": 6,
+    "semantic_comparisons": 4680,
+    "register_offset_cases": 384,
+    "cxx17_shared_header_syntax": "passed",
+    "notes": "Suffix RAM deadline fixture added and passed; final complete suite passed in 7.06 seconds."
+  },
+  "final_pair": {
+    "executable_sha256": "e1516d444b573b1168d881e50a5fcac3b4dd737494cea08a1284a85457a1e207",
+    "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+    "eeprom_seed_sha256": "47c12bf246aa2c887d4706d9cf8bc1f207df6ba18ac373703adbbe4c173aebbc",
+    "ac_status_before": 1,
+    "steps": 600000000,
+    "ratio": 6,
+    "gui": false,
+    "audio": false,
+    "pacing": false,
+    "order": [
+      "before",
+      "linked"
+    ],
+    "rows": [
+      {
+        "mode": "before",
+        "wall_seconds": 13.515500200000133,
+        "cpu_seconds": 13.375,
+        "affinity_mask": 4,
+        "exit": 0,
+        "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+        "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+        "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+        "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges\n600000000,518835700,180353618,81164300,78508,154207169,148804,0,148353764,31,80274422,77000,215464089,65536,6918995,13678791,804268,173424,78508,17496490\n"
+      },
+      {
+        "mode": "linked",
+        "wall_seconds": 12.885736800000814,
+        "cpu_seconds": 12.5,
+        "affinity_mask": 4,
+        "exit": 0,
+        "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+        "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+        "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+        "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads\n600000000,544508139,203460736,55491861,71789,131248515,154492,0,126082478,25,54532740,49972,169949958,38635,8388608,12197544,900539,159062,71789,20553572,132275389\n"
+      }
+    ],
+    "ac_status_after": 1
+  },
+  "final_smoke": {
+    "exit": 1,
+    "stop": "stopped_on_sustained_low_speed_and_audio_queue_starvation",
+    "wall_seconds": 13.140784199999871,
+    "executable_sha256": "e1516d444b573b1168d881e50a5fcac3b4dd737494cea08a1284a85457a1e207",
+    "gui": true,
+    "sound": true,
+    "clock_mips": 120,
+    "requested_steps": 1500000000,
+    "snapshots": [
+      "snapshot_250000000.txt",
+      "snapshot_500000000.txt"
+    ],
+    "performance_last_rows": [
+      {
+        "steps": "319850000",
+        "seconds": "1.00004",
+        "present_fps": "0",
+        "changed_fps": "0",
+        "mips": "33.8986",
+        "pc": "3222141260",
+        "framebuffer": "808058880",
+        "audio_rate": "87890",
+        "dropped_samples": "0",
+        "audio_submitted_frames": "26624",
+        "audio_queued_frames": "0",
+        "audio_empty_queue_events": "25",
+        "fclk": "180000000",
+        "pclk": "45000000",
+        "cpu_steps_per_tick": "6",
+        "guest_seconds": "2.66542",
+        "speed_percent": "28.2488",
+        "idle_ticks": "0",
+        "coherent_frames": "0",
+        "partial_sweeps": "0",
+        "synchronized_presentations": "7",
+        "frame_capture_active": "0",
+        "capture_ready": "0",
+        "audio_played_frames": "26624",
+        "audio_remaining_frames": "0",
+        "audio_pending_frames": "544",
+        "audio_output_rate": "22050"
+      },
+      {
+        "steps": "367050000",
+        "seconds": "1.01501",
+        "present_fps": "0",
+        "changed_fps": "0",
+        "mips": "46.5021",
+        "pc": "3221539680",
+        "framebuffer": "808058880",
+        "audio_rate": "87890",
+        "dropped_samples": "0",
+        "audio_submitted_frames": "34816",
+        "audio_queued_frames": "0",
+        "audio_empty_queue_events": "33",
+        "fclk": "180000000",
+        "pclk": "45000000",
+        "cpu_steps_per_tick": "6",
+        "guest_seconds": "3.05875",
+        "speed_percent": "38.7518",
+        "idle_ticks": "0",
+        "coherent_frames": "0",
+        "partial_sweeps": "0",
+        "synchronized_presentations": "7",
+        "frame_capture_active": "0",
+        "capture_ready": "0",
+        "audio_played_frames": "34816",
+        "audio_remaining_frames": "0",
+        "audio_pending_frames": "1022",
+        "audio_output_rate": "22050"
+      },
+      {
+        "steps": "408750000",
+        "seconds": "1.00022",
+        "present_fps": "0.999783",
+        "changed_fps": "0.999783",
+        "mips": "41.691",
+        "pc": "3221985664",
+        "framebuffer": "808058880",
+        "audio_rate": "21972",
+        "dropped_samples": "0",
+        "audio_submitted_frames": "37888",
+        "audio_queued_frames": "0",
+        "audio_empty_queue_events": "36",
+        "fclk": "180000000",
+        "pclk": "45000000",
+        "cpu_steps_per_tick": "6",
+        "guest_seconds": "3.40625",
+        "speed_percent": "34.7425",
+        "idle_ticks": "0",
+        "coherent_frames": "0",
+        "partial_sweeps": "0",
+        "synchronized_presentations": "8",
+        "frame_capture_active": "0",
+        "capture_ready": "0",
+        "audio_played_frames": "37888",
+        "audio_remaining_frames": "0",
+        "audio_pending_frames": "514",
+        "audio_output_rate": "22050"
+      },
+      {
+        "steps": "463200000",
+        "seconds": "1.00091",
+        "present_fps": "0",
+        "changed_fps": "0",
+        "mips": "54.4003",
+        "pc": "3221335992",
+        "framebuffer": "808058880",
+        "audio_rate": "21972",
+        "dropped_samples": "0",
+        "audio_submitted_frames": "38912",
+        "audio_queued_frames": "0",
+        "audio_empty_queue_events": "37",
+        "fclk": "180000000",
+        "pclk": "45000000",
+        "cpu_steps_per_tick": "6",
+        "guest_seconds": "3.86",
+        "speed_percent": "45.3336",
+        "idle_ticks": "0",
+        "coherent_frames": "0",
+        "partial_sweeps": "0",
+        "synchronized_presentations": "8",
+        "frame_capture_active": "0",
+        "capture_ready": "0",
+        "audio_played_frames": "38912",
+        "audio_remaining_frames": "0",
+        "audio_pending_frames": "389",
+        "audio_output_rate": "22050"
+      },
+      {
+        "steps": "508300000",
+        "seconds": "1.00158",
+        "present_fps": "1.99685",
+        "changed_fps": "1.99685",
+        "mips": "45.0289",
+        "pc": "1074860004",
+        "framebuffer": "808058880",
+        "audio_rate": "21972",
+        "dropped_samples": "0",
+        "audio_submitted_frames": "47104",
+        "audio_queued_frames": "1024",
+        "audio_empty_queue_events": "44",
+        "fclk": "180000000",
+        "pclk": "45000000",
+        "cpu_steps_per_tick": "6",
+        "guest_seconds": "4.23583",
+        "speed_percent": "37.5241",
+        "idle_ticks": "0",
+        "coherent_frames": "0",
+        "partial_sweeps": "0",
+        "synchronized_presentations": "10",
+        "frame_capture_active": "0",
+        "capture_ready": "0",
+        "audio_played_frames": "46590",
+        "audio_remaining_frames": "514",
+        "audio_pending_frames": "412",
+        "audio_output_rate": "22050"
+      },
+      {
+        "steps": "562150000",
+        "seconds": "1.00065",
+        "present_fps": "8.99413",
+        "changed_fps": "8.99413",
+        "mips": "53.8149",
+        "pc": "1074859408",
+        "framebuffer": "808058880",
+        "audio_rate": "21972",
+        "dropped_samples": "0",
+        "audio_submitted_frames": "56320",
+        "audio_queued_frames": "0",
+        "audio_empty_queue_events": "54",
+        "fclk": "180000000",
+        "pclk": "45000000",
+        "cpu_steps_per_tick": "6",
+        "guest_seconds": "4.68458",
+        "speed_percent": "44.8457",
+        "idle_ticks": "0",
+        "coherent_frames": "0",
+        "partial_sweeps": "0",
+        "synchronized_presentations": "19",
+        "frame_capture_active": "0",
+        "capture_ready": "0",
+        "audio_played_frames": "56320",
+        "audio_remaining_frames": "0",
+        "audio_pending_frames": "958",
+        "audio_output_rate": "22050"
+      }
+    ]
+  },
+  "profile_before_phase_arithmetic": {
+    "metadata": {
+      "executable_sha256": "859632b0e36d0bee65b82ee58136c944cb8c1a42417e8fff5df5cf0daddaf14f",
+      "sampler_sha256": "72ef0f6a7f6f3423ace4bb8ef558ffc5e1b546306f63f25c76e2b02136f9143b",
+      "start_step_marker": 400000000,
+      "duration_ms": 1500,
+      "interval_ms": 1,
+      "interpretation": "Hotspot estimate only; target thread is suspended; outside-module samples are unattributed. Target deliberately stopped after sampling."
+    },
+    "counts": {
+      "in_module_samples": 697,
+      "outside_module_samples": 113,
+      "failed_samples": 0,
+      "function_counts": {
+        "oceanblast::X64ExecutionEngine::run(oceanblast::ExecutionTimeline&, unsigned long long, unsigned long long)": 359,
+        "std::_Hashtable<unsigned int, std::pair<unsigned int const, std::_List_iterator<oceanblast::X64ExecutionEngine::Impl::CacheEntry> >, std::allocator<std::pair<unsigned int const, std::_List_iterator<oceanblast::X64ExecutionEngine::Impl::CacheEntry> > >, std::__detail::_Select1st, std::equal_to<unsigned int>, std::hash<unsigned int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, false> >::equal_range(unsigned int const&) [clone .isra.0]": 39,
+        "unsigned long long oceanblast::(anonymous namespace)::checkedLoad<false>(oceanblast::Bus*, oceanblast::(anonymous namespace)::NativeRun*, unsigned int)": 25,
+        "oceanblast::ARM920T::step(unsigned long long)": 24,
+        "oceanblast::Bus::tick(unsigned long long)": 22,
+        "oceanblast::X64ExecutionEngine::runUntilDeadline(oceanblast::ExecutionTimeline&, unsigned long long, unsigned long long, unsigned long long)": 18,
+        "oceanblast::X64ExecutionEngine::Impl::reusable(unsigned long long)": 18,
+        "oceanblast::Bus::write32(unsigned int, unsigned int)": 14,
+        "std::__detail::_List_node_base::_M_transfer(std::__detail::_List_node_base*, std::__detail::_List_node_base*)": 14,
+        "unsigned int oceanblast::(anonymous namespace)::checkedStore<true>(oceanblast::Bus*, oceanblast::(anonymous namespace)::NativeRun*, unsigned int, unsigned int)": 12,
+        "oceanblast::ARM920T::stepARM(unsigned int)": 11,
+        "oceanblast::Bus::readMmio(unsigned int, bool)": 11,
+        "oceanblast::ARM920T::executeBlockDataTransfer(unsigned int)": 9,
+        "asmjit::v1_24::BaseRAPass::bin_pack(asmjit::v1_24::RegGroup)": 9,
+        "asmjit::v1_24::x86::RACFGBuilder::on_instruction(asmjit::v1_24::InstNode*, asmjit::v1_24::InstControlFlow&, asmjit::v1_24::RAInstBuilder&)": 8,
+        "asmjit::v1_24::BaseRAPass::build_liveness()": 8,
+        "asmjit::v1_24::RALocalAllocator::alloc_instruction(asmjit::v1_24::InstNode*)": 8,
+        "oceanblast::Bus::write16(unsigned int, unsigned short)": 6,
+        "asmjit::v1_24::RACFGBuilderT<asmjit::v1_24::x86::RACFGBuilder>::run()": 6,
+        "unsigned int oceanblast::(anonymous namespace)::checkedStore<false>(oceanblast::Bus*, oceanblast::(anonymous namespace)::NativeRun*, unsigned int, unsigned int)": 5,
+        "oceanblast::X64ExecutionEngine::Impl::checkedScalarExit(oceanblast::ExecutionTimeline&, unsigned long long)": 5,
+        "oceanblast::Bus::readNandByte()": 4,
+        "asmjit::v1_24::x86::InstInternal::query_rw_info(asmjit::v1_24::Arch, asmjit::v1_24::BaseInst const&, asmjit::v1_24::Operand_ const*, unsigned long long, asmjit::v1_24::InstRWInfo*)": 4,
+        "asmjit::v1_24::x86::Assembler::_emit(unsigned int, asmjit::v1_24::Operand_ const&, asmjit::v1_24::Operand_ const&, asmjit::v1_24::Operand_ const&, asmjit::v1_24::Operand_ const*)": 4,
+        "oceanblast::ARM920T::executeHalfwordTransfer(unsigned int)": 3,
+        "asmjit::v1_24::BaseBuilder::_emit(unsigned int, asmjit::v1_24::Operand_ const&, asmjit::v1_24::Operand_ const&, asmjit::v1_24::Operand_ const&, asmjit::v1_24::Operand_ const*)": 3,
+        "asmjit::v1_24::JitAllocator::alloc(asmjit::v1_24::Out<asmjit::v1_24::JitAllocator::Span>, unsigned long long)": 3,
+        "oceanblast::Bus::read16(unsigned int)": 3,
+        "oceanblast::ARM920T::executeMSR(unsigned int)": 2,
+        "oceanblast::ARM920T::executeDataProcessing(unsigned int)": 2,
+        "asmjit::v1_24::BaseBuilder::add_node(asmjit::v1_24::BaseNode*)": 2,
+        "asmjit::v1_24::x86::X86RAPass::rewrite()": 2,
+        "asmjit::v1_24::BaseRAPass::_as_work_reg(asmjit::v1_24::RAWorkReg**, asmjit::v1_24::VirtReg*)": 2,
+        "asmjit::v1_24::RALocalAllocator::switch_to_assignment(asmjit::v1_24::RAAssignment::PhysToWorkMap*, asmjit::v1_24::Span<unsigned long long const>, bool, bool)": 2,
+        "oceanblast::Bus::read32(unsigned int)": 2,
+        "oceanblast::Arm920TMmu::translate(unsigned int, unsigned char const*, oceanblast::Arm920TMmu::MmuFault*, bool) const": 2,
+        "main": 2,
+        "oceanblast::ARM920T::executeSimpleDataProcessing(unsigned int) [clone .part.0]": 1,
+        "oceanblast::ARM920T::shiftOperand(unsigned int, unsigned int, unsigned int, bool&, bool)": 1,
+        "oceanblast::ARM920T::executeCP15(unsigned int)": 1,
+        "std::__detail::_Map_base<unsigned int, std::pair<unsigned int const, unsigned int>, std::allocator<std::pair<unsigned int const, unsigned int> >, std::__detail::_Select1st, std::equal_to<unsigned int>, std::hash<unsigned int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true>, true>::operator[](unsigned int&&) [clone .isra.0]": 1,
+        "std::_Hashtable<unsigned int, std::pair<unsigned int const, std::_List_iterator<oceanblast::X64ExecutionEngine::Impl::CacheEntry> >, std::allocator<std::pair<unsigned int const, std::_List_iterator<oceanblast::X64ExecutionEngine::Impl::CacheEntry> > >, std::__detail::_Select1st, std::equal_to<unsigned int>, std::hash<unsigned int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, false> >::erase(std::__detail::_Node_const_iterator<std::pair<unsigned int const, std::_List_iterator<oceanblast::X64ExecutionEngine::Impl::CacheEntry> >, false, false>) [clone .isra.0]": 1,
+        "unsigned long long oceanblast::(anonymous namespace)::checkedLoad<true>(oceanblast::Bus*, oceanblast::(anonymous namespace)::NativeRun*, unsigned int)": 1,
+        "asmjit::v1_24::BaseBuilder::serialize_to(asmjit::v1_24::BaseEmitter*)": 1,
+        "asmjit::v1_24::BaseCompiler::new_func_node(asmjit::v1_24::Out<asmjit::v1_24::FuncNode*>, asmjit::v1_24::FuncSignature const&)": 1,
+        "asmjit::v1_24::x86::Compiler::on_attach(asmjit::v1_24::CodeHolder&)": 1,
+        "asmjit::v1_24::x86::EmitHelper::emit_reg_move(asmjit::v1_24::Operand_ const&, asmjit::v1_24::Operand_ const&, asmjit::v1_24::TypeId, char const*)": 1,
+        "asmjit::v1_24::x86::EmitHelper::emit_arg_move(asmjit::v1_24::Reg const&, asmjit::v1_24::TypeId, asmjit::v1_24::Operand_ const&, asmjit::v1_24::TypeId, char const*)": 1,
+        "asmjit::v1_24::x86::RACFGBuilder::on_invoke(asmjit::v1_24::InvokeNode*, asmjit::v1_24::RAInstBuilder&)": 1,
+        "asmjit::v1_24::x86::X86RAPass::X86RAPass(asmjit::v1_24::BaseCompiler&)": 1,
+        "asmjit::v1_24::axl::Arena::_alloc_reusable(unsigned long long, asmjit::v1_24::Out<unsigned long long>)": 1,
+        "asmjit::v1_24::axl::ArenaVectorBase::_reserve_additional(asmjit::v1_24::axl::Arena&, unsigned long long, asmjit::v1_24::axl::ArenaVectorBase::ItemSize<true>)": 1,
+        "asmjit::v1_24::BaseRAPass::build_reg_ids()": 1,
+        "asmjit::v1_24::BaseRAPass::block_entry_assigned(asmjit::v1_24::RAAssignment::PhysToWorkMap const*)": 1,
+        "asmjit::v1_24::BaseRAPass::run_local_allocator()": 1,
+        "asmjit::v1_24::BaseRAPass::build_cfg_views()": 1,
+        "asmjit::v1_24::BaseRAPass::on_perform_all_steps()": 1,
+        "asmjit::v1_24::RALocalAllocator::spill_after_allocation(asmjit::v1_24::InstNode*)": 1,
+        "__popcountdi2": 1,
+        "oceanblast::InterpreterEngine::runToBoundary(oceanblast::ExecutionTimeline&, unsigned long long, unsigned long long)": 1,
+        "oceanblast::X64ExecutionEngine::Impl::emitMemory(asmjit::v1_24::x86::Compiler&, asmjit::v1_24::x86::Gp, asmjit::v1_24::x86::Gp, oceanblast::translation::Instruction const&)": 1
+      },
+      "method": "Exact executable PE .pdata ranges matched to exact-start COFF symbols; no source lines; outside samples unattributed."
+    },
+    "note": "This exact binary predates the final phase-arithmetic change. Sampling is hotspot attribution, not timing."
+  },
+  "intermediate_pairs": [
+    {
+      "artifact": "build/2026-10-18-linked-pair/results.json",
+      "result": {
+        "executable_sha256": "18574ee6004e7402487a981683acaa9b157380c87cb4711c49ecef6330beb6d6",
+        "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+        "eeprom_seed_sha256": "47c12bf246aa2c887d4706d9cf8bc1f207df6ba18ac373703adbbe4c173aebbc",
+        "ac_status_before": 1,
+        "steps": 600000000,
+        "ratio": 6,
+        "gui": false,
+        "audio": false,
+        "pacing": false,
+        "order": [
+          "before",
+          "linked"
+        ],
+        "rows": [
+          {
+            "mode": "before",
+            "wall_seconds": 13.026450700000169,
+            "cpu_seconds": 10.609375,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges\n600000000,518835700,180353618,81164300,78508,154207169,148804,0,148353764,31,80274422,77000,215464089,65536,6918995,13678791,804268,173424,78508,17496490\n"
+          },
+          {
+            "mode": "linked",
+            "wall_seconds": 15.094712199999776,
+            "cpu_seconds": 14.78125,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,linked_blocks\n600000000,518835700,180353618,81164300,78508,154207169,148804,0,148353764,31,80274422,77000,215464089,65536,6918995,13678791,804268,173424,78508,17496490,58680662\n"
+          }
+        ],
+        "ac_status_after": 1
+      }
+    },
+    {
+      "artifact": "build/2026-10-18-inline-linked-pair/results.json",
+      "result": {
+        "executable_sha256": "4764b32a4546e5e0665f6e56a22bd4db09523332d52cc906f6523d24a0a71ac6",
+        "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+        "eeprom_seed_sha256": "47c12bf246aa2c887d4706d9cf8bc1f207df6ba18ac373703adbbe4c173aebbc",
+        "ac_status_before": 1,
+        "steps": 600000000,
+        "ratio": 6,
+        "gui": false,
+        "audio": false,
+        "pacing": false,
+        "order": [
+          "linked",
+          "before"
+        ],
+        "rows": [
+          {
+            "mode": "linked",
+            "wall_seconds": 14.403636300000471,
+            "cpu_seconds": 13.6875,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,linked_blocks\n600000000,518835700,180353618,81164300,78508,154207169,148804,0,148353764,31,80274422,77000,215464089,65536,6919565,13678791,804268,173424,78508,17496490,58680662\n"
+          },
+          {
+            "mode": "before",
+            "wall_seconds": 13.005505099999937,
+            "cpu_seconds": 12.640625,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges\n600000000,518835700,180353618,81164300,78508,154207169,148804,0,148353764,31,80274422,77000,215464089,65536,6918995,13678791,804268,173424,78508,17496490\n"
+          }
+        ],
+        "ac_status_after": 1
+      }
+    },
+    {
+      "artifact": "build/2026-10-18-direct-literal-pair/results.json",
+      "result": {
+        "executable_sha256": "f1bea635c32721400d7a86792a4bd19b0267bd377c308c1292e434a0ea090adc",
+        "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+        "eeprom_seed_sha256": "47c12bf246aa2c887d4706d9cf8bc1f207df6ba18ac373703adbbe4c173aebbc",
+        "ac_status_before": 1,
+        "steps": 600000000,
+        "ratio": 6,
+        "gui": false,
+        "audio": false,
+        "pacing": false,
+        "order": [
+          "before",
+          "linked"
+        ],
+        "rows": [
+          {
+            "mode": "before",
+            "wall_seconds": 12.371663299999454,
+            "cpu_seconds": 11.703125,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges\n600000000,518835700,180353618,81164300,78508,154207169,148804,0,148353764,31,80274422,77000,215464089,65536,6918995,13678791,804268,173424,78508,17496490\n"
+          },
+          {
+            "mode": "linked",
+            "wall_seconds": 12.658617999999478,
+            "cpu_seconds": 11.90625,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges\n600000000,533230857,194572098,66769143,73258,144469972,121040,0,139102737,29,65852352,57125,193544710,65536,8388608,12536897,851056,162139,73258,17380243\n"
+          }
+        ],
+        "ac_status_after": 1
+      }
+    },
+    {
+      "artifact": "build/2026-10-18-register-cache-pair/results.json",
+      "result": {
+        "executable_sha256": "f3ae5c2d87d20beb99e660c126cff525ef24e842405e9b94e57baeee1f95bc1f",
+        "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+        "eeprom_seed_sha256": "47c12bf246aa2c887d4706d9cf8bc1f207df6ba18ac373703adbbe4c173aebbc",
+        "ac_status_before": 1,
+        "steps": 600000000,
+        "ratio": 6,
+        "gui": false,
+        "audio": false,
+        "pacing": false,
+        "order": [
+          "before",
+          "linked"
+        ],
+        "rows": [
+          {
+            "mode": "before",
+            "wall_seconds": 12.69383899999957,
+            "cpu_seconds": 11.03125,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges\n600000000,518835700,180353618,81164300,78508,154207169,148804,0,148353764,31,80274422,77000,215464089,65536,6918995,13678791,804268,173424,78508,17496490\n"
+          },
+          {
+            "mode": "linked",
+            "wall_seconds": 12.485623800000212,
+            "cpu_seconds": 11.859375,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges\n600000000,533230857,194572098,66769143,73258,144469972,123248,0,139102737,29,65852352,57125,193544710,65536,8388608,12536897,851056,162139,73258,17380243\n"
+          }
+        ],
+        "ac_status_after": 1
+      }
+    },
+    {
+      "artifact": "build/2026-10-18-inline-read-pair/results.json",
+      "result": {
+        "executable_sha256": "5eae873ad119ebafa1263ac323785a633a148b4a7d4f5d8c83a17aca3630e56e",
+        "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+        "eeprom_seed_sha256": "47c12bf246aa2c887d4706d9cf8bc1f207df6ba18ac373703adbbe4c173aebbc",
+        "ac_status_before": 1,
+        "steps": 600000000,
+        "ratio": 6,
+        "gui": false,
+        "audio": false,
+        "pacing": false,
+        "order": [
+          "before",
+          "linked"
+        ],
+        "rows": [
+          {
+            "mode": "before",
+            "wall_seconds": 12.256685199999993,
+            "cpu_seconds": 12.1875,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges\n600000000,518835700,180353618,81164300,78508,154207169,148804,0,148353764,31,80274422,77000,215464089,65536,6918995,13678791,804268,173424,78508,17496490\n"
+          },
+          {
+            "mode": "linked",
+            "wall_seconds": 12.226659400000244,
+            "cpu_seconds": 11.5,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads\n600000000,533222195,194569325,66777805,73912,144467619,160318,0,139102385,29,65851673,57804,193544338,44113,8388608,12522697,859718,163416,73912,17380230,123826208\n"
+          }
+        ],
+        "ac_status_after": 1
+      }
+    },
+    {
+      "artifact": "build/2026-10-18-event-window-pair/results.json",
+      "result": {
+        "executable_sha256": "3ae958af2caeee260b627d24fdfa6a97d72042201ebc17235600fc82274f5454",
+        "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+        "eeprom_seed_sha256": "47c12bf246aa2c887d4706d9cf8bc1f207df6ba18ac373703adbbe4c173aebbc",
+        "ac_status_before": 1,
+        "steps": 600000000,
+        "ratio": 6,
+        "gui": false,
+        "audio": false,
+        "pacing": false,
+        "order": [
+          "before",
+          "linked"
+        ],
+        "rows": [
+          {
+            "mode": "before",
+            "wall_seconds": 11.992247800000769,
+            "cpu_seconds": 11.84375,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges\n600000000,518835700,180353618,81164300,78508,154207169,148804,0,148353764,31,80274422,77000,215464089,65536,6918995,13678791,804268,173424,78508,17496490\n"
+          },
+          {
+            "mode": "linked",
+            "wall_seconds": 12.8507582000002,
+            "cpu_seconds": 12.578125,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads\n600000000,533222195,194569325,66777805,73912,142057569,160318,0,136692335,29,65851673,57804,191152585,44113,8388608,12522697,859718,163416,73912,19790280,123826208\n"
+          }
+        ],
+        "ac_status_after": 1
+      }
+    },
+    {
+      "artifact": "build/2026-10-18-register-offset-pair/results.json",
+      "result": {
+        "executable_sha256": "618715ce1b74a9b5aa5d2edbaf4b6f45ee84960c4e3645b8564bfd0abef2cb67",
+        "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+        "eeprom_seed_sha256": "47c12bf246aa2c887d4706d9cf8bc1f207df6ba18ac373703adbbe4c173aebbc",
+        "ac_status_before": 1,
+        "steps": 600000000,
+        "ratio": 6,
+        "gui": false,
+        "audio": false,
+        "pacing": false,
+        "order": [
+          "before",
+          "linked"
+        ],
+        "rows": [
+          {
+            "mode": "before",
+            "wall_seconds": 12.981030900000405,
+            "cpu_seconds": 11.875,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges\n600000000,518835700,180353618,81164300,78508,154207169,148804,0,148353764,31,80274422,77000,215464089,65536,6918995,13678791,804268,173424,78508,17496490\n"
+          },
+          {
+            "mode": "linked",
+            "wall_seconds": 12.91786939999929,
+            "cpu_seconds": 10.59375,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads\n600000000,542109089,203461069,57890911,71954,133476286,154720,0,128302194,26,56932757,50303,174470135,38705,8388608,12217661,899241,159386,71954,19911051,132275654\n"
+          }
+        ],
+        "ac_status_after": 1
+      }
+    },
+    {
+      "artifact": "build/2026-10-18-native-region-final-pair/results.json",
+      "result": {
+        "executable_sha256": "a6fb1daeda3acff42f91cd431467d374a519971dd9a30bf5ddcf7343b50f7824",
+        "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+        "eeprom_seed_sha256": "47c12bf246aa2c887d4706d9cf8bc1f207df6ba18ac373703adbbe4c173aebbc",
+        "ac_status_before": 1,
+        "steps": 600000000,
+        "ratio": 6,
+        "gui": false,
+        "audio": false,
+        "pacing": false,
+        "order": [
+          "before",
+          "linked"
+        ],
+        "rows": [
+          {
+            "mode": "before",
+            "wall_seconds": 13.311932499999784,
+            "cpu_seconds": 11.515625,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges\n600000000,518835700,180353618,81164300,78508,154207169,148804,0,148353764,31,80274422,77000,215464089,65536,6918995,13678791,804268,173424,78508,17496490\n"
+          },
+          {
+            "mode": "linked",
+            "wall_seconds": 13.804419699999926,
+            "cpu_seconds": 12.03125,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads\n600000000,544507682,203460679,55492318,71854,131889533,154550,0,126718053,25,54532730,49982,170569512,38634,8388608,12208220,900996,159171,71854,19911051,132275354\n"
+          }
+        ],
+        "ac_status_after": 1
+      }
+    },
+    {
+      "artifact": "build/2026-10-18-precise-exit-final-pair/results.json",
+      "result": {
+        "executable_sha256": "c494851e1053734ddee27346be54eb4c8660c4265382083dcf43fa0496142d07",
+        "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+        "eeprom_seed_sha256": "47c12bf246aa2c887d4706d9cf8bc1f207df6ba18ac373703adbbe4c173aebbc",
+        "ac_status_before": 1,
+        "steps": 600000000,
+        "ratio": 6,
+        "gui": false,
+        "audio": false,
+        "pacing": false,
+        "order": [
+          "linked",
+          "before"
+        ],
+        "rows": [
+          {
+            "mode": "linked",
+            "wall_seconds": 11.879633300000023,
+            "cpu_seconds": 11.390625,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads\n600000000,544507682,203460679,55492318,71854,131889533,154550,0,126718053,25,54532730,49982,170569512,38634,8388608,12208220,900996,159171,71854,19911051,132275354\n"
+          },
+          {
+            "mode": "before",
+            "wall_seconds": 12.413231300000007,
+            "cpu_seconds": 12.359375,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges\n600000000,518835700,180353618,81164300,78508,154207169,148804,0,148353764,31,80274422,77000,215464089,65536,6918995,13678791,804268,173424,78508,17496490\n"
+          }
+        ],
+        "ac_status_after": 1
+      }
+    },
+    {
+      "artifact": "build/2026-10-18-direct-runner-final-pair/results.json",
+      "result": {
+        "executable_sha256": "d8d638b3ac478c7b6277a8342105b5a0bf318186227899287f3ad3a26602f079",
+        "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+        "eeprom_seed_sha256": "47c12bf246aa2c887d4706d9cf8bc1f207df6ba18ac373703adbbe4c173aebbc",
+        "ac_status_before": 1,
+        "steps": 600000000,
+        "ratio": 6,
+        "gui": false,
+        "audio": false,
+        "pacing": false,
+        "order": [
+          "before",
+          "linked"
+        ],
+        "rows": [
+          {
+            "mode": "before",
+            "wall_seconds": 11.84485930000028,
+            "cpu_seconds": 11.78125,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges\n600000000,518835700,180353618,81164300,78508,154207169,148804,0,148353764,31,80274422,77000,215464089,65536,6918995,13678791,804268,173424,78508,17496490\n"
+          },
+          {
+            "mode": "linked",
+            "wall_seconds": 10.002357500000471,
+            "cpu_seconds": 9.734375,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads\n600000000,544507682,203460679,55492318,71854,131889533,154550,0,126718053,25,54532730,49982,170569512,38634,8388608,12208220,900996,159171,71854,19911051,132275354\n"
+          }
+        ],
+        "ac_status_after": 1
+      }
+    },
+    {
+      "artifact": "build/2026-10-18-suffix-region-final-pair/results.json",
+      "result": {
+        "executable_sha256": "859632b0e36d0bee65b82ee58136c944cb8c1a42417e8fff5df5cf0daddaf14f",
+        "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+        "eeprom_seed_sha256": "47c12bf246aa2c887d4706d9cf8bc1f207df6ba18ac373703adbbe4c173aebbc",
+        "ac_status_before": 1,
+        "steps": 600000000,
+        "ratio": 6,
+        "gui": false,
+        "audio": false,
+        "pacing": false,
+        "order": [
+          "before",
+          "linked"
+        ],
+        "rows": [
+          {
+            "mode": "before",
+            "wall_seconds": 16.91267069999958,
+            "cpu_seconds": 16.78125,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges\n600000000,518835700,180353618,81164300,78508,154207169,148804,0,148353764,31,80274422,77000,215464089,65536,6918995,13678791,804268,173424,78508,17496490\n"
+          },
+          {
+            "mode": "linked",
+            "wall_seconds": 15.762556599999698,
+            "cpu_seconds": 15.015625,
+            "affinity_mask": 4,
+            "exit": 0,
+            "cpu_sha256": "99bd7ff1793c4aa37fb9768f96bc41d666d6d86471c5f9386af3c852bdf3c0b0",
+            "sdram_sha256": "7ebafe36b64e9d2b481f32b2fa74137d1557b21e67e48ec9687391d3753ccf20",
+            "snapshot_sha256": "b8666e97e2ae02c92289ee94a2c260c71c5ccea883cbd2903474dcb3378054e5",
+            "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads\n600000000,544508139,203460736,55491861,71789,131248515,154492,0,126082478,25,54532740,49972,169949958,38635,8388608,12197544,900539,159062,71789,20553572,132275389\n"
+          }
+        ],
+        "ac_status_after": 1
+      }
+    }
+  ],
+  "installed_sha256": "858c64effd03fb43738d3bb12b1e98c98063b463d4f6d112293c907607942ab2",
+  "existing_test_package_sha256": "77bd1a3de55668c9fefe8e2bff731f422560ebfcf293389d0e3ffbe4755bf926",
+  "release_acceptance": false
+}

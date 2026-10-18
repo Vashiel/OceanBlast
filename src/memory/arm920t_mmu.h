@@ -9,6 +9,20 @@ namespace oceanblast {
 // access and instruction-address caching remain responsibilities of the bus.
 class Arm920TMmu {
 public:
+    struct TlbEntry { u32 tag=0; u32 paBase=0; };
+    struct NativeReadView {
+        const TlbEntry* entries;
+        const bool* enabled;
+        const bool* user;
+        size_t size;
+        u32 valid,keyMask;
+        unsigned apShift;
+    };
+    // Read-only live translation state. The owning MMU and its fixed table
+    // must outlive generated code; misses and denied permissions use translate.
+    NativeReadView nativeReadView() const {
+        return {tlb.data(),&mmuEnabled,&userMode,TLB_SIZE,TLB_VALID,TLB_KEY_MASK,TLB_AP_SHIFT};
+    }
     enum class MmuFault {
         NONE = 0,
         SECTION_TRANSLATION_FAULT = 0x5,
@@ -73,10 +87,6 @@ private:
         return vpn | (u32(permissions) << TLB_AP_SHIFT) | TLB_VALID |
                (section ? TLB_SECTION : 0);
     }
-    struct TlbEntry {
-        u32 tag = 0;
-        u32 paBase = 0;
-    };
     static_assert(sizeof(TlbEntry) == 8, "TLB entries must remain two words");
     static constexpr size_t TLB_SIZE = 2048;
     mutable std::array<TlbEntry, TLB_SIZE> tlb = {};

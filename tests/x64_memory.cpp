@@ -11,6 +11,109 @@ static bool equal(const Machine& a,const Machine& b) {
 }
 int main() {
     {
+        bool same=true;
+        for(size_t ratio:{1u,3u,6u,16u}) for(size_t phase=0;phase<ratio;++phase) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->configureExecution(false,ratio); target->execution().run(phase);
+                target->state().r[15]=0; target->state().r[1]=0x30001000;
+                const uint32_t code[]={0xe3a00007,0xe3a02064,0xe5913000,0xe2833001,0xe5813000,0xe2522001,0x1afffffa};
+                for(unsigned i=0;i<7;++i) target->bus().write32(i*4,code[i]);
+            }
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+            const auto deadline=machine.execution().time().ticks+11;
+            const auto actual=machine.execution().run(129,deadline),expected=reference.execution().run(129,deadline);
+            same=same&&actual==expected&&equal(machine,reference)&&
+                machine.bus().read32(0x30001000)==reference.bus().read32(0x30001000);
+        }
+        check("Suffix RAM loops retain precise partial-iteration budgets and every legacy deadline phase",same);
+    }
+    {
+        Machine machine,reference; bool same=true; size_t cases=0;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        for(unsigned kind=0;kind<4;++kind) for(unsigned amount:{0u,1u,31u}) for(bool carry:{false,true})
+        for(bool load:{false,true}) for(bool byte:{false,true}) for(bool pre:{false,true}) for(bool up:{false,true}) {
+            constexpr uint32_t source=0x80000003,address=0x30001001;
+            uint32_t offset=0;
+            if(kind==0) offset=source<<amount;
+            if(kind==1) offset=amount?source>>amount:0;
+            if(kind==2) offset=uint32_t(int32_t(source)>>(amount?amount:31));
+            if(kind==3) offset=amount?(source>>amount)|(source<<(32-amount)):(source>>1)|(carry?0x80000000u:0);
+            const uint32_t raw=0xe6000004u|(pre?1u<<24:0)|(up?1u<<23:0)|(byte?1u<<22:0)|
+                (pre?1u<<21:0)|(load?1u<<20:0)|(1u<<16)|(2u<<12)|(amount<<7)|(kind<<5);
+            for(Machine* target:{&machine,&reference}) {
+                target->state().r[15]=0; target->state().cpsr=0xd3|(carry?FLAG_C:0);
+                target->state().r[1]=pre?(up?address-offset:address+offset):address;
+                target->state().r[2]=0x12345678; target->state().r[4]=source;
+                target->bus().write32(0,raw); target->bus().write32(address&~3u,0x76543210);
+            }
+            machine.execution().run(1); reference.execution().run(1);
+            same=same&&equal(machine,reference)&&machine.bus().read32(address&~3u)==reference.bus().read32(address&~3u); ++cases;
+        }
+        check("Native register-offset byte/word transfers preserve every immediate shifter, carry, index and direction",
+            same&&native.stats().generatedSteps==cases&&native.stats().fallbackSteps==0);
+    }
+    {
+        bool same=true; uint64_t direct=0;
+        for(unsigned region=0;region<4;++region) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->bus().write32(0x30004000,0x30008001);
+                target->bus().write32(0x30008000,0x30000ff2);
+                target->bus().write32(0x30008004,0x30001632); // AP fields: 3,0,2,1.
+                target->bus().write32(0x30000000,0xe5912000);
+                target->bus().write32(0x30001000+region*1024,0x12345678);
+                target->state().cp15_control|=1; target->state().cp15_ttb=0x30004000;
+                target->state().cp15_dacr=1; target->state().cpsr=0x10;
+                target->state().r[1]=0x1000+region*1024;
+                target->execution().selectInterpreter(target->cpu());
+            }
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+            for(Machine* target:{&machine,&reference}) {
+                uint32_t physical=0; target->bus().setUserMode(false);
+                target->bus().translateDataAddress(target->state().r[1],false,physical);
+                target->bus().setUserMode(true);
+            }
+            machine.execution().run(1); reference.execution().run(1);
+            same=same&&equal(machine,reference); direct+=native.stats().inlineLoads;
+        }
+        check("Inline TLB reads enforce each small-page permission field after privileged cache priming",same&&direct==2);
+    }
+    {
+        Machine machine,reference; bool same=true;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        for(uint32_t flags=0;flags<16;++flags) for(uint32_t pattern:{0u,0x7fffffffu,0x80000000u,0xffffffffu}) {
+            for(Machine* target:{&machine,&reference}) {
+                target->state().cpsr=0xd3|(flags<<28); target->state().r[15]=0;
+                for(unsigned i=0;i<15;++i) target->state().r[i]=pattern+i;
+                target->state().r[8]=0x30001000;
+                const uint32_t code[]={0xe0910002,0x00a33004,0xe2505001,0x11a06005,0xe0d67002,
+                    0xe5887000,0xe5989000,0xe029a001,0xe12fff1e};
+                for(unsigned i=0;i<9;++i) target->bus().write32(i*4,code[i]);
+            }
+            machine.execution().run(8); reference.execution().run(8);
+            same=same&&equal(machine,reference)&&machine.bus().read32(0x30001000)==reference.bus().read32(0x30001000);
+        }
+        check("Cached arithmetic flags, predication and carry dependencies materialize before RAM helpers",same);
+    }
+    {
+        Machine machine,reference; bool same=true; size_t cases=0;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        for(bool byte:{false,true}) for(bool up:{false,true}) for(uint32_t alignment:{0u,1u,2u,3u}) {
+            constexpr uint32_t pc=0x30008000;
+            const uint32_t offset=64+alignment,address=up?pc+8+offset:pc+8-offset;
+            for(Machine* target:{&machine,&reference}) {
+                target->state().r[15]=pc;
+                target->bus().write32(address&~3u,0x87654321);
+                target->bus().write32(pc,0xe51f2000u|(byte?1u<<22:0)|(up?1u<<23:0)|offset);
+            }
+            machine.execution().run(1); reference.execution().run(1);
+            same=same&&equal(machine,reference); ++cases;
+        }
+        check("Native literal loads use instruction PC plus eight with byte, rotated word and signed offsets",
+            same&&native.stats().generatedSteps==cases&&native.stats().fallbackSteps==0);
+    }
+    {
         Machine machine,reference;
         for(Machine* target:{&machine,&reference}) {
             target->bus().write32(0x30004000,0x30000c02);

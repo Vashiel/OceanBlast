@@ -8,7 +8,7 @@ namespace oceanblast::translation {
 enum class InstructionSet { Arm, Thumb };
 enum class Condition : uint8_t { Eq, Ne, Cs, Cc, Mi, Pl, Vs, Vc, Hi, Ls, Ge, Lt, Gt, Le, Always };
 enum class IntegerOpcode { And, Xor, Subtract, ReverseSubtract, Add, AddCarry,
-                           SubtractCarry, ReverseSubtractCarry, Or, Move, BitClear, Not };
+                           SubtractCarry, ReverseSubtractCarry, Or, Move, BitClear, Not, Multiply };
 enum class ValueKind { Constant, Register };
 struct Value {
     ValueKind kind;
@@ -32,6 +32,7 @@ struct IntegerOperation {
     CarrySource shifterCarry = CarrySource::Preserve;
     FlagWrite flags = FlagWrite::Preserve;
     std::optional<uint8_t> destination;
+    std::optional<uint8_t> addend=std::nullopt;
 };
 struct Instruction {
     uint32_t pc;
@@ -43,6 +44,9 @@ struct Instruction {
         uint8_t base,destination;
         uint32_t offset;
         bool load,byte,pre,up,writeback;
+        std::optional<uint8_t> offsetRegister=std::nullopt;
+        Shift offsetShift=Shift::Lsl;
+        uint8_t offsetShiftAmount=0;
     };
     std::optional<MemoryOperation> memory;
     struct BranchOperation { uint32_t target; bool link; };
@@ -61,6 +65,7 @@ struct Block {
 struct BlockLimits {
     uint32_t instructions = 32;
     uint32_t bytes = 128;
+    bool followDirectBranches = false;
 };
 struct FetchResult {
     bool available;

@@ -74,6 +74,7 @@ static void evaluate(const Instruction& instruction,ARM920TState& state) {
         case IntegerOpcode::ReverseSubtract:result=sub(b,a,0);break;
         case IntegerOpcode::SubtractCarry:result=sub(a,b,!carryIn);break;
         case IntegerOpcode::ReverseSubtractCarry:result=sub(b,a,!carryIn);break;
+        case IntegerOpcode::Multiply:result=a*b+(op.addend?state.r[*op.addend]:0);break;
     }
     if (op.destination) state.r[*op.destination]=result;
     if (op.flags!=FlagWrite::Preserve) {
@@ -103,7 +104,7 @@ int main() {
     check("Block remains inside a 1 KB permission span",decodeBlock(1020,arm,constant).stop==BlockStop::PageBoundary);
     check("Address wrap produces a bounded exit",decodeBlock(0xfffffffc,arm,constant).stop==BlockStop::AddressWrap);
     check("Unavailable fetch does not produce an instruction",decodeBlock(0,arm,[](uint32_t,InstructionSet){return FetchResult{false,0};}).instructions.empty());
-    for (uint32_t raw : {0xe59f0000u,0xee070f90u,0xe121f000u,0xe0800211u,0xe1a0f000u,0xe08f0001u,0xf2800001u}) {
+    for (uint32_t raw : {0xe5bf0000u,0xee070f90u,0xe121f000u,0xe0800211u,0xe1a0f000u,0xe08f0001u,0xf2800001u}) {
         auto block=decodeBlock(0,arm,[&](uint32_t,InstructionSet){return FetchResult{true,raw};});
         check("Unsupported memory control PC or register-shift operation exits before execution",
             block.instructions.empty() && block.stopPc==0 && block.stopEncoding==raw);
@@ -144,8 +145,9 @@ int main() {
                 }
             }
             for (uint32_t raw : {0x2007u,0x2801u,0x3001u,0x3801u,0x1842u,0x1c42u,0x1a42u,0x0042u,0x080au,0x100au,
-                                 0x400au,0x404au,0x414au,0x418au,0x420au,0x424au,0x428au,0x42cau,0x430au,0x438au,0x43cau})
+                                 0x400au,0x404au,0x414au,0x418au,0x420au,0x424au,0x428au,0x42cau,0x430au,0x434au,0x438au,0x43cau})
                 compare(raw,thumb,pattern,flags);
+            for(uint32_t raw:{0xe0020190u,0xe0120190u,0xe0223190u,0xe0323190u}) compare(raw,arm,pattern,flags);
         }
     }
     for (unsigned condition=0;condition<15;++condition)

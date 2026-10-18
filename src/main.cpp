@@ -412,6 +412,7 @@ int main(int argc, char* argv[]) {
     if(useJit) {
         NativeCacheLimits nativeLimits;
         nativeLimits.compileThreshold=3;
+        nativeLimits.followDirectBranches=true;
         nativeEngine=std::make_unique<X64ExecutionEngine>(machine.state(),cpu,bus,nativeLimits);
         machine.execution().selectEngine(*nativeEngine);
     }
@@ -467,7 +468,7 @@ int main(int argc, char* argv[]) {
     std::ofstream engineStats;
     if(nativeEngine) {
         engineStats.open("engine_stats.csv");
-        engineStats<<"steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges\n";
+        engineStats<<"steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads\n";
     }
     auto writeEngineStats=[&]() {
         if(!nativeEngine || !engineStats) return;
@@ -476,7 +477,7 @@ int main(int argc, char* argv[]) {
             <<stats.compilations<<','<<stats.cacheHits<<','<<stats.cacheEvictions<<','<<stats.compilationFailures<<','
             <<stats.fastCacheHits<<','<<stats.sourceValidations<<','<<stats.fallbackCacheHits<<','<<stats.fallbackEntries<<','<<stats.directCacheHits<<','
             <<stats.peakCacheEntries<<','<<stats.peakCacheBytes<<','<<stats.mappingRevalidations<<','
-            <<stats.coldBlockSteps<<','<<stats.coldCacheHits<<','<<stats.promotions<<','<<stats.internalBackedges<<'\n';
+            <<stats.coldBlockSteps<<','<<stats.coldCacheHits<<','<<stats.promotions<<','<<stats.internalBackedges<<','<<stats.inlineLoads<<'\n';
         engineStats.flush();
     };
 #endif

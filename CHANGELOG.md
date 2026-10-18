@@ -6,6 +6,8 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ## 2026-10-18 — Checked Memory and Developer Player
 
+* **[Native Regions and Precise Exits](docs/100_native_regions_and_precise_exits.md):** Same-page direct links, register/flag retention, literal and shifted-offset memory, MUL/MLA, checked inline TLB reads, event-bounded suffix loops and direct warm-cache/scalar exits pass six suites and the 600-million-step Wade state comparison. The final live gate still fails pacing/audio; test-EXE readiness remains open.
+
 * **[Cached Dispatch and Mapping Context](docs/99_cached_dispatch_and_mapping_context.md):** Added cached scalar exits, validated direct lookup, bounded event windows, relevant-state code identity, separate privilege/mapping checks, cold-block promotion, conditional accesses and bounded internal backedges. Six targeted suites pass. Runtime evidence and exact build limits are recorded separately; installed launcher unchanged.
 
 * **[Mixed RAM Blocks](docs/98_mixed_ram_blocks.md):** Several supported RAM operations can share a generated block, with actual retired-step accounting and early exits for devices, faults and code-writing stores. Final bounded time accumulation passes six technical suites, including exact deadlines and PCM/DMA ordering. One intermediate Wade pair matched state but remained slower; the final build's Wade gate is pending. Installed/test-package executables unchanged.

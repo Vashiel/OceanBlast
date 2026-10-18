@@ -18,6 +18,102 @@ int main() {
     {
         Machine machine,reference;
         for(Machine* target:{&machine,&reference}) {
+            target->configureExecution(false,6);
+            const uint32_t code[]={0xe3a00000,0xe3a01064,0xe2800001,0xe2511001,0x1afffffc};
+            for(unsigned i=0;i<5;++i) target->bus().write32(i*4,code[i]);
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        const auto exit=machine.execution().runToBoundary(1024); reference.execution().run(302);
+        check("A native suffix loop executes its setup once and repeats only the backward-edge body",
+            exit.steps==302&&equivalent(machine,reference)&&machine.state().r[0]==100&&native.stats().internalBackedges==99);
+    }
+    {
+        bool same=true;
+        for(size_t ratio:{1u,3u,6u}) for(size_t phase=0;phase<ratio;++phase)
+        for(uint32_t opcode:{0xe121f000u,0xee020f10u,0xef000000u,0xe12fff13u,0xe10f0000u}) for(bool bounded:{false,true}) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->configureExecution(false,ratio); target->execution().run(phase);
+                target->state().r[15]=0; target->state().r[0]=0x13; target->state().r[3]=0x101;
+                target->bus().write32(0,opcode);
+            }
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+            const auto deadline=bounded?machine.execution().time().ticks+1:UINT64_MAX;
+            const auto actual=machine.execution().runToBoundary(1,deadline),expected=reference.execution().runToBoundary(1,deadline);
+            same=same&&equivalent(machine,reference)&&actual.reason==expected.reason&&actual.steps==expected.steps&&
+                actual.ticks==expected.ticks&&actual.event==expected.event&&machine.state().cp15_ttb==reference.state().cp15_ttb;
+        }
+        check("Checked scalar exits retain exact context, exception and deadline reasons at every tested phase",same);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->configureExecution(false,6); target->state().r[0]=5000;
+            target->bus().write32(0,0xe2500001); target->bus().write32(4,0x1afffffd);
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        const auto exit=machine.execution().runToBoundary(4096); reference.execution().run(4096);
+        check("A validated native loop can retire beyond the source limit in one precise execution window",
+            exit.steps==4096&&equivalent(machine,reference)&&native.stats().internalBackedges==2047);
+    }
+    {
+        bool same=true;
+        for(uint32_t flags=0;flags<16;++flags) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->state().cpsr=0xd3|(flags<<28); target->state().r[1]=17; target->state().r[3]=9;
+                const uint32_t code[]={0x02810001,0xe2812003,0x12833001,0xe2834002,0xe12fff1e};
+                for(unsigned i=0;i<5;++i) target->bus().write32(i*4,code[i]);
+            }
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+            machine.execution().run(4); reference.execution().run(4);
+            same=same&&equivalent(machine,reference);
+        }
+        check("Register caching preserves first-use operands and destinations across skipped predicates",same);
+    }
+    {
+        bool same=true;
+        for(size_t ratio:{1u,3u,6u,16u}) for(size_t phase=0;phase<ratio;++phase) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->configureExecution(false,ratio); target->execution().run(phase);
+                target->state().r[15]=0;
+                target->bus().write32(0,0xe2800001); target->bus().write32(4,0xea00000d);
+                target->bus().write32(0x40,0xe2811001); target->bus().write32(0x44,0xeaffffed);
+            }
+            NativeCacheLimits limits; limits.followDirectBranches=true; limits.compileThreshold=3;
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus(),limits); machine.execution().selectEngine(native);
+            machine.execution().run(193); reference.execution().run(193);
+            const auto deadline=machine.execution().time().ticks+5;
+            const auto actual=machine.execution().run(32,deadline),expected=reference.execution().run(32,deadline);
+            same=same&&actual==expected&&equivalent(machine,reference);
+            for(Machine* target:{&machine,&reference}) {
+                target->bus().write32(0x40,0xe2811007); target->state().r[15]=0;
+            }
+            machine.execution().run(37); reference.execution().run(37);
+            same=same&&equivalent(machine,reference);
+        }
+        check("Direct block links preserve promotion, all legacy phases, deadlines and noncontiguous code invalidation",same);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->bus().write32(0x3f8,0xe2800001); target->bus().write32(0x3fc,0xeaffff07);
+            target->bus().write32(0x20,0xe2811001); target->bus().write32(0x24,0xea0000f3);
+            target->state().r[15]=0x3f8;
+        }
+        NativeCacheLimits limits; limits.followDirectBranches=true;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus(),limits); machine.execution().selectEngine(native);
+        const auto exit=machine.execution().runToBoundary(32); reference.execution().run(32);
+        machine.state().r[15]=reference.state().r[15]=0x3f8;
+        machine.bus().flushTlb(); reference.bus().flushTlb();
+        machine.execution().run(32); reference.execution().run(32);
+        check("A direct trace may link backward within its permission page and revalidate its mapping",
+            exit.steps==32&&equivalent(machine,reference)&&native.stats().mappingRevalidations>0);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
             target->bus().write32(0,0xe2500001); target->bus().write32(4,0x1afffffd); target->state().r[0]=7;
         }
         X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);

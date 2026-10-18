@@ -76,6 +76,7 @@ public:
     }
     void invalidateCodeEpoch() { ++codeEpoch; }
     bool isMmuEnabled() const { return mmu.isEnabled(); }
+    Arm920TMmu::NativeReadView nativeReadView() const { return mmu.nativeReadView(); }
 
     u32 translateSlow(u32 va, MmuFault* fault, bool isWrite) const {
         return mmu.translateSlow(va, sdramPtr, fault, isWrite);

@@ -1,5 +1,6 @@
 #pragma once
 #include "translation_ir.h"
+#include <algorithm>
 
 namespace oceanblast::translation {
 
@@ -18,6 +19,15 @@ inline bool decodeArmInteger(uint32_t raw, IntegerOperation& op) {
     // ARMv4T data processing with an immediate or a constant register shift.
     // Register-controlled shifts and PC operands require later lowering.
     if ((raw>>28)==15 || (raw&0x0c000000u)!=0) return false;
+    if((raw&0x0fc000f0u)==0x00000090u) {
+        const unsigned rd=(raw>>16)&15,rn=(raw>>12)&15,rs=(raw>>8)&15,rm=raw&15;
+        const bool accumulate=raw&(1u<<21);
+        if(rd==15 || rs==15 || rm==15 || (accumulate?rn==15:rn!=0)) return false;
+        op={}; op.opcode=IntegerOpcode::Multiply; op.left=Value::reg(uint8_t(rm)); op.right=Value::reg(uint8_t(rs));
+        op.destination=uint8_t(rd); if(accumulate) op.addend=uint8_t(rn);
+        op.flags=(raw&(1u<<20))?FlagWrite::Logical:FlagWrite::Preserve;
+        return true;
+    }
     const bool immediate=(raw&(1u<<25))!=0;
     if (!immediate && (raw&0x10u)) return false;
     const unsigned code=(raw>>21)&15, rn=(raw>>16)&15, rd=(raw>>12)&15;
@@ -90,6 +100,7 @@ inline bool decodeThumbInteger(uint16_t raw, IntegerOperation& op) {
             case 10: op.opcode=IntegerOpcode::Subtract; op.destination.reset(); op.flags=FlagWrite::Arithmetic; break;
             case 11: op.opcode=IntegerOpcode::Add; op.destination.reset(); op.flags=FlagWrite::Arithmetic; break;
             case 12: op.opcode=IntegerOpcode::Or; break;
+            case 13: op.opcode=IntegerOpcode::Multiply; break;
             case 14: op.opcode=IntegerOpcode::BitClear; break;
             case 15: op.opcode=IntegerOpcode::Not; op.left=Value::constant(0); break;
             default: return false;
@@ -107,14 +118,23 @@ inline bool isControlFlow(uint32_t raw,InstructionSet set) {
 }
 
 inline bool decodeArmMemory(uint32_t raw,Instruction::MemoryOperation& memory) {
-    // Immediate byte/word accesses; PC and unpredictable overlap cases retain
-    // scalar semantics until their explicit lowering is delivered.
-    if ((raw>>28)==15 || (raw&0x0e000000u)!=0x04000000u) return false;
+    // Immediate byte/word accesses, including literal loads from PC + 8.
+    // PC destinations/writeback and unpredictable overlaps remain scalar.
+    if ((raw>>28)==15 || (raw&0x0c000000u)!=0x04000000u) return false;
+    const bool registerOffset=raw&(1u<<25);
+    if(registerOffset && ((raw&0x10u) || (raw&15u)==15)) return false;
     const uint8_t rn=uint8_t((raw>>16)&15),rd=uint8_t((raw>>12)&15);
     const bool pre=raw&(1u<<24),writeback=!pre || (raw&(1u<<21));
     if (!pre && (raw&(1u<<21))) return false; // Unprivileged access variants.
-    if (rn==15 || rd==15 || ((raw&(1u<<20)) && writeback && rn==rd)) return false;
+    if ((rn==15 && (registerOffset || writeback || !(raw&(1u<<20)))) || rd==15 ||
+        ((raw&(1u<<20)) && writeback && rn==rd)) return false;
     memory={rn,rd,raw&4095u,bool(raw&(1u<<20)),bool(raw&(1u<<22)),pre,bool(raw&(1u<<23)),writeback};
+    if(registerOffset) {
+        IntegerOperation shift;
+        constantShift(shift,(raw>>5)&3,(raw>>7)&31);
+        memory.offset=0; memory.offsetRegister=uint8_t(raw&15);
+        memory.offsetShift=shift.shift; memory.offsetShiftAmount=shift.shiftAmount;
+    }
     return true;
 }
 
@@ -158,6 +178,13 @@ Block decodeBlock(uint32_t pc,InstructionSet set,Fetch&& fetch,BlockLimits limit
             Condition condition=Condition::Always;
             if(decodeBranch(raw,pc,set,branch,condition)) {
                 block.instructions.push_back({pc,raw,uint8_t(bytes),condition,{},std::nullopt,branch});
+                if(limits.followDirectBranches && condition==Condition::Always &&
+                    !((branch.target^block.entryPc)&~1023u) &&
+                    block.instructions.size()<limits.instructions && consumed+bytes<limits.bytes &&
+                    std::none_of(block.instructions.begin(),block.instructions.end(),
+                        [&](const Instruction& instruction) { return instruction.pc==branch.target; })) {
+                    consumed+=bytes; pc=branch.target; continue;
+                }
                 block.stop=BlockStop::ControlFlow; block.stopEncoding=raw; pc+=bytes; break;
             }
             Instruction::MemoryOperation memory{};
