@@ -1,0 +1,112 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "e040a65e997af1b43c600ffffea1f7189c1ce982",
+  "status": "No usable improved test executable; installed binary retained",
+  "rejected_complete_block_pair": {
+    "ac_before": 1,
+    "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+    "seed_sha256": "47c12bf246aa2c887d4706d9cf8bc1f207df6ba18ac373703adbbe4c173aebbc",
+    "steps": 2400000000,
+    "ratio": 6,
+    "affinity_mask": 4,
+    "gui": false,
+    "sound": false,
+    "pacing": false,
+    "rows": [
+      {
+        "name": "reference",
+        "executable_sha256": "b28c2885f4ed4399fe01db5741b7d11a560b6ef6e78261b6c97944597c19cd72",
+        "exit": 0,
+        "cpu_seconds": 29.34375,
+        "wall_seconds": 29.519880899999407,
+        "cpu_sha256": "5015052e5a277083a44048aff08ff00d05a7f58f521449b87de672037404ce42",
+        "ram_sha256": "fd67140930f4925e6de853db54516c3af1a458e5f0ba93d4a6a67ad3b68b1c37",
+        "snapshot_sha256": "436e786192cb66cd2badec9d5b9b2d5d4fa3065e417bc8b88ca93919d41d27df",
+        "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads,sampled_fallback_steps,sampled_fallback_batches\n2400000000,588101592,198117083,1811898408,5547,72506633,0,0,68289572,9,2821254,272,68850587,7474,5622080,8022568,85543,11590,5547,32375406,108208958,1808989965,469453\n"
+      },
+      {
+        "name": "candidate",
+        "executable_sha256": "b18993c06899c7b7bb6bdef8c5cfbc687c0ab895e57f644d36cf1767568f3009",
+        "exit": 0,
+        "cpu_seconds": 29.9375,
+        "wall_seconds": 30.26373970000168,
+        "cpu_sha256": "5015052e5a277083a44048aff08ff00d05a7f58f521449b87de672037404ce42",
+        "ram_sha256": "fd67140930f4925e6de853db54516c3af1a458e5f0ba93d4a6a67ad3b68b1c37",
+        "snapshot_sha256": "436e786192cb66cd2badec9d5b9b2d5d4fa3065e417bc8b88ca93919d41d27df",
+        "stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads,sampled_fallback_steps,sampled_fallback_batches\n2400000000,578263702,195703982,1821736298,5698,71977744,0,0,67715393,9,2826083,271,68410701,7822,7077797,5536546,104377,11929,5698,32116749,106596563,1818804168,464740\n"
+      }
+    ],
+    "ac_after": 1
+  },
+  "complete_block_checks": "Test project C:/Users/Serdar/Documents/New project/OceanBlast-jit-work/build\n    Start 1: x64_execution\n1/6 Test #1: x64_execution ....................   Passed    3.26 sec\n    Start 2: native_semantics\n2/6 Test #2: native_semantics .................   Passed    0.55 sec\n    Start 3: x64_memory\n3/6 Test #3: x64_memory .......................   Passed    5.08 sec\n    Start 4: x64_invalidation\n4/6 Test #4: x64_invalidation .................   Passed    0.56 sec\n    Start 5: jit_cpu_regression\n5/6 Test #5: jit_cpu_regression ...............   Passed    0.93 sec\n    Start 6: jit_emulation_timing\n6/6 Test #6: jit_emulation_timing .............   Passed    0.75 sec\n\n100% tests passed out of 6\n\nTotal Test time (real) =  11.15 sec\n",
+  "invalid_default_mode_attempt": {
+    "excluded": true,
+    "reason": "Developer executable defaults to JIT; installed executable defaults to interpreter. Title shortcut settings differed."
+  },
+  "corrected_interpreter_comparison": {
+    "steps": 2400000000,
+    "ratio": 6,
+    "mode": "default interpreter; existing title shortcut auto; common CLI only",
+    "rows": [
+      {
+        "name": "installed",
+        "executable_sha256": "858c64effd03fb43738d3bb12b1e98c98063b463d4f6d112293c907607942ab2",
+        "exit": 0,
+        "cpu_seconds": 22.890625,
+        "wall_seconds": 23.202681499999017,
+        "ram_sha256": "f19b01700f2eecfa8cc70d59f13adf92b7ae19a582b9ba77362fe74e254e18a5",
+        "frame_sha256": "342431a9bb3dc578d9472f981d6931fa1a8c13dfe5f0d33d65ef85fdd799dd5f",
+        "registers": {
+          "PC": "c00233c4",
+          "SP": "c0e71f4c",
+          "LR": "00002222",
+          "CPSR": "a0000093",
+          "r12": "f0900040",
+          "r0": "c0e71f84",
+          "r1": "00003944",
+          "r2": "000001f0",
+          "r3": "f0000000",
+          "r4": "befffd1c",
+          "r5": "00000000",
+          "r6": "00001d7a",
+          "r7": "a0000013",
+          "r8": "c0e71f84",
+          "r9": "c0e70000",
+          "r10": "c01bbc90",
+          "r11": "c0e71f58"
+        }
+      },
+      {
+        "name": "candidate",
+        "executable_sha256": "6d2d182c4a320c7aa372eb501e207d2936d0d1cad90fa0432efaf4b1a696d3d2",
+        "exit": 0,
+        "cpu_seconds": 27.21875,
+        "wall_seconds": 29.81305870000142,
+        "ram_sha256": "f19b01700f2eecfa8cc70d59f13adf92b7ae19a582b9ba77362fe74e254e18a5",
+        "frame_sha256": "342431a9bb3dc578d9472f981d6931fa1a8c13dfe5f0d33d65ef85fdd799dd5f",
+        "registers": {
+          "PC": "c00233c4",
+          "SP": "c0e71f4c",
+          "LR": "00002222",
+          "CPSR": "a0000093",
+          "r12": "f0900040",
+          "r0": "c0e71f84",
+          "r1": "00003944",
+          "r2": "000001f0",
+          "r3": "f0000000",
+          "r4": "befffd1c",
+          "r5": "00000000",
+          "r6": "00001d7a",
+          "r7": "a0000013",
+          "r8": "c0e71f84",
+          "r9": "c0e70000",
+          "r10": "c01bbc90",
+          "r11": "c0e71f58"
+        }
+      }
+    ],
+    "same": true
+  },
+  "comparison_limits": "Installed reference reused from initial attempt; fixed affinity and matching inputs, but no continuous frequency telemetry or reversed pair. Modest/noisy differences do not establish causation.",
+  "installed_executable_sha256": "858c64effd03fb43738d3bb12b1e98c98063b463d4f6d112293c907607942ab2"
+}
