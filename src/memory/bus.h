@@ -52,7 +52,9 @@ public:
     // MMU / Virtual Memory Translation
     using MmuFault = Arm920TMmu::MmuFault;
 
-    void setUserMode(bool um) { if (mmu.isUserMode() != um) { instructionPage = UINT32_MAX; ++mappingGeneration; } mmu.setUserMode(um); }
+    // Privilege is part of native cache identity; it does not change mappings.
+    // The scalar fetch address cache still needs its permission check renewed.
+    void setUserMode(bool um) { if (mmu.isUserMode() != um) instructionPage = UINT32_MAX; mmu.setUserMode(um); }
     bool isUserMode() const { return mmu.isUserMode(); }
 
     void flushTlb() const;

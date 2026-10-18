@@ -2,6 +2,8 @@
 
 Status: mixed-block execution and bounded time accumulation pass technical checks, 2026-10-18. The final implementation has not yet run the next Wade gate. No game-speed or audio acceptance is claimed.
 
+This report preserves that delivery slice. The [execution-loop, cache and mapping-context continuation](99_cached_dispatch_and_mapping_context.md) records the subsequent Wade checks and implementation.
+
 ## Change
 
 The ARM frontend can now retain several supported byte/word memory instructions within one straight-line block, mixed with integer work and a terminal direct branch. The existing 32-instruction, 128-byte and 1-KiB permission-span bounds remain. Actual addresses are checked at runtime; an instruction's inclusion in the IR does not assert that its address is RAM.

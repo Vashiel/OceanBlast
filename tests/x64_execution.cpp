@@ -17,6 +17,171 @@ static bool equivalent(const Machine& left,const Machine& right) {
 int main() {
     {
         Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->bus().write32(0,0xe2500001); target->bus().write32(4,0x1afffffd); target->state().r[0]=7;
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        const auto exit=machine.execution().runToBoundary(32); reference.execution().run(14);
+        check("An internal backedge repeats full guest work and exits at the not-taken branch",
+            exit.steps==14 && equivalent(machine,reference) && machine.cpu().getPC()==8 && native.stats().internalBackedges==6);
+    }
+    {
+        bool same=true;
+        for(size_t ratio:{1u,3u,6u,16u}) for(size_t phase=0;phase<ratio;++phase) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->configureExecution(false,ratio); target->execution().run(phase);
+                target->state().r[15]=0; target->state().r[0]=1000;
+                target->bus().write32(0,0xe2500001); target->bus().write32(4,0x1afffffd);
+            }
+            const auto deadline=machine.execution().time().ticks+2;
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+            const auto steps=machine.execution().run(32,deadline); const auto expected=reference.execution().run(32,deadline);
+            same=same&&steps==expected && equivalent(machine,reference) && machine.execution().time().ticks==deadline;
+        }
+        check("Internal loops preserve every legacy phase and stop at external deadlines",same);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) target->bus().write32(0,0xe2800001);
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        for(uint32_t masks:{FLAG_I|FLAG_F,FLAG_F,0u}) {
+            for(Machine* target:{&machine,&reference}) {
+                target->state().r[15]=0; target->state().cpsr=(target->state().cpsr&~(FLAG_I|FLAG_F))|masks;
+            }
+            machine.execution().run(1); reference.execution().run(1);
+        }
+        const bool shared=equivalent(machine,reference) && native.stats().compilations==1;
+        for(Machine* target:{&machine,&reference}) {
+            target->state().r[15]=0; target->bus().write32(0x4a000008,~(1u<<14));
+            target->bus().write32(0x5100003c,1); target->bus().write32(0x51000008,(1u<<20)|(1u<<21));
+            target->bus().tick(target->bus().ticksUntilEvent());
+        }
+        const auto exit=machine.execution().runToBoundary(1); reference.execution().run(1);
+        check("Translations share IRQ-mask variants while live unmasked IRQ entry still precedes guest work",
+            shared && equivalent(machine,reference) && exit.event==CpuStepEvent::Interrupt && machine.cpu().getReg(0)==3);
+    }
+    {
+        size_t functionBytes=0;
+        {
+            Machine sample; sample.bus().write32(0,0xe3a00001);
+            X64ExecutionEngine native(sample.state(),sample.cpu(),sample.bus()); sample.execution().selectEngine(native);
+            sample.execution().run(1); functionBytes=native.stats().peakCacheBytes;
+        }
+        Machine machine; machine.bus().write32(0,0xe3a00001); machine.bus().write32(4,0xe3a00002);
+        NativeCacheLimits limits; limits.blocks=3; limits.bytes=functionBytes; limits.compileThreshold=2;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus(),limits); machine.execution().selectEngine(native);
+        for(uint32_t pc:{0u,0u,4u,4u,0u,0u}) { machine.state().r[15]=pc; machine.execution().run(1); }
+        check("Promotion under a one-function code budget evicts safely without releasing the selected entry",
+            functionBytes>0 && machine.cpu().getReg(0)==1 && native.stats().promotions==3 &&
+            native.stats().cacheEvictions==2 && native.stats().peakCacheBytes<=limits.bytes);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->configureExecution(false,3);
+            target->bus().write32(0,0xe2800001); target->bus().write32(4,0xeafffffd);
+        }
+        NativeCacheLimits limits; limits.compileThreshold=3;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus(),limits); machine.execution().selectEngine(native);
+        machine.execution().run(4); reference.execution().run(4);
+        const bool cold=equivalent(machine,reference) && native.stats().compilations==0 && native.stats().coldBlockSteps==4;
+        machine.execution().run(6); reference.execution().run(6);
+        check("Cold blocks use the reference timeline and promote only after repeated entries",
+            cold && equivalent(machine,reference) && native.stats().compilations==1 && native.stats().promotions==1 &&
+            native.stats().generatedSteps==6 && native.stats().fallbackSteps==4);
+        machine.bus().write32(0,0xe2800002); reference.bus().write32(0,0xe2800002);
+        machine.execution().run(6); reference.execution().run(6);
+        check("Cold-to-native promotion revalidates code changed after earlier executions",
+            equivalent(machine,reference) && native.stats().promotions==2 && machine.cpu().getReg(0)==11);
+    }
+    for(size_t threshold:{1u,3u}) {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->state().r[1]=0x51000008; target->state().r[2]=(1u<<20)|(1u<<21);
+            target->state().cpsr&=~FLAG_I; target->bus().write32(0x4a000008,~(1u<<14));
+            target->bus().write32(0x5100003c,2); target->bus().write32(0,0xe5812000);
+            for(unsigned i=1;i<32;++i) target->bus().write32(i*4,0xe2800001);
+        }
+        NativeCacheLimits limits; limits.compileThreshold=threshold;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus(),limits); machine.execution().selectEngine(native);
+        machine.execution().run(16); reference.execution().run(16);
+        check("MMIO arming a timer discards the cached event window before subsequent generated work",
+            equivalent(machine,reference) && machine.cpu().getLR()==reference.cpu().getLR() &&
+            machine.bus().getMmio(0x4a000000)==reference.bus().getMmio(0x4a000000));
+    }
+    {
+        Machine machine;
+        machine.bus().write32(0,0xe3a0000b); machine.bus().write32(0x800,0xe3a00016);
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        bool same=true;
+        for(uint32_t pc:{0u,0x800u,0u,0u}) {
+            machine.state().r[15]=pc; machine.execution().run(1);
+            same=same&&machine.cpu().getReg(0)==(pc?22u:11u);
+        }
+        const bool hit=native.stats().directCacheHits==1;
+        machine.bus().write32(0,0xe3a0002a); machine.state().r[15]=0; machine.execution().run(1);
+        check("Direct cache collisions check full identity and code writes invalidate hot reuse",
+            same && hit && machine.cpu().getReg(0)==42 && native.stats().compilations==3);
+    }
+    {
+        Machine machine;
+        for(unsigned i=0;i<4;++i) machine.bus().write32(i*4,0xe2800001);
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        machine.execution().run(4);
+        for(unsigned i=0;i<2;++i) { machine.state().r[15]=0; machine.execution().run(1); }
+        machine.state().r[15]=0;
+        const auto exit=machine.execution().runToBoundary(4);
+        check("A hot short translation cannot hide a cached longer block on a larger budget",
+            exit.steps==4 && machine.cpu().getReg(0)==10 && native.stats().compilations==2);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->configureExecution(false,3); target->bus().write32(0,0xe12fff13); target->state().r[3]=0;
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        machine.execution().run(7); reference.execution().run(7);
+        check("Repeated unsupported instructions reuse a checked scalar exit with exact reference timing",
+            equivalent(machine,reference) && native.stats().fallbackSteps==7 && native.stats().fallbackEntries==1 &&
+            native.stats().fallbackCacheHits==6 && native.stats().compilations==0);
+        for(Machine* target:{&machine,&reference}) { target->bus().write32(0,0xe3a0002a); target->state().r[15]=0; }
+        machine.execution().run(1); reference.execution().run(1);
+        check("A code write replaces a cached scalar exit with native execution",
+            equivalent(machine,reference) && machine.cpu().getReg(0)==42 && native.stats().generatedSteps==1);
+        native.resetCodeCache();
+        for(Machine* target:{&machine,&reference}) { target->bus().write32(0,0xe12fff13); target->state().r[15]=0; }
+        machine.execution().run(2); reference.execution().run(2);
+        check("Cache reset releases native and scalar entries and safely recreates the scalar exit",
+            equivalent(machine,reference) && native.stats().fallbackSteps==9 && native.stats().fallbackEntries==2 &&
+            native.stats().fallbackCacheHits==7);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->bus().write32(0x30004000,0x30000c02); target->bus().write32(0x30004004,0x30000c02);
+            target->bus().write32(0x30000000,0xe12fff13); target->state().r[3]=0;
+            target->state().cp15_control|=1; target->state().cp15_ttb=0x30004000; target->state().cp15_dacr=1;
+            target->state().cpsr=0x10; target->execution().selectInterpreter(target->cpu());
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        machine.execution().run(2); reference.execution().run(2);
+        for(Machine* target:{&machine,&reference}) { target->bus().write32(0x00100000,0xe3a0002a); target->state().r[15]=0; }
+        machine.execution().run(1); reference.execution().run(1);
+        const bool alias=equivalent(machine,reference) && machine.cpu().getReg(0)==42;
+        for(Machine* target:{&machine,&reference}) {
+            target->bus().write32PhysSlow(0x30000000,0xe12fff13); target->state().r[15]=0;
+        }
+        machine.execution().run(1); reference.execution().run(1);
+        for(Machine* target:{&machine,&reference}) {
+            target->bus().write32PhysSlow(0x30004000,0x30000402); target->bus().flushTlb(); target->state().r[15]=0;
+        }
+        const auto exit=machine.execution().runToBoundary(1); reference.execution().run(1);
+        check("Cached scalar exits obey alias writes and changed instruction permissions",
+            alias && equivalent(machine,reference) && exit.event==CpuStepEvent::PrefetchAbort && machine.cpu().getPC()==12);
+    }
+    {
+        Machine machine,reference;
         X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());
         machine.execution().selectEngine(native);
         bool same=true; size_t cases=0;

@@ -107,9 +107,9 @@ inline bool isControlFlow(uint32_t raw,InstructionSet set) {
 }
 
 inline bool decodeArmMemory(uint32_t raw,Instruction::MemoryOperation& memory) {
-    // Immediate byte/word accesses; conditional, PC and unpredictable overlap
-    // cases retain scalar semantics until their explicit lowering is delivered.
-    if ((raw&0xfe000000u)!=0xe4000000u) return false;
+    // Immediate byte/word accesses; PC and unpredictable overlap cases retain
+    // scalar semantics until their explicit lowering is delivered.
+    if ((raw>>28)==15 || (raw&0x0e000000u)!=0x04000000u) return false;
     const uint8_t rn=uint8_t((raw>>16)&15),rd=uint8_t((raw>>12)&15);
     const bool pre=raw&(1u<<24),writeback=!pre || (raw&(1u<<21));
     if (!pre && (raw&(1u<<21))) return false; // Unprivileged access variants.
@@ -162,7 +162,7 @@ Block decodeBlock(uint32_t pc,InstructionSet set,Fetch&& fetch,BlockLimits limit
             }
             Instruction::MemoryOperation memory{};
             if (set==InstructionSet::Arm && decodeArmMemory(raw,memory)) {
-                block.instructions.push_back({pc,raw,uint8_t(bytes),Condition::Always,{},memory,std::nullopt});
+                block.instructions.push_back({pc,raw,uint8_t(bytes),static_cast<Condition>(raw>>28),{},memory,std::nullopt});
                 consumed+=bytes;
                 const uint32_t next=pc+bytes;
                 if(next<pc) { pc=next; block.stop=BlockStop::AddressWrap; break; }

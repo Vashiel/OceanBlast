@@ -12,6 +12,42 @@ static bool equal(const Machine& a,const Machine& b) {
 int main() {
     {
         Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->bus().write32(0x30004000,0x30000c02);
+            target->bus().write32(0x30000000,0x05912000); target->bus().write32(0x30000004,0xe12fff1e);
+            target->state().cp15_control|=1; target->state().cp15_ttb=0x30004000; target->state().cp15_dacr=1;
+            target->state().cpsr=0x10; target->state().r[1]=0x200000; target->state().r[2]=42;
+            target->execution().selectInterpreter(target->cpu());
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        machine.execution().run(1); reference.execution().run(1);
+        const bool skipped=equal(machine,reference) && machine.cpu().getPC()==4 && native.stats().memorySteps==0;
+        for(Machine* target:{&machine,&reference}) { target->state().r[15]=0; target->state().cpsr|=FLAG_Z; }
+        const auto exit=machine.execution().runToBoundary(1); reference.execution().run(1);
+        check("A failed memory condition cannot abort while the same cached operation faults when enabled",
+            skipped && equal(machine,reference) && exit.event==CpuStepEvent::DataAbort &&
+            machine.cpu().getReg(2)==42 && native.stats().memorySteps==1);
+    }
+    {
+        Machine machine,reference;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        bool same=true;
+        for(uint32_t condition=0;condition<15;++condition) for(uint32_t flags=0;flags<16;++flags)
+        for(uint32_t operation:{0x05912000u,0x05812000u,0x04d12001u}) {
+            for(Machine* target:{&machine,&reference}) {
+                target->state().r[15]=0; target->state().r[1]=0x30001000; target->state().r[2]=0x12345678;
+                target->state().cpsr=(flags<<28)|0xd3;
+                target->bus().write32(0,(condition<<28)|operation); target->bus().write32(4,0xe12fff1e);
+                target->bus().write32(0x30001000,0x87654321);
+            }
+            machine.execution().run(1); reference.execution().run(1);
+            same=same&&equal(machine,reference)&&machine.bus().read32(0x30001000)==reference.bus().read32(0x30001000);
+        }
+        check("Conditional byte word and post-index accesses match scalar execution for every condition and NZCV",
+            same && native.stats().generatedSteps==720 && native.stats().compilationFailures==0);
+    }
+    {
+        Machine machine,reference;
         std::vector<int16_t> pcm,referencePcm;
         machine.bus().setAudioCallback([&](const int16_t* p,size_t n){pcm.insert(pcm.end(),p,p+n);});
         reference.bus().setAudioCallback([&](const int16_t* p,size_t n){referencePcm.insert(referencePcm.end(),p,p+n);});
@@ -58,7 +94,7 @@ int main() {
                 for(unsigned i=0;i<7;++i) target->bus().write32(i*4,code[i]);
             }
             X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
-            const auto exit=machine.execution().runToBoundary(32); reference.execution().run(7);
+            const auto exit=machine.execution().runToBoundary(7); reference.execution().run(7);
             same=same&&exit.steps==7 && equal(machine,reference) && machine.cpu().getReg(4)==42 &&
                 machine.bus().read32(0x30001000)==reference.bus().read32(0x30001000) &&
                 machine.bus().read8(0x30001004)==reference.bus().read8(0x30001004) &&

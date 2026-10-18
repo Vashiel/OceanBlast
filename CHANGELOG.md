@@ -6,6 +6,8 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ## 2026-10-18 — Checked Memory and Developer Player
 
+* **[Cached Dispatch and Mapping Context](docs/99_cached_dispatch_and_mapping_context.md):** Added cached scalar exits, validated direct lookup, bounded event windows, relevant-state code identity, separate privilege/mapping checks, cold-block promotion, conditional accesses and bounded internal backedges. Six targeted suites pass. Runtime evidence and exact build limits are recorded separately; installed launcher unchanged.
+
 * **[Mixed RAM Blocks](docs/98_mixed_ram_blocks.md):** Several supported RAM operations can share a generated block, with actual retired-step accounting and early exits for devices, faults and code-writing stores. Final bounded time accumulation passes six technical suites, including exact deadlines and PCM/DMA ordering. One intermediate Wade pair matched state but remained slower; the final build's Wade gate is pending. Installed/test-package executables unchanged.
 
 * **[Native Memory and Invalidation](docs/97_checked_memory_and_player_integration.md):** Added checked ARM byte/word loads and stores, precise abort exits, direct ARM/Thumb branches, indexed bounded LRU reuse and physical code-page/mapping generations. Six targeted suites pass; a short Wade boot check matches canonical CPU state and complete SDRAM.

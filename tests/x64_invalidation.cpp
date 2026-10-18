@@ -7,6 +7,46 @@ static int failures=0;
 static void check(const char* name,bool ok) { std::cout<<(ok?"PASS ":"FAIL ")<<name<<'\n'; failures+=!ok; }
 int main() {
     {
+        Machine machine;
+        machine.bus().write32(0x30004000,0x30000c02); machine.bus().write32(0x30000000,0xe2800001);
+        machine.state().cp15_control|=1; machine.state().cp15_ttb=0x30004000; machine.state().cp15_dacr=1;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        for(unsigned i=0;i<8;++i) {
+            const bool user=i&1; machine.state().cpsr=user?0x10:0x13;
+            machine.bus().setUserMode(user); machine.state().r[15]=0; machine.execution().run(1);
+        }
+        check("Alternating privilege contexts reuse their own validated translations without source rereads",
+            machine.cpu().getReg(0)==8 && native.stats().compilations==2 && native.stats().sourceValidations==0);
+        machine.bus().flushTlb(); machine.state().r[15]=0; machine.execution().run(1);
+        check("TLB maintenance checks mapping and permissions without rereading unchanged physical code",
+            machine.cpu().getReg(0)==9 && native.stats().mappingRevalidations==1 && native.stats().sourceValidations==0);
+        machine.bus().write32PhysSlow(0x30004000,0x30000402); machine.bus().flushTlb(); machine.state().r[15]=0;
+        const auto exit=machine.execution().runToBoundary(1);
+        check("A mapping-only revalidation still rejects changed user permissions",
+            exit.event==CpuStepEvent::PrefetchAbort && machine.cpu().getPC()==12);
+    }
+    {
+        Machine machine;
+        machine.bus().write32(0x30004000,0x30000402); machine.bus().write32(0x30000000,0xe3a00001);
+        machine.state().cp15_control|=1; machine.state().cp15_ttb=0x30004000; machine.state().cp15_dacr=1;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        machine.execution().run(1); machine.state().r[15]=0; machine.bus().setUserMode(true);
+        const auto exit=machine.execution().runToBoundary(1);
+        check("Actual bus privilege remains part of identity even when host CPSR was not changed",
+            exit.event==CpuStepEvent::PrefetchAbort && machine.cpu().getPC()==12 && machine.cpu().getReg(0)==1);
+    }
+    {
+        Machine machine;
+        machine.bus().write32(0x30004000,0x30000c02); machine.bus().write32(0x30000000,0xe3a00001);
+        machine.bus().write32(0x30100000,0xe3a0002a);
+        machine.state().cp15_control|=1; machine.state().cp15_ttb=0x30004000; machine.state().cp15_dacr=1;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        machine.execution().run(1); machine.bus().write32PhysSlow(0x30004000,0x30100c02);
+        machine.bus().flushTlb(); machine.state().r[15]=0; machine.execution().run(1);
+        check("Remapping to a different physical source cannot pass unchanged-page reuse",
+            machine.cpu().getReg(0)==42 && native.stats().compilations==2 && native.stats().mappingRevalidations==0);
+    }
+    {
         Machine machine; constexpr uint32_t pc=0x30008000;
         machine.bus().write32(pc,0xe3a00001); machine.state().r[15]=pc;
         X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);

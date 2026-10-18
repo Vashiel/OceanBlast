@@ -1,0 +1,17 @@
+Exact PE .pdata ranges with exact COFF function-start symbols; no source-line attribution.
+ 212  27.9% oceanblast::X64ExecutionEngine::Impl::reusable(unsigned long long)
+ 104  13.7% oceanblast::X64ExecutionEngine::runUntilDeadline(oceanblast::ExecutionTimeline&, unsigned long long, unsigned long long, unsigned long long)
+  87  11.5% oceanblast::X64ExecutionEngine::run(oceanblast::ExecutionTimeline&, unsigned long long, unsigned long long)
+  49   6.5% oceanblast::InterpreterEngine::runToBoundary(oceanblast::ExecutionTimeline&, unsigned long long, unsigned long long)
+  41   5.4% unsigned long long oceanblast::(anonymous namespace)::checkedLoad<false>(oceanblast::Bus*, oceanblast::(anonymous namespace)::NativeRun*, unsigned int)
+  35   4.6% std::_Hashtable<unsigned int, std::pair<unsigned int const, std::_List_iterator<oceanblast::X64ExecutionEngine::Impl::CacheEntry> >, std::allocator<std::pair<unsigned int const, std::_List_iterator<oceanblast::X64ExecutionEngine::Impl::CacheEntry> > >, std::__detail::_Select1st, std::equal_to<unsigned int>, std::hash<unsigned int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, false> >::equal_range(unsigned int const&) [clone .isra.0]
+  26   3.4% oceanblast::Bus::ticksUntilEvent() const
+  23   3.0% oceanblast::ARM920T::step(unsigned long long)
+  22   2.9% oceanblast::Bus::tick(unsigned long long)
+  16   2.1% oceanblast::ARM920T::stepARM(unsigned int)
+  13   1.7% oceanblast::Bus::write32(unsigned int, unsigned int)
+  10   1.3% oceanblast::ARM920T::executeBlockDataTransfer(unsigned int)
+  10   1.3% oceanblast::Bus::readMmio(unsigned int, bool)
+   9   1.2% unsigned int oceanblast::(anonymous namespace)::checkedStore<false>(oceanblast::Bus*, oceanblast::(anonymous namespace)::NativeRun*, unsigned int, unsigned int)
+   8   1.1% oceanblast::Bus::read32(unsigned int)
+   8   1.1% std::__detail::_List_node_base::_M_transfer(std::__detail::_List_node_base*, std::__detail::_List_node_base*)
