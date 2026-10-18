@@ -144,6 +144,9 @@ inline bool decodeArmMemory(uint32_t raw,Instruction::MemoryOperation& memory) {
 
 inline bool decodeBranch(uint32_t raw,uint32_t pc,InstructionSet set,Instruction::BranchOperation& branch,Condition& condition) {
     if(set==InstructionSet::Arm) {
+        if((raw>>28)!=15 && (raw&0x0ffffff0u)==0x01a0f000u && (raw&15)!=15) {
+            branch={0,false,uint8_t(raw&15)};condition=static_cast<Condition>(raw>>28);return true;
+        }
         if((raw>>28)==15 || (raw&0x0e000000u)!=0x0a000000u) return false;
         const int32_t offset=int32_t((raw&0xffffffu)^0x800000u)-0x800000;
         branch={pc+8+uint32_t(offset)*4,bool(raw&(1u<<24))}; condition=static_cast<Condition>(raw>>28); return true;
@@ -198,7 +201,7 @@ Block decodeBlock(uint32_t pc,InstructionSet set,Fetch&& fetch,BlockLimits limit
             Condition condition=Condition::Always;
             if(decodeBranch(raw,pc,set,branch,condition)) {
                 block.instructions.push_back({pc,raw,uint8_t(bytes),condition,{},std::nullopt,branch});
-                if(limits.followDirectBranches && condition==Condition::Always &&
+                if(limits.followDirectBranches && !branch.targetRegister && condition==Condition::Always &&
                     !((branch.target^block.entryPc)&~1023u) &&
                     block.instructions.size()<limits.instructions && consumed+bytes<limits.bytes &&
                     std::none_of(block.instructions.begin(),block.instructions.end(),

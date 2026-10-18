@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "26165d83394988c6ed0cf3b46ba52e206cbec919",
+  "status": "Register-return semantic/state slice passed; live acceptance remains open",
+  "source_sha256": {
+    "src/cpu/translation_ir.h": "cf5adf917a6c4a9a4d64b176d16bfb0cd463844b7c4374d233788905f6cfd8be",
+    "src/cpu/translation_frontend.h": "a250670909c6f29abeb1178b83cce532437db4297e06fec693c4a901f07482e0",
+    "src/cpu/x64_execution_engine.cpp": "2a6ef09a7ac1522824d6ff923c33f3747712f5fc236b5815299734edf2dd8751",
+    "tests/translation_frontend.cpp": "cb0b8226d20a611276410e1d15490aecb69de984552bd451032dc396b562e239",
+    "tests/x64_execution.cpp": "28628631ff8d355c8a3e040709b7d16197e62697987335815ae341e58366cf16"
+  },
+  "ctest": "Test project C:/Users/Serdar/Documents/New project/OceanBlast-jit-work/build\n    Start 1: x64_execution\n1/6 Test #1: x64_execution ....................   Passed    3.34 sec\n    Start 2: native_semantics\n2/6 Test #2: native_semantics .................   Passed    0.58 sec\n    Start 3: x64_memory\n3/6 Test #3: x64_memory .......................   Passed    1.96 sec\n    Start 4: x64_invalidation\n4/6 Test #4: x64_invalidation .................   Passed    0.60 sec\n    Start 5: jit_cpu_regression\n5/6 Test #5: jit_cpu_regression ...............   Passed    0.84 sec\n    Start 6: jit_emulation_timing\n6/6 Test #6: jit_emulation_timing .............   Passed    0.74 sec\n\n100% tests passed out of 6\n\nTotal Test time (real) =   8.07 sec\n",
+  "state_check": {
+    "exit": 0,
+    "seconds": 29.40312790000098,
+    "seed": "47c12bf246aa2c887d4706d9cf8bc1f207df6ba18ac373703adbbe4c173aebbc",
+    "executable_sha256": "8e680084ecfd78c8ca6e9c8bb2b5c6e02ba21a4f72f38500aa3376c461d28e26",
+    "state.cpu.bin": "5015052e5a277083a44048aff08ff00d05a7f58f521449b87de672037404ce42",
+    "state.ram.bin": "fd67140930f4925e6de853db54516c3af1a458e5f0ba93d4a6a67ad3b68b1c37",
+    "snapshot_2399999999.txt": "436e786192cb66cd2badec9d5b9b2d5d4fa3065e417bc8b88ca93919d41d27df"
+  },
+  "diagnostic_reference": {
+    "steps": 600000000,
+    "eligible_mov_pc_register_exits": 700418,
+    "multiword_exits": 12615039
+  },
+  "runtime_acceptance": "Not repeated after the preceding consolidated live speed/audio failure; no readiness or throughput claim",
+  "preceding_live_executable_sha256": "6aa728da0c7d27e8b37e3f7f6b0e85dd48631fac84c1ecd9ea89b09873e55cdf"
+}

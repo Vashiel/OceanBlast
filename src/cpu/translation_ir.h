@@ -51,7 +51,7 @@ struct Instruction {
         bool halfword=false,signExtend=false;
     };
     std::optional<MemoryOperation> memory;
-    struct BranchOperation { uint32_t target; bool link; };
+    struct BranchOperation { uint32_t target; bool link; std::optional<uint8_t> targetRegister=std::nullopt; };
     std::optional<BranchOperation> branch;
 };
 enum class BlockStop { Unsupported, ControlFlow, InstructionLimit, ByteLimit,

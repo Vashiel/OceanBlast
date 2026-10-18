@@ -314,7 +314,7 @@ struct X64ExecutionEngine::Impl {
         Label blockExit=compiler.new_label(),blockStart=compiler.new_label();
         const auto& terminal=block.instructions[count-1];
         size_t loopEntry=count;
-        if(terminal.branch && !terminal.branch->link) {
+        if(terminal.branch && !terminal.branch->link && !terminal.branch->targetRegister) {
             for(size_t index=0;index<count;++index)
                 if(block.instructions[index].pc==terminal.branch->target) { loopEntry=index; break; }
         }
@@ -392,6 +392,13 @@ struct X64ExecutionEngine::Impl {
                 compiler.bind(skipped); continue;
             }
             if(instruction.branch) {
+                if(instruction.branch->targetRegister) {
+                    auto target=compiler.new_gp32();
+                    compiler.mov(target,x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+*instruction.branch->targetRegister*4)));
+                    compiler.and_(target,~3u);
+                    compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+15*4)),target);
+                    compiler.jmp(blockExit);compiler.bind(skipped);continue;
+                }
                 if(instruction.branch->link)
                     compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+14*4)),instruction.pc+instruction.bytes);
                 compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+15*4)),instruction.branch->target);

@@ -16,6 +16,21 @@ static bool equivalent(const Machine& left,const Machine& right) {
 }
 int main() {
     {
+        Machine machine,reference;bool same=true;uint64_t cases=0;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+        for(unsigned condition=0;condition<15;++condition) for(uint32_t flags=0;flags<16;++flags)
+        for(unsigned source:{0u,14u}) for(unsigned alignment=0;alignment<4;++alignment) {
+            const uint32_t opcode=(condition<<28)|0x01a0f000u|source;
+            for(Machine* target:{&machine,&reference}) {
+                target->state().r[15]=0;target->state().cpsr=0xd3|(flags<<28);target->state().r[source]=0x100+alignment;
+                target->bus().write32(0,opcode);
+            }
+            machine.execution().run(1);reference.execution().run(1);same=same&&equivalent(machine,reference);++cases;
+        }
+        check("Native register returns preserve every condition, CPSR and ARM target alignment",
+            same&&cases==1920&&native.stats().generatedSteps==cases&&native.stats().fallbackSteps==0);
+    }
+    {
         Machine machine,reference;
         for(Machine* target:{&machine,&reference}) {
             target->bus().write32(0,0xe2800001);target->bus().write32(4,0xeafffffdu);
