@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-18",
+  "base_commit": "a2190c482a87c3480a220bcb5b3189527ffe204d",
+  "status": "Isolated shared-entry ABI fixture passed; player integration and performance acceptance pending",
+  "checks": "One new isolated CTest, 0.12 seconds total. Existing player implementation unchanged; no repeated Wade comparison.",
+  "source_sha256": {
+    "jit/CMakeLists.txt": "e101b5dc7a36d3b68d47b29603bcb76e6d94bb50b262f85cea46f0b61353d45a",
+    "tests/x64_entry_abi.cpp": "df8df6fa61c6fea4afc64dc3d4c789df4cf8af17578e15d23b35fce26544dfdc"
+  },
+  "test_executable_sha256": "d94fb07f1d5f0c43cf1e35644814a354f6c6c4fd313345a8788b9ffb99b6c27c",
+  "test_log": "Start testing: Oct 18 22:13 Mitteleurop\u00e4ische Sommerzeit\n----------------------------------------------------------\n2/7 Testing: x64_entry_abi\n2/7 Test: x64_entry_abi\nCommand: \"C:/Users/Serdar/Documents/New project/OceanBlast-jit-work/build/x64_entry_abi.exe\"\nDirectory: C:/Users/Serdar/Documents/New project/OceanBlast-jit-work/build\n\"x64_entry_abi\" start time: Oct 18 22:13 Mitteleurop\u00e4ische Sommerzeit\nOutput:\n----------------------------------------------------------\nPASS Shared Windows x64 entry preserves fixed stack, direct cross-allocation jumps, helper calls and exact budgets\n<end of output>\nTest time =   0.11 sec\n----------------------------------------------------------\nTest Passed.\n\"x64_entry_abi\" end time: Oct 18 22:13 Mitteleurop\u00e4ische Sommerzeit\n\"x64_entry_abi\" time elapsed: 00:00:00\n----------------------------------------------------------\n\nEnd testing: Oct 18 22:13 Mitteleurop\u00e4ische Sommerzeit\n",
+  "installed_executable_sha256": "858c64effd03fb43738d3bb12b1e98c98063b463d4f6d112293c907607942ab2"
+}
