@@ -16,6 +16,7 @@ struct NativeExecutionStats {
     uint64_t internalBackedges=0;
     uint64_t inlineLoads=0;
     uint64_t sampledFallbackSteps=0,sampledFallbackBatches=0;
+    uint64_t nativeWindows=0,windowLinks=0,fastWindowLinks=0;
 };
 struct NativeCacheLimits {
     size_t blocks=65536;
@@ -23,6 +24,7 @@ struct NativeCacheLimits {
     size_t compileThreshold=1; // Reference fixtures can request immediate code generation.
     bool followDirectBranches=false;
     bool sampledCompilation=false;
+    bool linkNativeWindows=true;
 };
 // Checked integration with bounded, generation-validated code reuse.
 // Whole-machine pacing, audio and performance acceptance remain separate gates.
@@ -40,7 +42,7 @@ public:
     // Call only while this machine is not executing a batch.
     void resetCodeCache();
 private:
-    ExecutionExit runUntilDeadline(ExecutionTimeline&,size_t,uint64_t,uint64_t);
+    ExecutionExit runUntilDeadline(ExecutionTimeline&,size_t,uint64_t,uint64_t,bool linkWindow=false);
     struct Impl;
     std::unique_ptr<Impl> impl;
 };

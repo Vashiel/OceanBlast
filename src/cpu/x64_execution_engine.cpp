@@ -36,6 +36,7 @@ struct NativeRun {
     ARM920TState* state;
     uint32_t physical;
     uint32_t limit;
+    uint32_t base=0;
     uint32_t retired=0,tickedSteps=0,memorySteps=0,inlineLoads=0,loopTrips=0;
 };
 void advanceIntegerPrefix(Bus* bus,ExecutionTimeline* timeline,uint32_t count) {
@@ -140,6 +141,8 @@ struct X64ExecutionEngine::Impl {
     asmjit::JitAllocator::CreateParams allocation=allocationParameters();
     asmjit::JitRuntime runtime{&allocation};
     NativeExecutionStats counters;
+    struct CacheEntry;
+    using Cache=std::list<CacheEntry>;
     struct CacheEntry {
         std::array<uint32_t,6> context;
         std::vector<std::pair<uint32_t,uint32_t>> source;
@@ -150,8 +153,11 @@ struct X64ExecutionEngine::Impl {
         uint32_t version=0;
         bool nativeEligible=false;
         size_t visits=0;
+        CacheEntry* successor=nullptr;
+        Cache::iterator successorIterator{};
+        uint64_t successorLifetime=0;
+        size_t successorLimit=0;
     };
-    using Cache=std::list<CacheEntry>;
     Cache cache;
     struct HotEntry { CacheEntry* entry=nullptr; Cache::iterator iterator; size_t limit=0; };
     static constexpr size_t hotCount=1024;
@@ -162,6 +168,7 @@ struct X64ExecutionEngine::Impl {
     std::unordered_multimap<uint32_t,Cache::iterator> cacheByPc;
     NativeCacheLimits limits;
     uint64_t useCounter=0;
+    uint64_t cacheLifetime=1;
     size_t cacheBytes=0;
     bool eventWindowDirty=true;
     Impl(ARM920TState& state,ARM920T& cpu,Bus& bus,NativeCacheLimits limits) : architecturalState(state),cpu(cpu),bus(bus),reference(cpu,bus),limits(limits) {
@@ -175,6 +182,7 @@ struct X64ExecutionEngine::Impl {
         entry.version=bus.markCodePage(entry.source.front().first);
     }
     void clearCache() {
+        ++cacheLifetime;
         hot.fill({});
         samples.fill({});
         for (const auto& entry : cache) if(entry.function) runtime.release(entry.function);
@@ -352,7 +360,7 @@ struct X64ExecutionEngine::Impl {
         const bool repeatable=loopEntry<count;
         const uint32_t loopLength=uint32_t(count-loopEntry);
         auto loopBase=compiler.new_gp32();
-        if(repeatable) compiler.mov(loopBase,0);
+        compiler.mov(loopBase,x86::dword_ptr(run,int32_t(offsetof(NativeRun,base))));
         for (size_t index=0;index<count;++index) {
             if(index==(repeatable?loopEntry:0)) {
                 if(index) flushRegisters();
@@ -413,10 +421,8 @@ struct X64ExecutionEngine::Impl {
                 }
             }
             if(instruction.memory || instruction.multiple) {
-                if(repeatable) {
-                    auto completed=compiler.new_gp32(); compiler.mov(completed,loopBase); compiler.add(completed,uint32_t(index+1));
-                    compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,retired))),completed);
-                } else compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,retired))),uint32_t(index+1));
+                auto completed=compiler.new_gp32(); compiler.mov(completed,loopBase); compiler.add(completed,uint32_t(index+1));
+                compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,retired))),completed);
                 auto status=compiler.new_gp32();
                 if(instruction.multiple) {
                     compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+15*4)),instruction.pc+4);
@@ -564,12 +570,17 @@ struct X64ExecutionEngine::Impl {
         if(repeatable) compiler.add(loopBase,uint32_t(count));
         compiler.bind(blockExit);
         if(repeatable) compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,retired))),loopBase);
-        else compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,retired))),uint32_t(count));
+        else {
+            compiler.add(loopBase,uint32_t(count));
+            compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,retired))),loopBase);
+        }
         auto status=compiler.new_gp32(); compiler.mov(status,0); compiler.ret(status); compiler.end_func();
         if (compiler.finalize()!=Error::kOk || errors.error!=Error::kOk) return nullptr;
         return publish(code,bytes);
     }
     void evictOldest() {
+        // Invalidate every borrowed successor before releasing any entry.
+        ++cacheLifetime;
         auto oldest=cache.begin();
         auto& slot=hot[hotIndex(oldest->context[0])];
         if(slot.entry==&*oldest) slot={};
@@ -738,7 +749,7 @@ struct X64ExecutionEngine::Impl {
             (state.waitingForInterrupt&&!bus.hasPendingIrq()?ExecutionExitReason::Waiting:ExecutionExitReason::Budget));
         return {reason,1,ticks,std::nullopt};
     }
-    ExecutionExit executeNative(CacheEntry& entry,ExecutionTimeline& timeline,size_t budget,uint64_t remaining) {
+    ExecutionExit executeNative(CacheEntry& entry,ExecutionTimeline& timeline,size_t budget,uint64_t remaining,bool linkWindow=false) {
         const auto startTicks=timeline.elapsed.ticks;
         // Source decoding remains capped at 32 instructions. Validated loops
         // may repeat up to the real event/budget boundary without a cache trip.
@@ -747,7 +758,42 @@ struct X64ExecutionEngine::Impl {
         if(remaining<=executionLimit) executionLimit=std::min<uint64_t>(executionLimit,
             legacyStepsUntilTickLimit(remaining,timeline.ratio,timeline.phase));
         NativeRun run{&timeline,&architecturalState,entry.source.front().first,uint32_t(executionLimit)};
-        const uint32_t status=entry.function(&architecturalState,&run);
+        ++counters.nativeWindows;
+        uint32_t status=0;
+        auto* current=&entry;
+        for(;;) {
+            run.base=run.retired;
+            run.physical=current->source.front().first;
+            status=current->function(&architecturalState,&run);
+            if(status || !linkWindow || run.retired>=run.limit) break;
+            const size_t lookupLimit=std::min<uint32_t>(32,run.limit-run.retired);
+            CacheEntry* next=nullptr;
+            // Supported native instructions preserve mode, privilege and CP15.
+            // A device access, fault or active-code write returns a status.
+            // No compilation/eviction occurs inside this window. The lifetime
+            // guard must precede every dereference of a borrowed successor.
+            if(current->successorLifetime==cacheLifetime && current->successorLimit==lookupLimit) {
+                auto* candidate=current->successor;
+                if(candidate && candidate->context[0]==architecturalState.r[15] &&
+                    candidate->context[5]<=lookupLimit && candidate->mapping==bus.getMappingGeneration() &&
+                    candidate->epoch==bus.getCodeEpoch() && candidate->version==bus.getCodePageVersion(candidate->source.front().first)) {
+                    next=candidate;
+                    cache.splice(cache.end(),cache,current->successorIterator);
+                    next->used=++useCounter;
+                    ++counters.cacheHits; ++counters.fastCacheHits; ++counters.fastWindowLinks;
+                }
+            }
+            if(!next) {
+                next=reusable(lookupLimit);
+                if(!next || !next->function) break;
+                current->successor=next;
+                current->successorIterator=std::prev(cache.end());
+                current->successorLifetime=cacheLifetime;
+                current->successorLimit=lookupLimit;
+            }
+            ++counters.windowLinks;
+            current=next;
+        }
         if(status) eventWindowDirty=true;
         const size_t count=run.retired;
         counters.internalBackedges+=run.loopTrips;
@@ -803,7 +849,7 @@ size_t X64ExecutionEngine::run(ExecutionTimeline& timeline,size_t budget,uint64_
                     ExecutionExit exit;
                     if(entry->function) {
                         ++engine.counters.cacheHits; ++engine.counters.fastCacheHits;
-                        exit=engine.executeNative(*entry,timeline,left,remaining);
+                        exit=engine.executeNative(*entry,timeline,left,remaining,engine.limits.linkNativeWindows);
                     } else {
                         ++engine.counters.fallbackCacheHits;
                         exit=engine.checkedScalarExit(timeline,eventDeadline);
@@ -827,7 +873,7 @@ size_t X64ExecutionEngine::run(ExecutionTimeline& timeline,size_t budget,uint64_
             if(!completed) break;
             continue;
         }
-        const auto exit=runUntilDeadline(timeline,budget-steps,stopTicks,eventDeadline);
+        const auto exit=runUntilDeadline(timeline,budget-steps,stopTicks,eventDeadline,engine.limits.linkNativeWindows);
         steps+=exit.steps;
         if(!exit.steps) break;
     }
@@ -838,7 +884,7 @@ ExecutionExit X64ExecutionEngine::runToBoundary(ExecutionTimeline& timeline,size
         timeline.elapsed.ticks+std::min(impl->bus.ticksUntilEvent(),stopTicks-timeline.elapsed.ticks):stopTicks;
     return runUntilDeadline(timeline,budget,stopTicks,deadline);
 }
-ExecutionExit X64ExecutionEngine::runUntilDeadline(ExecutionTimeline& timeline,size_t budget,uint64_t stopTicks,uint64_t eventDeadline) {
+ExecutionExit X64ExecutionEngine::runUntilDeadline(ExecutionTimeline& timeline,size_t budget,uint64_t stopTicks,uint64_t eventDeadline,bool linkWindow) {
     auto& engine=*impl;
     const auto& state=engine.cpu.getState();
     // Complex entry conditions and the experimental clock model retain the
@@ -892,6 +938,6 @@ ExecutionExit X64ExecutionEngine::runUntilDeadline(ExecutionTimeline& timeline,s
         }
     }
     if(!entry->function) return engine.checkedScalarExit(timeline,eventDeadline);
-    return engine.executeNative(*entry,timeline,budget,remaining);
+    return engine.executeNative(*entry,timeline,budget,remaining,linkWindow);
 }
 } // namespace oceanblast

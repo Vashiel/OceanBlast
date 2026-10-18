@@ -5,7 +5,75 @@
 using namespace oceanblast;
 static int failures=0;
 static void check(const char* name,bool ok) { std::cout<<(ok?"PASS ":"FAIL ")<<name<<'\n'; failures+=!ok; }
+static bool equivalent(const Machine& a,const Machine& b) {
+    return std::memcmp(a.state().r,b.state().r,sizeof(a.state().r))==0&&a.state().cpsr==b.state().cpsr&&
+        a.execution().time().ticks==b.execution().time().ticks;
+}
 int main() {
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->bus().write32(0,0xe5812000);target->bus().write32(4,0xea0001fd);
+            target->bus().write32(0x800,0xe2800001);target->bus().write32(0x804,0xeafffdfd);
+            target->state().r[1]=0x30001000;target->state().r[2]=0xe2800007;
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+        machine.execution().run(128);reference.execution().run(128);
+        for(Machine* target:{&machine,&reference}) {target->state().r[15]=0;target->state().r[1]=0x800;}
+        const auto validations=native.stats().sourceValidations;
+        machine.execution().run(32);reference.execution().run(32);
+        bool same=equivalent(machine,reference);
+        for(Machine* target:{&machine,&reference}) {
+            target->state().r[15]=0;target->state().r[1]=0x30001000;
+            const uint32_t changed=0xe280000b;
+            std::memcpy(const_cast<uint8_t*>(target->bus().getSteppingstonePtr())+0x800,&changed,4);
+            target->bus().invalidateCodeEpoch();
+        }
+        machine.execution().run(32);reference.execution().run(32);
+        same=same&&equivalent(machine,reference);
+        check("Borrowed successors validate future-page writes and bulk code epochs before entering cached code",
+            same&&native.stats().windowLinks>0&&native.stats().sourceValidations>validations);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->bus().write32(0,0xe2800001);target->bus().write32(4,0xea0001fd);
+            target->bus().write32(0x800,0xe2811001);target->bus().write32(0x804,0xeafffdfd);
+            target->bus().write32(0xc00,0xe2822001);target->bus().write32(0xc04,0xeafffcfd);
+        }
+        NativeCacheLimits limits;limits.blocks=2;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus(),limits);machine.execution().selectEngine(native);
+        bool same=true;
+        for(unsigned round=0;round<12;++round) {
+            machine.execution().run(128);reference.execution().run(128);
+            same=same&&equivalent(machine,reference);
+            machine.state().r[15]=reference.state().r[15]=0xc00;
+            machine.execution().run(4);reference.execution().run(4);
+            same=same&&equivalent(machine,reference);
+            if(round==6) native.resetCodeCache();
+        }
+        check("Cache eviction and explicit reset invalidate borrowed successor lifetimes before later windows",
+            same&&native.stats().windowLinks>0&&native.stats().cacheEvictions>0&&native.stats().cacheResets==1);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->bus().write32(0x30004000,0x30000c02);target->bus().write32(0x30004004,0x30100c02);
+            target->bus().write32(0x30000000,0xe2800001);target->bus().write32(0x30000004,0xea03fffd);
+            target->bus().write32(0x30100000,0xe2811001);target->bus().write32(0x30100004,0xeafbfffd);
+            target->bus().write32(0x30200000,0xe2811007);target->bus().write32(0x30200004,0xeafbfffd);
+            target->state().cp15_control|=1;target->state().cp15_ttb=0x30004000;target->state().cp15_dacr=1;
+            target->execution().selectInterpreter(target->cpu());
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+        machine.execution().run(128);reference.execution().run(128);
+        for(Machine* target:{&machine,&reference}) {
+            target->bus().write32PhysSlow(0x30004004,0x30200c02);target->bus().flushTlb();target->state().r[15]=0;
+        }
+        machine.execution().run(32);reference.execution().run(32);
+        check("A learned cross-section successor checks changed mapping before entering its old physical translation",
+            equivalent(machine,reference)&&machine.state().r[1]==88&&native.stats().windowLinks>0);
+    }
     {
         Machine machine;
         machine.bus().write32(0x30004000,0x30000c02); machine.bus().write32(0x30000000,0xe2800001);

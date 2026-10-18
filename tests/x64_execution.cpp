@@ -16,6 +16,55 @@ static bool equivalent(const Machine& left,const Machine& right) {
 }
 int main() {
     {
+        bool same=true; uint64_t links=0,fastLinks=0;
+        for(size_t ratio:{1u,3u,6u,16u}) for(size_t phase=0;phase<ratio;++phase)
+        for(size_t budget:{1u,2u,3u,4u,7u,31u,65u,513u}) for(bool deadline:{false,true}) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->configureExecution(false,ratio);
+                // PCs 0 and 0x800 occupy distinct permission pages but collide
+                // in the small hot-entry table. They must still share a window.
+                target->bus().write32(0,0xe2800001);target->bus().write32(4,0xea0001fd);
+                target->bus().write32(0x800,0xe2811002);target->bus().write32(0x804,0xeafffdfd);
+            }
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+            machine.execution().run(128);reference.execution().run(128);
+            const size_t align=(phase+ratio-(128%ratio))%ratio;
+            machine.execution().run(align);reference.execution().run(align);
+            same=same&&equivalent(machine,reference);
+            const auto stop=deadline?machine.execution().time().ticks+3:UINT64_MAX;
+            const auto actual=machine.execution().run(budget,stop),expected=reference.execution().run(budget,stop);
+            same=same&&actual==expected&&equivalent(machine,reference);
+            // A later batch observes the exact residual legacy phase.
+            const auto next=machine.execution().time().ticks+2;
+            same=same&&machine.execution().run(37,next)==reference.execution().run(37,next)&&equivalent(machine,reference);
+            links+=native.stats().windowLinks;fastLinks+=native.stats().fastWindowLinks;
+        }
+        check("Shared native windows preserve all legacy phases, partial budgets, deadlines and colliding cross-page successors",
+            same&&links>0&&fastLinks>0);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->configureExecution(false,6);
+            target->bus().write32(0,0xe2800001);target->bus().write32(4,0xea0001fd);
+            target->bus().write32(0x800,0xe2511001);target->bus().write32(0x804,0x1afffffd);
+            target->state().r[1]=100;
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+        machine.execution().run(66);reference.execution().run(66);
+        machine.state().r[15]=reference.state().r[15]=0;
+        machine.state().r[1]=reference.state().r[1]=100;
+        machine.execution().run(65);reference.execution().run(65);
+        check("A linked successor internal backedge includes the preceding block in its exact window budget",
+            equivalent(machine,reference)&&native.stats().windowLinks>0&&machine.state().r[1]==68);
+        machine.state().r[15]=reference.state().r[15]=0;
+        const auto before=native.stats().windowLinks;
+        const auto exit=machine.execution().runToBoundary(32);reference.execution().run(exit.steps);
+        check("Single-boundary execution retains its block exit when bulk window linking is enabled",
+            exit.steps==2&&equivalent(machine,reference)&&native.stats().windowLinks==before);
+    }
+    {
         Machine machine,reference;bool same=true;uint64_t cases=0;
         X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
         for(unsigned condition=0;condition<15;++condition) for(uint32_t flags=0;flags<16;++flags)

@@ -11,6 +11,60 @@ static bool equal(const Machine& a,const Machine& b) {
 }
 int main() {
     {
+        bool same=true;uint64_t links=0;
+        for(bool load:{false,true}) for(size_t ratio:{1u,3u,6u,16u}) for(size_t phase=0;phase<ratio;++phase) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->configureExecution(false,ratio);
+                target->bus().write32(0x30004000,0x30008001);
+                target->bus().write32(0x30008000,0x30000ff2);target->bus().write32(0x30008004,0x30001ff2);
+                target->bus().write32(0x30000000,0xe2844001);target->bus().write32(0x30000004,0xea0001fd);
+                target->bus().write32(0x30000800,0xe8a1000cu|(uint32_t(load)<<20));
+                target->bus().write32(0x30000804,0xeafffdfd);
+                target->bus().write32(0x30001000,0x11223344);target->bus().write32(0x30001004,0x55667788);
+                target->state().cp15_control|=1;target->state().cp15_ttb=0x30004000;target->state().cp15_dacr=1;
+                target->state().cpsr=0xd0;target->state().r[1]=0x1000;
+                target->execution().selectInterpreter(target->cpu());
+            }
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+            machine.execution().run(128);reference.execution().run(128);
+            const size_t align=(phase+ratio-(128%ratio))%ratio;
+            machine.execution().run(align);reference.execution().run(align);
+            for(Machine* target:{&machine,&reference}) {
+                target->state().r[15]=0;target->state().r[1]=0x1ffc;
+                target->state().r[2]=0xaabbccdd;target->state().r[3]=0x87654321;
+                target->bus().write32PhysSlow(0x30001ffc,0x12345678);
+            }
+            const auto before=native.stats().windowLinks;
+            machine.execution().run(4);reference.execution().run(4);
+            links+=native.stats().windowLinks-before;
+            same=same&&equal(machine,reference)&&machine.state().r[1]==0x1ffc&&machine.state().r[14]==0x808&&
+                machine.state().r[3]==0x87654321&&machine.bus().read32Phys(0x30001ffc)==reference.bus().read32Phys(0x30001ffc);
+        }
+        check("A linked multiple-transfer abort preserves the preceding block, late-word partial results and exact legacy phase",same&&links>0);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->configureExecution(false,6);target->state().r[1]=0x30001000;target->state().r[2]=0;
+            target->bus().write32(0,0xe2800001);target->bus().write32(4,0xea0001fd);
+            target->bus().write32(0x800,0xe5812000);target->bus().write32(0x804,0xe2833001);
+            target->bus().write32(0x808,0xea0000fc);
+            target->bus().write32(0xc00,0xe2855001);target->bus().write32(0xc04,0xeafffffd);
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+        machine.execution().run(160);reference.execution().run(160);
+        for(Machine* target:{&machine,&reference}) {
+            target->state().r[15]=0;target->state().r[1]=0x51000008;target->state().r[2]=(1u<<20)|(1u<<21);
+            target->bus().write32(0x5100003c,1);
+        }
+        const auto before=native.stats().windowLinks;
+        machine.execution().run(96);reference.execution().run(96);
+        check("A linked device store ends its window before a newly armed timer and following guest instruction",
+            equal(machine,reference)&&native.stats().windowLinks>before&&machine.bus().getTimer4Expirations()>0&&
+            machine.bus().getTimer4Expirations()==reference.bus().getTimer4Expirations());
+    }
+    {
         Machine machine;machine.state().r[13]=0x30001100;machine.state().r[14]=0x1234567b;
         machine.state().cpsr=0xd3|FLAG_N|FLAG_C|FLAG_V;
         for(unsigned reg=4;reg<8;++reg)machine.state().r[reg]=0x11111111u*reg;
