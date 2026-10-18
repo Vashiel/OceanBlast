@@ -2,6 +2,8 @@
 
 Status: bounded native engine slice delivered, 2026-10-17. J2 integration is in progress; production and performance acceptance remain open.
 
+This report preserves the initial integer-only slice. The [2026-10-18 continuation](97_checked_memory_and_player_integration.md) adds checked memory, direct branches, generation-based invalidation, a larger indexed cache and the separate developer player, with current acceptance limits.
+
 ## Delivered behavior
 
 `X64ExecutionEngine` implements the shared machine execution contract. It lowers the initial ARM/Thumb integer IR to executable x86-64 functions, including conditions, constant shifts, carry/borrow, comparisons and NZCV updates. Guest registers and flags are stored in the machine-owned state. Native functions are entered through the ordinary scheduler backend boundary, not through a separate emulated machine.

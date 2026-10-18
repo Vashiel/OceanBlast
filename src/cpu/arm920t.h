@@ -24,6 +24,8 @@ public:
     bool canHandoff() const { return acceleratedBlitStall == 0; }
     // Reconcile derived memory context on entry; preserve guest wait and timing state.
     void enterExecution(bool registerClocks);
+    // Shared checked-memory exit. PC must name the following ARM instruction.
+    void completeCheckedDataAbort();
 
     void reset(u32 startAddress = 0x00000000);
     // Diagnostic clock-ratio experiments can execute with zero peripheral ticks.

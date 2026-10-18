@@ -39,9 +39,17 @@ struct Instruction {
     uint8_t bytes;
     Condition condition;
     IntegerOperation operation;
+    struct MemoryOperation {
+        uint8_t base,destination;
+        uint32_t offset;
+        bool load,byte,pre,up,writeback;
+    };
+    std::optional<MemoryOperation> memory;
+    struct BranchOperation { uint32_t target; bool link; };
+    std::optional<BranchOperation> branch;
 };
 enum class BlockStop { Unsupported, ControlFlow, InstructionLimit, ByteLimit,
-                       PageBoundary, FetchUnavailable, MisalignedEntry, AddressWrap };
+                       PageBoundary, FetchUnavailable, MisalignedEntry, AddressWrap, MemoryBoundary };
 struct Block {
     InstructionSet instructionSet;
     uint32_t entryPc;

@@ -32,3 +32,29 @@ add_executable(native_semantics ../tests/translation_frontend.cpp)
 target_compile_definitions(native_semantics PRIVATE OCEANBLAST_TEST_NATIVE=1)
 target_link_libraries(native_semantics PRIVATE oceanblast_jit_core)
 add_test(NAME native_semantics COMMAND native_semantics)
+add_executable(x64_memory ../tests/x64_memory.cpp)
+target_link_libraries(x64_memory PRIVATE oceanblast_jit_core)
+add_test(NAME x64_memory COMMAND x64_memory)
+add_executable(x64_invalidation ../tests/x64_invalidation.cpp)
+target_link_libraries(x64_invalidation PRIVATE oceanblast_jit_core)
+add_test(NAME x64_invalidation COMMAND x64_invalidation)
+add_executable(jit_cpu_regression ../tests/cpu_regression.cpp)
+target_link_libraries(jit_cpu_regression PRIVATE oceanblast_jit_core)
+add_test(NAME jit_cpu_regression COMMAND jit_cpu_regression)
+add_executable(jit_emulation_timing ../tests/emulation_timing.cpp)
+target_link_libraries(jit_emulation_timing PRIVATE oceanblast_jit_core)
+add_test(NAME jit_emulation_timing COMMAND jit_emulation_timing)
+set_tests_properties(jit_emulation_timing PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/..")
+
+enable_language(RC)
+# Resource paths are relative to this generated file, independent of build cwd.
+file(TO_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../assets" OCEANBLAST_ASSETS)
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/oceanblast.rc"
+  "101 RCDATA \"${OCEANBLAST_ASSETS}/oceanblast-logo.png\"\n102 RCDATA \"${OCEANBLAST_ASSETS}/oceanblast-symbol.png\"\n")
+add_executable(oceanblast_jit_player
+  "${CMAKE_CURRENT_BINARY_DIR}/oceanblast.rc"
+  ../src/main.cpp ../src/cartridge/cart_parser.cpp
+  ../src/display/display_win32.cpp ../src/audio/audio_win32.cpp)
+target_compile_definitions(oceanblast_jit_player PRIVATE OCEANBLAST_WITH_JIT=1)
+target_link_libraries(oceanblast_jit_player PRIVATE oceanblast_jit_core
+  gdi32 user32 winmm comdlg32 comctl32 shell32 ole32 dinput8 dxguid d3d11 dxgi d3dcompiler gdiplus)

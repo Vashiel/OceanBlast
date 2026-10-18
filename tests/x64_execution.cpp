@@ -15,6 +15,51 @@ static bool equivalent(const Machine& left,const Machine& right) {
     return true;
 }
 int main() {
+    {
+        Machine machine,reference;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());
+        machine.execution().selectEngine(native);
+        bool same=true; size_t cases=0;
+        for(unsigned condition=0;condition<15;++condition)
+        for(unsigned flags=0;flags<16;++flags)
+        for(uint32_t branch:{0x0a000003u,0x0bfffffcu}) {
+            for(Machine* target:{&machine,&reference}) {
+                target->state().r[15]=0x30008000; target->state().r[14]=0x12345678;
+                target->state().cpsr=(flags<<28)|0xd3;
+                target->bus().write32(0x30008000,(condition<<28)|branch);
+            }
+            machine.execution().run(1); reference.execution().run(1);
+            same=same&&equivalent(machine,reference); ++cases;
+        }
+        check("ARM conditional forward B and backward BL preserve flags target link and phase",
+            same && native.stats().generatedSteps==cases && native.stats().fallbackSteps==0);
+        same=true; cases=0;
+        const auto before=native.stats().generatedSteps;
+        for(unsigned condition=0;condition<15;++condition)
+        for(unsigned flags=0;flags<16;++flags)
+        for(bool backward:{false,true}) {
+            const uint16_t instruction=condition==14?uint16_t(backward?0xe7fcu:0xe003u):
+                uint16_t(0xd000u|(condition<<8)|(backward?0xfcu:3u));
+            for(Machine* target:{&machine,&reference}) {
+                target->state().r[15]=0x30008000; target->state().r[14]=0x12345678;
+                target->state().cpsr=(flags<<28)|0xd3|FLAG_T;
+                target->bus().write16(0x30008000,instruction);
+            }
+            machine.execution().run(1); reference.execution().run(1);
+            same=same&&equivalent(machine,reference); ++cases;
+        }
+        check("Thumb conditional and unconditional forward backward branches preserve scalar state",
+            same && native.stats().generatedSteps-before==cases && native.stats().fallbackSteps==0);
+    }
+    {
+        Machine machine;
+        machine.bus().write32(0,0xe3a00001); machine.bus().write32(4,0xe3a00002); machine.bus().write32(8,0xe3a00003);
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus(),{2,65536});
+        machine.execution().selectEngine(native);
+        for(uint32_t pc : {0u,4u,0u,8u,4u}) { machine.state().r[15]=pc; machine.execution().run(1); }
+        check("Indexed bounded cache evicts the least recently used block and recompiles safely",
+            machine.cpu().getReg(0)==2 && native.stats().cacheHits==1 && native.stats().compilations==4 && native.stats().cacheEvictions==2);
+    }
     for (size_t ratio : {1u,3u,6u,16u}) {
         Machine machine,reference;
         for (Machine* target : {&machine,&reference}) {
@@ -30,9 +75,9 @@ int main() {
             if (!count) break;
             reference.execution().run(count); steps+=count;
         }
-        check("Native batches and scalar branch fallback preserve state and legacy phase",
-            steps==97 && equivalent(machine,reference) && native.stats().generatedSteps==96 &&
-            native.stats().fallbackSteps==1 && native.stats().compilationFailures==0);
+        check("Native batches and direct branches preserve state and legacy phase",
+            steps==97 && equivalent(machine,reference) && native.stats().generatedSteps==97 &&
+            native.stats().fallbackSteps==0 && native.stats().compilationFailures==0);
         machine.execution().selectInterpreter(machine.cpu());
         machine.execution().run(7); reference.execution().run(7);
         check("Switching from native execution to interpreter preserves the next steps",equivalent(machine,reference));
@@ -172,7 +217,7 @@ int main() {
             X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());
             machine.execution().selectEngine(native);
             const bool needsRefresh=!machine.bus().hasPendingIrq() && machine.bus().needsLevelInterruptRefresh();
-            const size_t first=machine.execution().run(32); reference.execution().run(first);
+            const size_t first=machine.execution().runToBoundary(32).steps; reference.execution().run(first);
             const bool refreshed=needsRefresh && first==1 && equivalent(machine,reference) && machine.bus().hasPendingIrq();
             const auto exit=machine.execution().runToBoundary(32); reference.execution().run(exit.steps);
             check("Zero-tick USB level reassertion interrupts before the next guest instruction",

@@ -44,6 +44,7 @@ public:
     bool hostFrameCaptureActive() const { return hostFrameSize != 0; }
     void refreshHostFrameCapture();
     inline void captureFrameWrite(u32 pa, unsigned bytes) {
+        recordCodeWrite(pa,bytes);
         const u32 offset = pa - hostFrameBase;
         if (offset < hostFrameSize) hostFrameCapture.store(offset, bytes, sdramPtr + hostFrameBase - ADDR_SDRAM_BASE);
     }
@@ -51,15 +52,27 @@ public:
     // MMU / Virtual Memory Translation
     using MmuFault = Arm920TMmu::MmuFault;
 
-    void setUserMode(bool um) { if (mmu.isUserMode() != um) instructionPage = UINT32_MAX; mmu.setUserMode(um); }
+    void setUserMode(bool um) { if (mmu.isUserMode() != um) { instructionPage = UINT32_MAX; ++mappingGeneration; } mmu.setUserMode(um); }
     bool isUserMode() const { return mmu.isUserMode(); }
 
     void flushTlb() const;
-    void flushTlbEntry(u32 va) const { instructionPage = UINT32_MAX; mmu.flushTlbEntry(va); }
-    void setMmuEnabled(bool en) { instructionPage = UINT32_MAX; mmu.setEnabled(en); }
-    void setTtb(u32 val) { instructionPage = UINT32_MAX; mmu.setTtb(val); }
+    void flushTlbEntry(u32 va) const { instructionPage = UINT32_MAX; ++mappingGeneration; mmu.flushTlbEntry(va); }
+    void setMmuEnabled(bool en) { instructionPage = UINT32_MAX; ++mappingGeneration; mmu.setEnabled(en); }
+    void setTtb(u32 val) { instructionPage = UINT32_MAX; ++mappingGeneration; mmu.setTtb(val); }
     u32 getTtb() const { return mmu.getTtb(); }
-    void setDacr(u32 val) { instructionPage = UINT32_MAX; mmu.setDacr(val); }
+    void setDacr(u32 val) { instructionPage = UINT32_MAX; ++mappingGeneration; mmu.setDacr(val); }
+    uint64_t getMappingGeneration() const { return mappingGeneration; }
+    uint64_t getCodeEpoch() const { return codeEpoch; }
+    uint32_t markCodePage(u32 physical) {
+        const auto index=codePageIndex(physical);
+        if(index==UINT32_MAX) return 0;
+        hasTrackedCode=true; watchedCodePages[index]=1; return codeVersions[index];
+    }
+    uint32_t getCodePageVersion(u32 physical) const {
+        const auto index=codePageIndex(physical);
+        return index==UINT32_MAX?0:codeVersions[index];
+    }
+    void invalidateCodeEpoch() { ++codeEpoch; }
     bool isMmuEnabled() const { return mmu.isEnabled(); }
 
     u32 translateSlow(u32 va, MmuFault* fault, bool isWrite) const {
@@ -257,6 +270,8 @@ public:
         if (uart0TxLevelActive && !(regSrcpnd & (1u << 28))) updateUart0TxInterrupt();
         if (usbHostEnabled && usbHost.irq() && !(regSrcpnd & (1u << 26))) requestIrq(26);
         if (usbHostEnabled && usbHost.needsTicks()) {
+            // OHCI DMA writes directly to RAM. Conservatively revalidate code.
+            invalidateCodeEpoch();
             usbHost.advance(cycles, sdramPtr, ADDR_SDRAM_SIZE, ADDR_SDRAM_BASE);
             if (usbHost.irq() && !(regSrcpnd & (1u << 26))) requestIrq(26);
         }
@@ -311,6 +326,26 @@ public:
     u32  getFramebufferSize() const;
 
 private:
+    static constexpr size_t codePageCount=ADDR_SDRAM_SIZE/1024+ADDR_STEPPINGSTONE_SIZE/1024;
+    std::vector<uint32_t> codeVersions=std::vector<uint32_t>(codePageCount,0);
+    std::vector<uint8_t> watchedCodePages=std::vector<uint8_t>(codePageCount,0);
+    bool hasTrackedCode=false;
+    uint64_t codeEpoch=1;
+    mutable uint64_t mappingGeneration=1;
+    static uint32_t codePageIndex(u32 physical) {
+        if(physical<ADDR_STEPPINGSTONE_SIZE) return physical/1024;
+        if(physical-ADDR_SDRAM_BASE<ADDR_SDRAM_SIZE) return ADDR_STEPPINGSTONE_SIZE/1024+(physical-ADDR_SDRAM_BASE)/1024;
+        return UINT32_MAX;
+    }
+    void recordCodeWrite(u32 physical,unsigned bytes) {
+        if(!hasTrackedCode || !bytes) return;
+        const u32 first=physical&~1023u,last=(physical+bytes-1)&~1023u;
+        for(u32 page=first;;page+=1024) {
+            const auto index=codePageIndex(page);
+            if(index!=UINT32_MAX && watchedCodePages[index] && ++codeVersions[index]==0) ++codeEpoch;
+            if(page==last) break;
+        }
+    }
     UsbOhci usbHost;
     bool usbHostEnabled = false;
     bool hostFrameEnabled = false, hostNativeVideo = false;

@@ -92,8 +92,8 @@ int main() {
         const std::array<uint32_t,3> words={0xe2800001,0xe3a01002,0xeafffffc};
         unsigned fetches=0;
         auto block=decodeBlock(0,arm,[&](uint32_t pc,InstructionSet) {++fetches; return FetchResult{pc/4<words.size(),pc/4<words.size()?words[pc/4]:0};});
-        check("ARM block stops before branch and preserves fallback encoding",
-            block.instructions.size()==2 && block.stop==BlockStop::ControlFlow && block.stopPc==8 && block.stopEncoding==words[2] && fetches==3);
+        check("ARM block includes a typed terminal branch",
+            block.instructions.size()==3 && block.instructions.back().branch && block.stop==BlockStop::ControlFlow && block.stopPc==12 && block.stopEncoding==words[2] && fetches==3);
         auto capped=decodeBlock(0,arm,[&](uint32_t pc,InstructionSet) {return FetchResult{true,words[pc/4]};},{1,128});
         check("Instruction limit stops without fetching the following instruction",capped.instructions.size()==1 && capped.stop==BlockStop::InstructionLimit && capped.stopPc==4);
     }
@@ -103,7 +103,7 @@ int main() {
     check("Block remains inside a 1 KB permission span",decodeBlock(1020,arm,constant).stop==BlockStop::PageBoundary);
     check("Address wrap produces a bounded exit",decodeBlock(0xfffffffc,arm,constant).stop==BlockStop::AddressWrap);
     check("Unavailable fetch does not produce an instruction",decodeBlock(0,arm,[](uint32_t,InstructionSet){return FetchResult{false,0};}).instructions.empty());
-    for (uint32_t raw : {0xe5900000u,0xee070f90u,0xe121f000u,0xe0800211u,0xe1a0f000u,0xe08f0001u,0xf2800001u}) {
+    for (uint32_t raw : {0xe59f0000u,0xee070f90u,0xe121f000u,0xe0800211u,0xe1a0f000u,0xe08f0001u,0xf2800001u}) {
         auto block=decodeBlock(0,arm,[&](uint32_t,InstructionSet){return FetchResult{true,raw};});
         check("Unsupported memory control PC or register-shift operation exits before execution",
             block.instructions.empty() && block.stopPc==0 && block.stopEncoding==raw);

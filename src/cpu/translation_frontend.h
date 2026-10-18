@@ -106,6 +106,35 @@ inline bool isControlFlow(uint32_t raw,InstructionSet set) {
            (raw&0xf000u)==0xf000u || (raw&0xff00u)==0x4700u;
 }
 
+inline bool decodeArmMemory(uint32_t raw,Instruction::MemoryOperation& memory) {
+    // Immediate byte/word accesses; conditional, PC and unpredictable overlap
+    // cases retain scalar semantics until their explicit lowering is delivered.
+    if ((raw&0xfe000000u)!=0xe4000000u) return false;
+    const uint8_t rn=uint8_t((raw>>16)&15),rd=uint8_t((raw>>12)&15);
+    const bool pre=raw&(1u<<24),writeback=!pre || (raw&(1u<<21));
+    if (!pre && (raw&(1u<<21))) return false; // Unprivileged access variants.
+    if (rn==15 || rd==15 || ((raw&(1u<<20)) && writeback && rn==rd)) return false;
+    memory={rn,rd,raw&4095u,bool(raw&(1u<<20)),bool(raw&(1u<<22)),pre,bool(raw&(1u<<23)),writeback};
+    return true;
+}
+
+inline bool decodeBranch(uint32_t raw,uint32_t pc,InstructionSet set,Instruction::BranchOperation& branch,Condition& condition) {
+    if(set==InstructionSet::Arm) {
+        if((raw>>28)==15 || (raw&0x0e000000u)!=0x0a000000u) return false;
+        const int32_t offset=int32_t((raw&0xffffffu)^0x800000u)-0x800000;
+        branch={pc+8+uint32_t(offset)*4,bool(raw&(1u<<24))}; condition=static_cast<Condition>(raw>>28); return true;
+    }
+    if((raw&0xf800u)==0xe000u) {
+        const int32_t offset=int32_t((raw&0x7ffu)^0x400u)-0x400;
+        branch={pc+4+uint32_t(offset)*2,false}; condition=Condition::Always; return true;
+    }
+    if((raw&0xf000u)==0xd000u && ((raw>>8)&15)<14) {
+        const int32_t offset=int32_t((raw&255u)^128u)-128;
+        branch={pc+4+uint32_t(offset)*2,false}; condition=static_cast<Condition>((raw>>8)&15); return true;
+    }
+    return false;
+}
+
 // Fetch must be side-effect-free and return unavailable for unsafe/unmapped
 // addresses. This frontend never reads the machine bus or executes a fallback.
 // The initial 1 KB span also stays within ARM small-page permission subregions.
@@ -125,11 +154,24 @@ Block decodeBlock(uint32_t pc,InstructionSet set,Fetch&& fetch,BlockLimits limit
         IntegerOperation op;
         const bool decoded=set==InstructionSet::Arm?decodeArmInteger(raw,op):decodeThumbInteger(uint16_t(raw),op);
         if (!decoded) {
+            Instruction::BranchOperation branch{};
+            Condition condition=Condition::Always;
+            if(decodeBranch(raw,pc,set,branch,condition)) {
+                block.instructions.push_back({pc,raw,uint8_t(bytes),condition,{},std::nullopt,branch});
+                block.stop=BlockStop::ControlFlow; block.stopEncoding=raw; pc+=bytes; break;
+            }
+            Instruction::MemoryOperation memory{};
+            if (set==InstructionSet::Arm && decodeArmMemory(raw,memory)) {
+                block.stop=BlockStop::MemoryBoundary;
+                block.instructions.push_back({pc,raw,uint8_t(bytes),Condition::Always,{},memory,std::nullopt});
+                pc+=bytes;
+                break;
+            }
             block.stop=isControlFlow(raw,set)?BlockStop::ControlFlow:BlockStop::Unsupported;
             block.stopEncoding=raw;
             break;
         }
-        block.instructions.push_back({pc,raw,uint8_t(bytes),set==InstructionSet::Arm?static_cast<Condition>(raw>>28):Condition::Always,op});
+        block.instructions.push_back({pc,raw,uint8_t(bytes),set==InstructionSet::Arm?static_cast<Condition>(raw>>28):Condition::Always,op,std::nullopt,std::nullopt});
         consumed+=bytes;
         const uint32_t next=pc+bytes;
         if (next<pc) { pc=next; block.stop=BlockStop::AddressWrap; break; }

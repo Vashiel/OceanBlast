@@ -2,6 +2,8 @@
 
 Status: initial frontend slice delivered, 2026-10-17. Native lowering, wider instruction coverage and complete J1 acceptance remain separate gates.
 
+This report describes the initial integer-only frontend. [Checked memory and direct branches](97_checked_memory_and_player_integration.md) extend it in the 2026-10-18 integration slice.
+
 `translation_ir.h` defines host-independent 32-bit integer operations, constant/register operands, constant shifts, carry sources, conditional execution, flag-write policy and optional result registers. Comparisons/tests write flags without assigning a register. The representation retains guest PC, instruction width and original encoding for precise attribution and fallback.
 
 `translation_frontend.h` decodes bounded straight-line ARM and Thumb blocks. Initial ARM coverage includes data-processing instructions with rotated immediates or constant register shifts, excluding PC operands and register-controlled shifts. Thumb coverage includes immediate arithmetic/comparisons, constant shifts, register/immediate add/subtract and selected register ALU operations. Memory access, complex control/state operations and unsupported encodings stop before execution.

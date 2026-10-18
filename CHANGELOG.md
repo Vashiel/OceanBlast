@@ -4,6 +4,11 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ---
 
+## 2026-10-18 — Checked Memory and Developer Player
+
+* **[Native Memory and Invalidation](docs/97_checked_memory_and_player_integration.md):** Added checked ARM byte/word loads and stores, precise abort exits, direct ARM/Thumb branches, indexed bounded LRU reuse and physical code-page/mapping generations. Six targeted suites pass; a short Wade boot check matches canonical CPU state and complete SDRAM.
+* **Separate JIT developer player:** Added the Windows frontend target, isolated test preparation, backend selection, counters and diagnostic checkpoints. Ordinary builds and the installed player retain their existing engine. The current JIT remains slower; integer prefixes now share a terminal checked memory access, but repeated memory boundaries still need consolidation. Title/gameplay, pacing, live audio and CPU reserve are unaccepted.
+
 ## 2026-10-17 — Current Wade Profile and Chefs Check
 
 * **[Initial Native x86-64 Execution](docs/96_initial_x64_execution.md):** Added an optional pinned AsmJit developer target, native ARM/Thumb integer/flag/condition lowering, bounded source-validated code cache, scheduler deadline accounting and scalar fallback. The 4,580 semantic fixtures also execute generated code; targeted alias/permission/IRQ/cache tests remain ROM-free. Installed launcher unchanged; game performance and live audio are unaccepted.

@@ -14,10 +14,14 @@
 #include "core/cartridge_language.h"
 #include "core/emulation_clock.h"
 #include "core/machine.h"
+#include "core/execution_checkpoint.h"
 #include "core/host_pacer.h"
 #include "core/guest_symbols.h"
 #include "memory/bus.h"
 #include "cpu/arm920t.h"
+#ifdef OCEANBLAST_WITH_JIT
+#include "cpu/x64_execution_engine.h"
+#endif
 #include "cartridge/cart_parser.h"
 
 #include "display/display.h"
@@ -49,6 +53,9 @@ void printBanner() {
 void printUsage(const char* progName) {
     std::cout << "Usage: " << progName << " <cartridge.bin> [--steps <N>] [--gui] [--scale <2|3|4>] [--sound] [--trace]" << std::endl;
     std::cout << "  --clock-mips <N>  GUI step-rate limit (default 20 times CPU ratio; 0 disables pacing)\n"
+              << "  --engine <interpreter|jit> CPU backend (JIT developer build only)\n"
+              << "  --title-blit <auto|off> Legacy title shortcut (disabled for JIT)\n"
+              << "  --checkpoint <prefix> Write canonical CPU state and SDRAM on exit\n"
               << "  --preset <auto|off> Content-based cartridge settings (default auto); explicit CPU ratio overrides\n"
               << "  --timing <legacy|auto> Register-clock CPU timing with cached cycle estimates (experimental)\n"
               << "  --emulated-seconds <N> Stop after a bounded amount of modeled time\n"
@@ -124,6 +131,13 @@ int main(int argc, char* argv[]) {
     std::string cartLanguageMode;
     bool simpleAluExecution = true;
     bool fpa11Execution = true;
+#ifdef OCEANBLAST_WITH_JIT
+    bool useJit=true;
+#else
+    bool useJit=false;
+#endif
+    bool disableTitleBlit=false;
+    std::string checkpointPrefix;
     int displayFormat = 0; // 0: LCD registers, 1: RGB444, 2: RGB565.
     bool automaticDisplay = true;
     bool coherentFrames = true, gdiPresentation = false;
@@ -151,7 +165,20 @@ int main(int argc, char* argv[]) {
 
     for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
-        if (arg == "--steps" && i + 1 < argc) {
+        if (arg == "--engine" && i + 1 < argc) {
+            const std::string mode=argv[++i];
+            if (mode!="jit" && mode!="interpreter") { std::cerr<<"[Error] Invalid execution engine.\n"; return 1; }
+            useJit=mode=="jit";
+#ifndef OCEANBLAST_WITH_JIT
+            if(useJit) { std::cerr<<"[Error] This executable has no JIT backend.\n"; return 1; }
+#endif
+        } else if (arg == "--title-blit" && i + 1 < argc) {
+            const std::string mode=argv[++i];
+            if(mode!="auto" && mode!="off") { std::cerr<<"[Error] Invalid title blit mode.\n"; return 1; }
+            disableTitleBlit=mode=="off";
+        } else if (arg == "--checkpoint" && i + 1 < argc) {
+            checkpointPrefix=argv[++i];
+        } else if (arg == "--steps" && i + 1 < argc) {
             stepLimit = std::stoull(argv[++i]);
             customSteps = true;
         } else if (arg == "--debug") {
@@ -362,6 +389,7 @@ int main(int argc, char* argv[]) {
     if (!explicitClock) clockMips *= cpuStepsPerTick;
     if (const auto* identity = identifyCartridge(cartridge.size(), cartridgeCrc))
         bus.setWadeTitleBlit(identity->crc == 0xeba2a2c3u);
+    if (useJit || disableTitleBlit) bus.setWadeTitleBlit(false);
     std::cout << "[Preset] " << cartridgeSettings.name << "; CPU ratio: " << cpuStepsPerTick
               << "; selection: " << (automaticPreset ? "automatic" : "disabled") << '\n';
     const DisplayProfile displayProfile = identifyDisplayProfile(cartridge.size(), cartridgeCrc);
@@ -379,6 +407,14 @@ int main(int argc, char* argv[]) {
     cpu.setFaultLogging(faultLog);
     bus.setI2cLogging(i2cLog);
     bus.setMmioProfiling(mmioProfile);
+#ifdef OCEANBLAST_WITH_JIT
+    std::unique_ptr<X64ExecutionEngine> nativeEngine;
+    if(useJit) {
+        nativeEngine=std::make_unique<X64ExecutionEngine>(machine.state(),cpu,bus);
+        machine.execution().selectEngine(*nativeEngine);
+    }
+#endif
+    std::cout<<"[Engine] "<<(useJit?"x86-64 JIT (developer)":"Interpreter")<<"; title shortcut: "<<(bus.wadeTitleBlitEnabled()?"on":"off")<<'\n';
 
     oceanblast::Display display(scale);
     display.configureWindow(windowSkin, startFullscreen);
@@ -386,7 +422,7 @@ int main(int argc, char* argv[]) {
     display.useGdiPresentation(gdiPresentation);
     oceanblast::Audio audio;
     if (gui) {
-        if (!display.init("OceanBlast - Nikko digiBLAST (2005)")) {
+        if (!display.init(useJit?"OceanBlast - JIT Test":"OceanBlast - Nikko digiBLAST (2005)")) {
             std::cerr << "[Warning] Failed to initialize display window; falling back to headless mode." << std::endl;
             gui = false;
         } else {
@@ -425,6 +461,21 @@ int main(int argc, char* argv[]) {
     }
 
     uint64_t executedSteps = 0;
+#ifdef OCEANBLAST_WITH_JIT
+    std::ofstream engineStats;
+    if(nativeEngine) {
+        engineStats.open("engine_stats.csv");
+        engineStats<<"steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations\n";
+    }
+    auto writeEngineStats=[&]() {
+        if(!nativeEngine || !engineStats) return;
+        const auto& stats=nativeEngine->stats();
+        engineStats<<executedSteps<<','<<stats.generatedSteps<<','<<stats.memorySteps<<','<<stats.fallbackSteps<<','
+            <<stats.compilations<<','<<stats.cacheHits<<','<<stats.cacheEvictions<<','<<stats.compilationFailures<<','
+            <<stats.fastCacheHits<<','<<stats.sourceValidations<<'\n';
+        engineStats.flush();
+    };
+#endif
     auto& execution = machine.execution();
     const auto& guestTicks = execution.time().ticks;
     const auto& idleTicks = execution.time().idleTicks;
@@ -668,7 +719,7 @@ int main(int argc, char* argv[]) {
                 const double mips = (executedSteps - statsSteps) / seconds / 1000000.0;
                 const double speed = (guestTicks - statsTicks) * 100.0 / EmulationClock::ticksPerSecond / seconds;
                 std::ostringstream title;
-                title << "OceanBlast | Display " << std::fixed << std::setprecision(1) << presented / seconds
+                title << "OceanBlast" << (useJit?" JIT-Test":" Interpreter") << " | Display " << std::fixed << std::setprecision(1) << presented / seconds
                       << " FPS | Changes " << changed / seconds << "/s | " << mips << " MIPS"
                       << " | CPU " << cpuStepsPerTick << "x"
                       << " | Speed " << speed << "%" << (autoTiming ? " Auto" : "")
@@ -677,6 +728,9 @@ int main(int argc, char* argv[]) {
                       << (display.usesSyncedPresentation() ? " | VSync" : " | GDI")
                       << (display.paused ? " | PAUSE" : "");
                 display.setTitle(title.str());
+#ifdef OCEANBLAST_WITH_JIT
+                writeEngineStats();
+#endif
                 if (metrics) {
                     uint64_t playedFrames = 0;
                     const bool positionValid = audio.getPlayedFrames(playedFrames);
@@ -833,9 +887,20 @@ int main(int argc, char* argv[]) {
     if (autoTiming) saveSnapshot();
     std::cout << "[Timing] Modeled seconds: " << double(guestTicks) / EmulationClock::ticksPerSecond << "; idle seconds: " << double(idleTicks) / EmulationClock::ticksPerSecond << '\n';
     std::cout << "\n[OceanBlast] Execution finished after " << executedSteps << " instructions." << std::endl;
+#ifdef OCEANBLAST_WITH_JIT
+    if(nativeEngine) {
+        const auto& stats=nativeEngine->stats();
+        writeEngineStats();
+        std::cout<<"[JIT] Generated: "<<stats.generatedSteps<<" (memory "<<stats.memorySteps<<"); fallback: "<<stats.fallbackSteps
+            <<"; compilations: "<<stats.compilations<<"; hits: "<<stats.cacheHits<<"; evictions: "<<stats.cacheEvictions<<'\n';
+    }
+#endif
     if (recordedFrames.is_open()) recordedFrames.close();
     if (recordedFrameCount) std::cout << "[Video] Recorded " << recordedFrameCount << " LCD frames to " << recordFramesPath << '\n';
     cpu.dumpState();
+    if(!checkpointPrefix.empty() && !writeExecutionCheckpoint(checkpointPrefix,machine.state(),bus)) {
+        std::cerr<<"[Error] Cannot write execution checkpoint.\n"; return 1;
+    }
 
     if (bus.isMmuEnabled()) {
         std::cout << "\n--- [Linux Kernel dmesg / Log Buffer] ---" << std::endl;

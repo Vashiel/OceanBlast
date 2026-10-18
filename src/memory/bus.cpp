@@ -48,6 +48,7 @@ bool Bus::saveEeprom(const std::string& path) const {
 }
 
 void Bus::reset() {
+    invalidateCodeEpoch();
     usbHost.reset();
     flushTlb();
     clearLastFault();
@@ -110,6 +111,7 @@ void Bus::reset() {
 }
 
 bool Bus::loadCartridge(const std::string& path) {
+    invalidateCodeEpoch();
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
         std::cerr << "[Bus] Error: Could not open cartridge file: " << path << std::endl;
@@ -220,6 +222,7 @@ bool Bus::peek32(u32 va, u32& val) const {
 void Bus::write8PhysSlow(u32 addr, u8 val) {
     if (addr < ADDR_STEPPINGSTONE_SIZE) {
         steppingstone[addr] = val;
+        recordCodeWrite(addr,1);
         return;
     }
     if (addr >= ADDR_SDRAM_BASE && (addr - ADDR_SDRAM_BASE) < ADDR_SDRAM_SIZE) {
@@ -311,6 +314,7 @@ void Bus::write32PhysSlow(u32 pa, u32 val) {
     }
     if (pa <= (ADDR_STEPPINGSTONE_SIZE - 4) && (pa & 3) == 0) {
         std::memcpy(steppingstone.data() + pa, &val, 4);
+        recordCodeWrite(pa,4);
         return;
     }
     if (pa >= ADDR_MEMCON_BASE && pa < 0x5C000000) {
@@ -1044,6 +1048,7 @@ void Bus::completeI2cByte() {
 }
 
 void Bus::flushTlb() const {
+    ++mappingGeneration;
     instructionPage = UINT32_MAX;
     mmu.flushTlb();
 }

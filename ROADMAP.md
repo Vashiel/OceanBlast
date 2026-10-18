@@ -1,10 +1,10 @@
 # Development Roadmap
 
-Updated: 2026-10-17. The priority table defines completion criteria; delivered work and remaining validation appear under Implementation status.
+Updated: 2026-10-18. The priority table defines completion criteria; delivered work and remaining validation appear under Current delivery plan.
 
 ## Committed execution architecture
 
-The [accepted JIT architecture decision](docs/92_jit_architecture_decision.md) now defines the development direction: shared ARM/Thumb translation frontend and IR, Windows x86-64 backend first, Android ARM64 next, with the interpreter retained as reference and fallback. A separate decoded-block interpreter and further discretionary interpreter shortcuts are no longer the delivery strategy. The J0-J6 sequence below supersedes the earlier P4 experiment gate; historical measurements remain unchanged. No JIT implementation or speedup is claimed by this planning update.
+The [accepted JIT architecture decision](docs/92_jit_architecture_decision.md) defines the development direction: shared ARM/Thumb translation frontend and IR, Windows x86-64 backend first, Android ARM64 next, with the interpreter retained as reference and fallback. A separate decoded-block interpreter and further discretionary interpreter shortcuts are no longer the delivery strategy. The J0-J6 sequence below supersedes the earlier P4 experiment gate; historical measurements remain unchanged. Initial native execution and checked memory are implemented; game speed and production acceptance remain open.
 
 ## Goal and priorities
 
@@ -28,7 +28,7 @@ The [architecture decision](docs/92_jit_architecture_decision.md) specifies cont
 
 | Step | Status | Result or next acceptance gate |
 | --- | --- | --- |
-| JIT execution engine | J0 foundation delivered; J1/J2 initial slices delivered, milestones in progress | [Shared state/backend contract](docs/94_shared_state_execution_boundary.md), [ARM/Thumb integer frontend](docs/95_shared_translation_frontend.md) and [bounded x86-64 native execution/cache](docs/96_initial_x64_execution.md) pass short ROM-free checks. Next: checked memory/fault lowering and invalidation, then broader machine coverage. No production engine switch or game speedup acceptance. |
+| JIT execution engine | J0 foundation and initial J1/J2/J3 slices delivered; J4 integration in progress | [Checked memory, direct branches, invalidation and a separate developer player](docs/97_checked_memory_and_player_integration.md) pass six targeted suites. A 100-million-step Wade boot check matches CPU/full SDRAM; the current JIT is slower and its longer check reached the time limit. Integer prefixes now share their terminal memory access, but the short matched boot pair is still slower. Next: blocks spanning several RAM accesses with precise fault/event/code-write exits, then one short matched Wade gate. No production switch or game speedup acceptance. |
 | Resolve Chefs immediate life loss | Fixed and installed; short first-level check passed | [Invalid persisted difficulty](docs/91_chefs_eeprom_health.md) leaves player health at zero. Content-keyed launcher EEPROM files preserve the legacy image and repair only unsupported Chefs difficulty during migration. Short movement/jump replay retains five lives and reaches 100 points; full-game acceptance remains separate. |
 | Resolve reported Wade title audio stutter | Open, P0 | [PCM comparison and listening](docs/85_wade_pcm_and_audio_recovery.md) reject the Wade-trained build and a two-block recovery candidate; preceding executable restored. [Local GBA comparison](docs/87_local_gba_wade_comparison.md) finds cross-port timing differences, but the [digiBLAST XM soundtrack](docs/88_digiblast_soundtrack_reference.md) matches generated PCM at approximately unity tempo. Neither is a console recording. Compare actual live output against generated PCM and trace queue/sample delivery before default-engine or release acceptance. |
 | Compact translation-cache entries | Complete | [Eight-byte layout](docs/82_compact_tlb_entries.md), 173 targeted checks and one favorable Wade pair with matching state. |

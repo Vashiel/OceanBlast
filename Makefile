@@ -20,6 +20,7 @@ HEADERS = src/core/types.h \
           src/core/interpreter_engine.h \
           src/core/execution_scheduler.h \
           src/core/machine.h \
+          src/core/execution_checkpoint.h \
           src/core/host_pacer.h \
           src/core/cartridge_settings.h \
           src/core/cartridge_language.h \

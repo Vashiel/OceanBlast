@@ -15,6 +15,8 @@
 #include <vector>
 #include <utility>
 #include <new>
+#include <list>
+#include <unordered_map>
 
 namespace oceanblast {
 using namespace translation;
@@ -29,6 +31,21 @@ public:
     asmjit::Error error=asmjit::Error::kOk;
     void handle_error(asmjit::Error value,const char*,asmjit::BaseEmitter*) override { error=value; }
 };
+uint64_t checkedLoad(Bus* bus,uint32_t address,uint32_t byte) {
+    uint32_t value=byte?bus->read8(address):bus->read32(address&~3u);
+    if (!byte && (address&3u)) { const unsigned shift=(address&3u)*8; value=(value>>shift)|(value<<(32-shift)); }
+    return (uint64_t(static_cast<uint32_t>(bus->getLastFault()))<<32)|value;
+}
+uint32_t checkedStore(Bus* bus,uint32_t address,uint32_t value,uint32_t byte) {
+    if (byte) bus->write8(address,uint8_t(value)); else bus->write32(address&~3u,value);
+    return static_cast<uint32_t>(bus->getLastFault());
+}
+void checkedAbort(ARM920T* cpu) { cpu->completeCheckedDataAbort(); }
+void advanceIntegerPrefix(Bus* bus,ExecutionTimeline* timeline,uint32_t count) {
+    const uint64_t ticks=(timeline->phase+count-1)/timeline->ratio+(timeline->phase==0?1:0);
+    timeline->phase=(timeline->phase+count)%timeline->ratio;
+    bus->tick(ticks); timeline->elapsed.ticks+=ticks;
+}
 bool executableReadOnly(const void* address) {
     MEMORY_BASIC_INFORMATION information{};
     return VirtualQuery(address,&information,sizeof(information)) &&
@@ -36,7 +53,7 @@ bool executableReadOnly(const void* address) {
 }
 }
 struct X64ExecutionEngine::Impl {
-    using Function=void(*)(ARM920TState*);
+    using Function=uint32_t(*)(ARM920TState*,ExecutionTimeline*);
     ARM920TState& architecturalState;
     ARM920T& cpu;
     Bus& bus;
@@ -50,21 +67,77 @@ struct X64ExecutionEngine::Impl {
         Function function;
         size_t bytes;
         uint64_t used;
+        bool memory;
+        uint64_t mapping=0,epoch=0;
+        uint32_t version=0;
     };
-    std::vector<CacheEntry> cache;
+    using Cache=std::list<CacheEntry>;
+    Cache cache;
+    std::unordered_multimap<uint32_t,Cache::iterator> cacheByPc;
+    NativeCacheLimits limits;
     uint64_t useCounter=0;
     size_t cacheBytes=0;
-    static constexpr size_t maximumBlocks=64,maximumBytes=512*1024;
-    Impl(ARM920TState& state,ARM920T& cpu,Bus& bus) : architecturalState(state),cpu(cpu),bus(bus),reference(cpu,bus) {
+    Impl(ARM920TState& state,ARM920T& cpu,Bus& bus,NativeCacheLimits limits) : architecturalState(state),cpu(cpu),bus(bus),reference(cpu,bus),limits(limits) {
         if (&state!=&cpu.getState()) throw std::invalid_argument("Native and reference CPU state must match");
-        cache.reserve(maximumBlocks);
+        if (!limits.blocks || !limits.bytes) throw std::invalid_argument("Native cache limits must be positive");
+        cacheByPc.reserve(std::min<size_t>(limits.blocks,4096));
     }
     ~Impl() { clearCache(); }
+    void refreshDependency(CacheEntry& entry) {
+        entry.mapping=bus.getMappingGeneration(); entry.epoch=bus.getCodeEpoch();
+        entry.version=bus.markCodePage(entry.source.front().first);
+    }
     void clearCache() {
         for (const auto& entry : cache) runtime.release(entry.function);
-        cache.clear(); cacheBytes=0;
+        cacheByPc.clear(); cache.clear(); cacheBytes=0;
     }
 
+    Function publish(asmjit::CodeHolder& code,size_t& bytes) {
+        bytes=code.code_size();
+        if (!bytes || bytes>64*1024) return nullptr;
+        Function result=nullptr;
+        if (runtime.add(&result,&code)!=asmjit::Error::kOk) return nullptr;
+        if (!executableReadOnly(reinterpret_cast<const void*>(result))) { runtime.release(result); return nullptr; }
+        ++counters.compilations;
+        return result;
+    }
+    asmjit::x86::Gp emitMemory(asmjit::x86::Compiler& cc,asmjit::x86::Gp pointer,const Instruction& instruction) {
+        using namespace asmjit;
+        const auto& memory=*instruction.memory;
+        auto reg=[&](unsigned index) { return x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+index*4)); };
+        cc.mov(reg(15),instruction.pc+4);
+        auto base=cc.new_gp32(),updated=cc.new_gp32(),address=cc.new_gp32();
+        cc.mov(base,reg(memory.base)); cc.mov(updated,base);
+        if (memory.up) cc.add(updated,memory.offset); else cc.sub(updated,memory.offset);
+        cc.mov(address,memory.pre?updated:base);
+        auto busPointer=cc.new_gp_ptr(),byte=cc.new_gp32();
+        cc.mov(busPointer,uintptr_t(&bus)); cc.mov(byte,uint32_t(memory.byte));
+        auto error=cc.new_gp32(),status=cc.new_gp32();
+        InvokeNode* invoke=nullptr;
+        x86::Gp data;
+        if (memory.load) {
+            auto result=cc.new_gp64();
+            cc.invoke(Out(invoke),imm((void*)checkedLoad),FuncSignature::build<uint64_t,Bus*,uint32_t,uint32_t>());
+            invoke->set_arg(0,busPointer); invoke->set_arg(1,address); invoke->set_arg(2,byte); invoke->set_ret(0,result);
+            auto high=cc.new_gp64(); cc.mov(high,result); cc.shr(high,32); cc.mov(error,high.r32());
+            data=result.r32();
+        } else {
+            auto value=cc.new_gp32(); cc.mov(value,reg(memory.destination));
+            cc.invoke(Out(invoke),imm((void*)checkedStore),FuncSignature::build<uint32_t,Bus*,uint32_t,uint32_t,uint32_t>());
+            invoke->set_arg(0,busPointer); invoke->set_arg(1,address); invoke->set_arg(2,value); invoke->set_arg(3,byte); invoke->set_ret(0,error);
+        }
+        Label abort=cc.new_label(),done=cc.new_label();
+        cc.test(error,error); cc.jnz(abort);
+        if (memory.load) cc.mov(reg(memory.destination),data);
+        if (memory.writeback) cc.mov(reg(memory.base),updated);
+        cc.mov(status,0); cc.jmp(done);
+        cc.bind(abort);
+        auto cpuPointer=cc.new_gp_ptr(); cc.mov(cpuPointer,uintptr_t(&cpu));
+        cc.invoke(Out(invoke),imm((void*)checkedAbort),FuncSignature::build<void,ARM920T*>());
+        invoke->set_arg(0,cpuPointer);
+        cc.mov(status,1);
+        cc.bind(done); return status;
+    }
     Function compile(const Block& block,size_t count,size_t& bytes) {
         using namespace asmjit;
         static_assert(std::is_standard_layout<ARM920TState>::value,"JIT register offsets require standard layout");
@@ -74,9 +147,11 @@ struct X64ExecutionEngine::Impl {
         code.set_error_handler(&errors);
         x86::Compiler compiler(&code);
         auto pointer=compiler.new_gp_ptr("state");
-        auto* function=compiler.add_func(FuncSignature::build<void,ARM920TState*>());
+        auto timeline=compiler.new_gp_ptr("timeline");
+        auto* function=compiler.add_func(FuncSignature::build<uint32_t,ARM920TState*,ExecutionTimeline*>());
         if (!function) return nullptr;
         function->set_arg(0,pointer);
+        function->set_arg(1,timeline);
         auto load=[&](Value value) {
             auto target=compiler.new_gp32();
             if (value.kind==ValueKind::Register)
@@ -90,8 +165,24 @@ struct X64ExecutionEngine::Impl {
         };
         auto booleanNot=[&](x86::Gp value) { compiler.xor_(value,1); return value; };
         auto capture=[&](x86::Gp value) { compiler.movzx(value,value.r8()); };
+        Label blockExit=compiler.new_label();
         for (size_t index=0;index<count;++index) {
             const auto& instruction=block.instructions[index];
+            if(instruction.memory) {
+                if(index) {
+                    // Materialize the prefix before the checked access. The
+                    // entry deadline bound excludes any event inside the prefix.
+                    compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+15*4)),instruction.pc);
+                    auto busPointer=compiler.new_gp_ptr(),steps=compiler.new_gp32();
+                    compiler.mov(busPointer,uintptr_t(&bus)); compiler.mov(steps,uint32_t(index));
+                    InvokeNode* invoke=nullptr;
+                    compiler.invoke(Out(invoke),imm((void*)advanceIntegerPrefix),
+                        FuncSignature::build<void,Bus*,ExecutionTimeline*,uint32_t>());
+                    invoke->set_arg(0,busPointer); invoke->set_arg(1,timeline); invoke->set_arg(2,steps);
+                }
+                compiler.ret(emitMemory(compiler,pointer,instruction));
+                break;
+            }
             const auto& op=instruction.operation;
             auto flags=compiler.new_gp32();
             compiler.mov(flags,x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,cpsr))));
@@ -117,6 +208,12 @@ struct X64ExecutionEngine::Impl {
                     case Condition::Always:break;
                 }
                 compiler.test(predicate,predicate); compiler.je(skipped);
+            }
+            if(instruction.branch) {
+                if(instruction.branch->link)
+                    compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+14*4)),instruction.pc+instruction.bytes);
+                compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+15*4)),instruction.branch->target);
+                compiler.jmp(blockExit); compiler.bind(skipped); continue;
             }
             auto left=load(op.left),right=load(op.right);
             auto carry=bit(flags,29);
@@ -179,15 +276,10 @@ struct X64ExecutionEngine::Impl {
         }
         const auto& last=block.instructions[count-1];
         compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+15*4)),last.pc+last.bytes);
-        compiler.ret(); compiler.end_func();
+        compiler.bind(blockExit);
+        auto status=compiler.new_gp32(); compiler.mov(status,0); compiler.ret(status); compiler.end_func();
         if (compiler.finalize()!=Error::kOk || errors.error!=Error::kOk) return nullptr;
-        bytes=code.code_size();
-        if (!bytes || bytes>64*1024) return nullptr;
-        Function result=nullptr;
-        if (runtime.add(&result,&code)!=Error::kOk) return nullptr;
-        if (!executableReadOnly(reinterpret_cast<const void*>(result))) { runtime.release(result); return nullptr; }
-        ++counters.compilations;
-        return result;
+        return publish(code,bytes);
     }
     Function findOrCompile(const Block& block,const std::vector<std::pair<uint32_t,uint32_t>>& source) {
         const auto& state=cpu.getState();
@@ -195,37 +287,63 @@ struct X64ExecutionEngine::Impl {
             state.cp15_ttb,state.cp15_dacr,uint32_t(block.instructions.size())};
         // Fetch every source word with current permissions before cache lookup.
         // Exact physical-address/encoding checks also cover writes through aliases.
-        for (auto& entry : cache) {
+        const auto candidates=cacheByPc.equal_range(context[0]);
+        for (auto candidate=candidates.first;candidate!=candidates.second;++candidate) {
+            auto iterator=candidate->second;
+            auto& entry=*iterator;
             if (entry.context==context && entry.source==source) {
+                refreshDependency(entry);
+                cache.splice(cache.end(),cache,iterator);
                 entry.used=++useCounter; ++counters.cacheHits; return entry.function;
             }
         }
         size_t bytes=0;
         auto function=compile(block,block.instructions.size(),bytes);
         if (!function) return nullptr;
-        while (cache.size()>=maximumBlocks || cacheBytes+bytes>maximumBytes) {
-            auto oldest=std::min_element(cache.begin(),cache.end(),[](const auto& left,const auto& right){return left.used<right.used;});
+        if (bytes>limits.bytes) { runtime.release(function); return nullptr; }
+        while (cache.size()>=limits.blocks || cacheBytes+bytes>limits.bytes) {
+            auto oldest=cache.begin();
+            const auto range=cacheByPc.equal_range(oldest->context[0]);
+            for (auto candidate=range.first;candidate!=range.second;++candidate) {
+                if (candidate->second==oldest) { cacheByPc.erase(candidate); break; }
+            }
             cacheBytes-=oldest->bytes; runtime.release(oldest->function); cache.erase(oldest);
             ++counters.cacheEvictions;
         }
-        try { cache.push_back({context,source,function,bytes,++useCounter}); }
-        catch (...) { runtime.release(function); throw; }
+        try {
+            cache.push_back({context,source,function,bytes,++useCounter,bool(block.instructions.back().memory)});
+            refreshDependency(cache.back());
+            try { cacheByPc.emplace(context[0],std::prev(cache.end())); }
+            catch (...) { cache.pop_back(); throw; }
+        } catch (...) { runtime.release(function); throw; }
         cacheBytes+=bytes;
         return function;
     }
-    Function reusable(size_t limit,size_t& count) {
+    Function reusable(size_t limit,size_t& count,bool& memoryBlock) {
         const auto& state=cpu.getState();
         const uint32_t pc=state.r[15],width=(state.cpsr&FLAG_T)?2:4;
         Bus::MmuFault fault=Bus::MmuFault::NONE;
         if (cache.empty()) return nullptr;
-        const uint32_t physical=bus.translate(pc,&fault);
-        if (fault!=Bus::MmuFault::NONE) return nullptr;
-        CacheEntry* best=nullptr;
-        for (auto& entry : cache) {
+        uint32_t physical=0;
+        bool translated=false,bestFast=false;
+        auto best=cache.end();
+        const auto range=cacheByPc.equal_range(pc);
+        for (auto candidate=range.first;candidate!=range.second;++candidate) {
+            auto iterator=candidate->second;
+            auto& entry=*iterator;
             const auto& key=entry.context;
             if (key[0]!=pc || key[1]!=(state.cpsr&0xffu) || key[2]!=state.cp15_control ||
                 key[3]!=state.cp15_ttb || key[4]!=state.cp15_dacr || key[5]>limit ||
-                (best && key[5]<=best->context[5])) continue;
+                (best!=cache.end() && key[5]<=best->context[5])) continue;
+            if(entry.mapping==bus.getMappingGeneration() && entry.epoch==bus.getCodeEpoch() &&
+                entry.version==bus.getCodePageVersion(entry.source.front().first)) {
+                best=iterator; bestFast=true; continue;
+            }
+            if(!translated) {
+                physical=bus.translate(pc,&fault); translated=true;
+                if(fault!=Bus::MmuFault::NONE) return nullptr;
+            }
+            ++counters.sourceValidations;
             const uint32_t bytes=key[5]*width;
             // Like the reference fetch cache, a native block stays in one 1 KB
             // permission span. One checked translation establishes its mapping;
@@ -240,11 +358,13 @@ struct X64ExecutionEngine::Impl {
                 if (entry.source[index].first!=address || entry.source[index].second!=
                     (width==4?bus.read32Phys(address):uint32_t(bus.read16Phys(address)))) { valid=false; break; }
             }
-            if (valid) best=&entry;
+            if (valid) { refreshDependency(entry); best=iterator; bestFast=false; }
         }
-        if (!best) return nullptr;
+        if (best==cache.end()) return nullptr;
+        cache.splice(cache.end(),cache,best);
         best->used=++useCounter; ++counters.cacheHits;
-        count=best->source.size();
+        if(bestFast) ++counters.fastCacheHits;
+        count=best->source.size(); memoryBlock=best->memory;
         return best->function;
     }
     ExecutionExit fallback(ExecutionTimeline& timeline,size_t budget,uint64_t deadline) {
@@ -253,7 +373,7 @@ struct X64ExecutionEngine::Impl {
         return result;
     }
 };
-X64ExecutionEngine::X64ExecutionEngine(ARM920TState& state,ARM920T& cpu,Bus& bus) : impl(std::make_unique<Impl>(state,cpu,bus)) {}
+X64ExecutionEngine::X64ExecutionEngine(ARM920TState& state,ARM920T& cpu,Bus& bus,NativeCacheLimits limits) : impl(std::make_unique<Impl>(state,cpu,bus,limits)) {}
 X64ExecutionEngine::~X64ExecutionEngine()=default;
 const ARM920TState& X64ExecutionEngine::state() const { return impl->cpu.getState(); }
 const Bus& X64ExecutionEngine::memory() const { return impl->bus; }
@@ -261,6 +381,19 @@ bool X64ExecutionEngine::canHandoff() const { return impl->cpu.canHandoff(); }
 void X64ExecutionEngine::enter(bool clocks) { impl->cpu.enterExecution(clocks); }
 const NativeExecutionStats& X64ExecutionEngine::stats() const { return impl->counters; }
 void X64ExecutionEngine::resetCodeCache() { impl->clearCache(); ++impl->counters.cacheResets; }
+size_t X64ExecutionEngine::run(ExecutionTimeline& timeline,size_t budget,uint64_t stopTicks) {
+    if(timeline.registerClocks) {
+        const size_t steps=impl->reference.run(timeline,budget,stopTicks);
+        impl->counters.fallbackSteps+=steps; return steps;
+    }
+    size_t steps=0;
+    while(steps<budget && !state().halted && !state().waitingForInterrupt && timeline.elapsed.ticks<stopTicks) {
+        const auto exit=runToBoundary(timeline,budget-steps,stopTicks);
+        steps+=exit.steps;
+        if(!exit.steps) break;
+    }
+    return steps;
+}
 ExecutionExit X64ExecutionEngine::runToBoundary(ExecutionTimeline& timeline,size_t budget,uint64_t stopTicks) {
     auto& engine=*impl;
     const auto& state=engine.cpu.getState();
@@ -275,7 +408,8 @@ ExecutionExit X64ExecutionEngine::runToBoundary(ExecutionTimeline& timeline,size
     if (engine.bus.needsLevelInterruptRefresh()) count=1;
     if (remaining<=count) count=std::min<uint64_t>(count,legacyStepsUntilTickLimit(remaining,timeline.ratio,timeline.phase));
     size_t nativeCount=0;
-    auto function=engine.reusable(count,nativeCount);
+    bool memoryBlock=false;
+    auto function=engine.reusable(count,nativeCount,memoryBlock);
     if (!function) {
         try {
             std::vector<std::pair<uint32_t,uint32_t>> source;
@@ -291,6 +425,7 @@ ExecutionExit X64ExecutionEngine::runToBoundary(ExecutionTimeline& timeline,size
             };
             auto block=decodeBlock(state.r[15],(state.cpsr&FLAG_T)?InstructionSet::Thumb:InstructionSet::Arm,fetch,{uint32_t(count),128});
             nativeCount=block.instructions.size();
+            memoryBlock=nativeCount && bool(block.instructions.back().memory);
             if (!nativeCount) return engine.fallback(timeline,budget,stopTicks);
             source.resize(nativeCount);
             function=engine.findOrCompile(block,source);
@@ -300,14 +435,19 @@ ExecutionExit X64ExecutionEngine::runToBoundary(ExecutionTimeline& timeline,size
             return engine.fallback(timeline,budget,stopTicks);
         }
     }
-    // No guest MMIO/memory operation is lowered in this slice. Stop no later
-    // than the next device event, then advance the same legacy tick count.
-    function(&engine.architecturalState);
-    const uint64_t ticks=(timeline.phase+nativeCount-1)/timeline.ratio+(timeline.phase==0?1:0);
-    timeline.phase=(timeline.phase+nativeCount)%timeline.ratio;
-    engine.bus.tick(ticks);
-    timeline.elapsed.ticks+=ticks;
+    // A terminal memory operation follows a materialized/ticked integer prefix.
+    // No later guest work can run past its MMIO, fault or code-write effects.
+    const auto startTicks=timeline.elapsed.ticks;
+    const uint32_t fault=function(&engine.architecturalState,&timeline);
+    const size_t tail=memoryBlock?1:nativeCount;
+    const uint64_t tailTicks=(timeline.phase+tail-1)/timeline.ratio+(timeline.phase==0?1:0);
+    timeline.phase=(timeline.phase+tail)%timeline.ratio;
+    engine.bus.tick(tailTicks);
+    timeline.elapsed.ticks+=tailTicks;
+    const uint64_t ticks=timeline.elapsed.ticks-startTicks;
     engine.counters.generatedSteps+=nativeCount;
+    if (memoryBlock) ++engine.counters.memorySteps;
+    if (fault) return {ExecutionExitReason::CpuEvent,nativeCount,ticks,CpuStepEvent::DataAbort};
     const auto reason=ticks>=remaining?ExecutionExitReason::Deadline:
         (nativeCount==budget?ExecutionExitReason::Budget:ExecutionExitReason::BlockEnd);
     return {reason,nativeCount,ticks,std::nullopt};

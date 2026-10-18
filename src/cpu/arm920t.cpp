@@ -31,6 +31,12 @@ void ARM920T::enterExecution(bool registerClocks) {
 
 ARM920T::~ARM920T() {}
 
+void ARM920T::completeCheckedDataAbort() {
+    lastCycles=1;
+    handleDataAbort(bus.getLastFaultAddr(),bus.getLastFault());
+    bus.clearLastFault();
+}
+
 void ARM920T::reset(u32 startAddress) {
     acceleratedBlitStall = 0;
     lastEvent = StepEvent::Instruction;
