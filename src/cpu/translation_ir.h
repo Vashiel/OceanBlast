@@ -33,6 +33,7 @@ struct IntegerOperation {
     FlagWrite flags = FlagWrite::Preserve;
     std::optional<uint8_t> destination;
     std::optional<uint8_t> addend=std::nullopt;
+    std::optional<uint8_t> shiftRegister=std::nullopt;
 };
 struct Instruction {
     uint32_t pc;
@@ -47,6 +48,7 @@ struct Instruction {
         std::optional<uint8_t> offsetRegister=std::nullopt;
         Shift offsetShift=Shift::Lsl;
         uint8_t offsetShiftAmount=0;
+        bool halfword=false,signExtend=false;
     };
     std::optional<MemoryOperation> memory;
     struct BranchOperation { uint32_t target; bool link; };

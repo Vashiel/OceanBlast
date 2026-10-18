@@ -11,6 +11,64 @@ static bool equal(const Machine& a,const Machine& b) {
 }
 int main() {
     {
+        Machine machine,reference; bool same=true; uint64_t cases=0;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        for(unsigned kind=0;kind<4;++kind) for(bool immediate:{false,true}) for(unsigned indexing=0;indexing<3;++indexing)
+        for(bool up:{false,true}) for(unsigned alignment:{0u,1u}) for(uint32_t flags:{0u,FLAG_Z}) {
+            const bool load=kind!=1,pre=indexing!=0,writeback=indexing==2;
+            const unsigned operation=kind<2?1:kind;
+            const uint32_t address=0x30001008+alignment;
+            const uint32_t raw=(uint32_t(pre)<<24)|(uint32_t(up)<<23)|(uint32_t(immediate)<<22)|
+                (uint32_t(writeback)<<21)|(uint32_t(load)<<20)|(1u<<16)|(2u<<12)|0x90u|(operation<<5)|(immediate?3u:4u);
+            for(Machine* target:{&machine,&reference}) {
+                target->state().r[15]=0; target->state().cpsr=0xd3|flags;
+                target->state().r[1]=pre?(up?address-3:address+3):address;
+                target->state().r[2]=0x1234fedc;target->state().r[4]=3;
+                target->bus().write32(0,raw);
+                for(unsigned offset=0;offset<24;++offset)target->bus().write8(0x30001000+offset,uint8_t(0x80+offset));
+            }
+            machine.execution().run(1);reference.execution().run(1);
+            same=same&&equal(machine,reference);
+            for(unsigned offset=0;offset<24;++offset)same=same&&machine.bus().read8(0x30001000+offset)==reference.bus().read8(0x30001000+offset);
+            ++cases;
+        }
+        check("Native halfword and signed loads preserve indexing, offsets, odd addresses, predication and writeback",
+            same&&cases==192&&native.stats().generatedSteps==cases&&native.stats().memorySteps==cases/2&&native.stats().fallbackSteps==0);
+    }
+    for(uint32_t opcode:{0xe1f120b4u,0xe1e120b4u,0xe1f120d4u,0xe1f120f4u}) {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->bus().write32(0x30004000,0x30000c02);
+            target->bus().write32(0x30000000,opcode);
+            target->state().cp15_control|=1;target->state().cp15_ttb=0x30004000;target->state().cp15_dacr=1;
+            target->state().cpsr=0x10;target->state().r[1]=0x200000;target->state().r[2]=0xfedcba98;
+            target->execution().selectInterpreter(target->cpu());
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+        const auto actual=machine.execution().runToBoundary(8);reference.execution().run(1);
+        check("Halfword/signed aborts retain exact fault state and suppress destination/base writeback",
+            actual.steps==1&&actual.event==CpuStepEvent::DataAbort&&equal(machine,reference)&&native.stats().generatedSteps==1);
+    }
+    {
+        Machine machine;machine.bus().write32(0,0xe3a00001);machine.bus().write32(4,0xe1c120b0);
+        machine.state().r[1]=0;machine.state().r[2]=0x2a;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+        machine.execution().run(1);machine.execution().run(1);machine.state().r[15]=0;machine.execution().run(1);
+        check("Native halfword code stores invalidate the executing translation before reuse",machine.state().r[0]==42&&native.stats().memorySteps==1);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->state().r[15]=0x400;target->state().r[1]=0x3ff;target->state().r[2]=0x2aaa;
+            target->bus().write32(0x400,0xe3a00001);target->bus().write32(0x404,0xe1c120b0);
+            target->bus().write32(0x408,0xeafffffcu);
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+        machine.execution().run(7);reference.execution().run(7);
+        check("An odd halfword store crossing into the active code page exits before a stale loop iteration",
+            equal(machine,reference)&&machine.state().r[0]==42);
+    }
+    {
         bool same=true;
         for(size_t ratio:{1u,3u,6u,16u}) for(size_t phase=0;phase<ratio;++phase) {
             Machine machine,reference;

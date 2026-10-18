@@ -18,6 +18,95 @@ int main() {
     {
         Machine machine,reference;
         for(Machine* target:{&machine,&reference}) {
+            target->bus().write32(0,0xe2800001);target->bus().write32(4,0xeafffffdu);
+        }
+        NativeCacheLimits limits;limits.compileThreshold=3;limits.sampledCompilation=true;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus(),limits);machine.execution().selectEngine(native);
+        for(unsigned sample=0;sample<8;++sample) { machine.execution().run(128);reference.execution().run(128); }
+        const bool warmed=equivalent(machine,reference)&&native.stats().sampledFallbackBatches==2&&
+            native.stats().sampledFallbackSteps==256&&native.stats().compilations==1&&native.stats().generatedSteps>0;
+        for(Machine* target:{&machine,&reference}) { target->bus().write32(0,0xe2800007);target->state().r[15]=0; }
+        machine.execution().run(128);reference.execution().run(128);
+        check("Sampled compilation keeps cold batches exact, promotes recurring entries and revalidates changed hot code",
+            warmed&&equivalent(machine,reference)&&native.stats().compilations==2);
+    }
+    {
+        bool same=true;
+        for(size_t ratio:{1u,3u,6u,16u}) for(size_t phase=0;phase<ratio;++phase) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->configureExecution(false,ratio);target->execution().run(phase);
+                target->state().r[15]=0;target->state().r[1]=0x51000008;target->state().r[2]=(1u<<20)|(1u<<22);
+                target->bus().write32(0x5100003c,2);target->bus().write32(0x51000008,1u<<21);
+                target->bus().write32(0,0xe5812000);target->bus().write32(4,0xe2800001);target->bus().write32(8,0xeafffffcu);
+            }
+            NativeCacheLimits limits;limits.compileThreshold=3;limits.sampledCompilation=true;
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus(),limits);machine.execution().selectEngine(native);
+            for(unsigned round=0;round<8;++round) {
+                const auto deadline=machine.execution().time().ticks+7;
+                const auto actual=machine.execution().run(113,deadline),expected=reference.execution().run(113,deadline);
+                same=same&&actual==expected&&equivalent(machine,reference)&&
+                    machine.bus().getMmio(0x4a000000)==reference.bus().getMmio(0x4a000000)&&
+                    machine.bus().ticksUntilEvent()==reference.bus().ticksUntilEvent();
+            }
+        }
+        check("Cold/native sampling preserves MMIO event arming and exact stop ticks at every legacy phase",same);
+    }
+    {
+        Machine machine,reference; bool same=true; uint64_t cases=0;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        for(unsigned opcode=0;opcode<16;++opcode) for(bool setFlags:{false,true}) {
+            if(opcode>=8 && opcode<=11 && !setFlags) continue;
+            for(unsigned kind=0;kind<4;++kind)
+            for(uint32_t amount:{0u,1u,31u,32u,33u,63u,64u,255u,256u,257u,0x10000020u})
+            for(uint32_t value:{0u,0x80000001u,0xffffffffu}) for(uint32_t flags:{0u,FLAG_N|FLAG_C|FLAG_V}) {
+                const uint32_t raw=0xe0000213u|(opcode<<21)|(uint32_t(setFlags)<<20)|(1u<<16)|(4u<<12)|(kind<<5);
+                for(Machine* target:{&machine,&reference}) {
+                    target->state().r[15]=0; target->state().cpsr=0xd3|flags;
+                    target->state().r[1]=0x7fffffff; target->state().r[2]=amount;
+                    target->state().r[3]=value; target->state().r[4]=0x12345678;
+                    target->bus().write32(0,raw);
+                }
+                machine.execution().run(1); reference.execution().run(1);
+                same=same&&equivalent(machine,reference); ++cases;
+                // Independent MOVS oracle follows Arm's register-shift table,
+                // including byte truncation and nonzero multiples of 32.
+                if(opcode==13 && setFlags) {
+                    const unsigned n=amount&255; uint32_t expected=value;
+                    bool carry=(flags&FLAG_C)!=0;
+                    if(n) {
+                        if(kind==0) { carry=n<=32?bool((uint64_t(value)>>(32-(n<=32?n:32)))&1):false; expected=n<32?value<<n:0; }
+                        if(kind==1) { carry=n<=32?bool((uint64_t(value)>>(n-1))&1):false; expected=n<32?value>>n:0; }
+                        if(kind==2) { carry=(value>>(n<32?n-1:31))&1; expected=uint32_t(int32_t(value)>>(n<32?n:31)); }
+                        if(kind==3) { const unsigned rotation=n&31; expected=rotation?(value>>rotation)|(value<<(32-rotation)):value; carry=expected>>31; }
+                    }
+                    const uint32_t expectedFlags=(expected&FLAG_N)|(!expected?FLAG_Z:0)|(carry?FLAG_C:0)|(flags&FLAG_V);
+                    same=same&&machine.state().r[4]==expected&&(machine.state().cpsr&0xf0000000u)==expectedFlags;
+                }
+            }
+        }
+        check("Native ARM register shifts match all ALU operations and independent boundary/carry expectations",
+            same&&cases==7392&&native.stats().generatedSteps==cases&&native.stats().fallbackSteps==0);
+    }
+    {
+        bool same=true;
+        for(uint32_t flags=0;flags<16;++flags) for(unsigned destination:{2u,3u,4u}) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->state().cpsr=0xd3|(flags<<28); target->state().r[1]=0x80000001;
+                target->state().r[2]=1; target->state().r[3]=0xabcdef01; target->state().r[4]=0x76543210;
+                const uint32_t code[]={0xe2822001u,0x01b00211u|(destination<<12),0xe0823211u,0xe1a04233u};
+                for(unsigned i=0;i<4;++i)target->bus().write32(i*4,code[i]);
+            }
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+            machine.execution().run(4);reference.execution().run(4);
+            same=same&&equivalent(machine,reference)&&native.stats().generatedSteps==4;
+        }
+        check("Register shifts preserve cached amounts, source/destination overlap and conditional flags",same);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
             target->configureExecution(false,6);
             const uint32_t code[]={0xe3a00000,0xe3a01064,0xe2800001,0xe2511001,0x1afffffc};
             for(unsigned i=0;i<5;++i) target->bus().write32(i*4,code[i]);

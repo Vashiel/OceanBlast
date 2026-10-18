@@ -16,8 +16,7 @@ inline void constantShift(IntegerOperation& op, unsigned kind, unsigned amount) 
 }
 
 inline bool decodeArmInteger(uint32_t raw, IntegerOperation& op) {
-    // ARMv4T data processing with an immediate or a constant register shift.
-    // Register-controlled shifts and PC operands require later lowering.
+    // ARMv4T data processing. PC operands remain explicit scalar exits.
     if ((raw>>28)==15 || (raw&0x0c000000u)!=0) return false;
     if((raw&0x0fc000f0u)==0x00000090u) {
         const unsigned rd=(raw>>16)&15,rn=(raw>>12)&15,rs=(raw>>8)&15,rm=raw&15;
@@ -29,7 +28,8 @@ inline bool decodeArmInteger(uint32_t raw, IntegerOperation& op) {
         return true;
     }
     const bool immediate=(raw&(1u<<25))!=0;
-    if (!immediate && (raw&0x10u)) return false;
+    const bool registerShift=!immediate && (raw&0x10u);
+    if (registerShift && ((raw&0x80u) || ((raw>>8)&15)==15)) return false;
     const unsigned code=(raw>>21)&15, rn=(raw>>16)&15, rd=(raw>>12)&15;
     const bool setFlags=(raw&(1u<<20))!=0;
     const bool compare=code>=8 && code<=11;
@@ -55,7 +55,11 @@ inline bool decodeArmInteger(uint32_t raw, IntegerOperation& op) {
         op.shifterCarry=rotate ? ((rotated>>31)?CarrySource::One:CarrySource::Zero) : CarrySource::Preserve;
     } else {
         op.right=Value::reg(uint8_t(raw&15));
-        constantShift(op,(raw>>5)&3,(raw>>7)&31);
+        if(registerShift) {
+            op.shift=static_cast<Shift>((raw>>5)&3);
+            op.shiftRegister=uint8_t((raw>>8)&15);
+            op.shifterCarry=CarrySource::Shifter;
+        } else constantShift(op,(raw>>5)&3,(raw>>7)&31);
     }
     return true;
 }
@@ -155,6 +159,22 @@ inline bool decodeBranch(uint32_t raw,uint32_t pc,InstructionSet set,Instruction
     return false;
 }
 
+inline bool decodeArmHalfword(uint32_t raw,Instruction::MemoryOperation& memory) {
+    if((raw>>28)==15 || (raw&0x0e000090u)!=0x00000090u) return false;
+    const unsigned operation=(raw>>5)&3;
+    const bool load=raw&(1u<<20),immediate=raw&(1u<<22),pre=raw&(1u<<24);
+    const bool writeback=!pre || (raw&(1u<<21));
+    const uint8_t base=uint8_t((raw>>16)&15),destination=uint8_t((raw>>12)&15);
+    if(!operation || (!load && operation!=1) || destination==15 ||
+        (!pre && (raw&(1u<<21))) || (load && writeback && base==destination) ||
+        (base==15 && (!load || !immediate || writeback)) ||
+        (!immediate && ((raw&0xf00u) || (raw&15)==15))) return false;
+    memory={base,destination,immediate?((raw>>4)&0xf0u)|(raw&15u):0u,load,operation==2,pre,bool(raw&(1u<<23)),writeback};
+    if(!immediate) memory.offsetRegister=uint8_t(raw&15);
+    memory.halfword=operation!=2; memory.signExtend=operation!=1;
+    return true;
+}
+
 // Fetch must be side-effect-free and return unavailable for unsafe/unmapped
 // addresses. This frontend never reads the machine bus or executes a fallback.
 // The initial 1 KB span also stays within ARM small-page permission subregions.
@@ -188,7 +208,7 @@ Block decodeBlock(uint32_t pc,InstructionSet set,Fetch&& fetch,BlockLimits limit
                 block.stop=BlockStop::ControlFlow; block.stopEncoding=raw; pc+=bytes; break;
             }
             Instruction::MemoryOperation memory{};
-            if (set==InstructionSet::Arm && decodeArmMemory(raw,memory)) {
+            if (set==InstructionSet::Arm && (decodeArmMemory(raw,memory) || decodeArmHalfword(raw,memory))) {
                 block.instructions.push_back({pc,raw,uint8_t(bytes),static_cast<Condition>(raw>>28),{},memory,std::nullopt});
                 consumed+=bytes;
                 const uint32_t next=pc+bytes;

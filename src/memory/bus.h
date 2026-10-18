@@ -155,6 +155,13 @@ public:
         }
         write8PhysSlow(pa, val);
     }
+    inline void write16Phys(u32 pa,u16 value) {
+        if((pa-ADDR_SDRAM_BASE)<=ADDR_SDRAM_SIZE-2 && !(pa&1)) {
+            std::memcpy(sdramPtr+(pa-ADDR_SDRAM_BASE),&value,2);
+            captureFrameWrite(pa,2); return;
+        }
+        write16PhysSlow(pa,value);
+    }
     inline void write32Phys(u32 pa,u32 value) {
         if((pa-ADDR_SDRAM_BASE)<=ADDR_SDRAM_SIZE-4 && !(pa&3)) {
             std::memcpy(sdramPtr+(pa-ADDR_SDRAM_BASE),&value,4);

@@ -15,12 +15,14 @@ struct NativeExecutionStats {
     uint64_t coldBlockSteps=0,coldCacheHits=0,promotions=0;
     uint64_t internalBackedges=0;
     uint64_t inlineLoads=0;
+    uint64_t sampledFallbackSteps=0,sampledFallbackBatches=0;
 };
 struct NativeCacheLimits {
     size_t blocks=65536;
     size_t bytes=8*1024*1024;
     size_t compileThreshold=1; // Reference fixtures can request immediate code generation.
     bool followDirectBranches=false;
+    bool sampledCompilation=false;
 };
 // Checked integration with bounded, generation-validated code reuse.
 // Whole-machine pacing, audio and performance acceptance remain separate gates.

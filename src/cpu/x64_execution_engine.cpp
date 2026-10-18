@@ -64,31 +64,34 @@ void materializeBeforeMemory(Bus* bus,NativeRun* run) {
 bool ordinaryRam(uint32_t physical) {
     return physical<ADDR_STEPPINGSTONE_SIZE || physical-ADDR_SDRAM_BASE<ADDR_SDRAM_SIZE;
 }
-template<bool Byte> uint64_t checkedLoad(Bus* bus,NativeRun* run,uint32_t address) {
+template<unsigned Width> uint64_t checkedLoad(Bus* bus,NativeRun* run,uint32_t address) {
     ++run->memorySteps;
     uint32_t physical=0;
-    if(!bus->translateDataAddress(Byte?address:address&~3u,false,physical)) {
+    if(!bus->translateDataAddress(Width==4?address&~3u:address,false,physical)) {
         materializeBeforeMemory(bus,run); return uint64_t(1)<<32;
     }
     const bool ram=ordinaryRam(physical);
     if(!ram) materializeBeforeMemory(bus,run);
-    uint32_t value=Byte?bus->read8Phys(physical):bus->read32Phys(physical);
-    if (!Byte && (address&3u)) { const unsigned shift=(address&3u)*8; value=(value>>shift)|(value<<(32-shift)); }
+    uint32_t value=Width==1?bus->read8Phys(physical):(Width==2?bus->read16Phys(physical):bus->read32Phys(physical));
+    if (Width==4 && (address&3u)) { const unsigned shift=(address&3u)*8; value=(value>>shift)|(value<<(32-shift)); }
     return (uint64_t(ram?0:2)<<32)|value;
 }
-template<bool Byte> uint32_t checkedStore(Bus* bus,NativeRun* run,uint32_t address,uint32_t value) {
+template<unsigned Width> uint32_t checkedStore(Bus* bus,NativeRun* run,uint32_t address,uint32_t value) {
     ++run->memorySteps;
     uint32_t physical=0;
-    if(!bus->translateDataAddress(Byte?address:address&~3u,true,physical)) {
+    if(!bus->translateDataAddress(Width==4?address&~3u:address,true,physical)) {
         materializeBeforeMemory(bus,run); return 1;
     }
     const bool ram=ordinaryRam(physical);
     if(!ram) materializeBeforeMemory(bus,run);
-    if (Byte) bus->write8Phys(physical,uint8_t(value)); else bus->write32Phys(physical,value);
+    if (Width==1) bus->write8Phys(physical,uint8_t(value));
+    else if(Width==2) bus->write16Phys(physical,uint16_t(value));
+    else bus->write32Phys(physical,value);
     if(!ram) return 2;
     // A store to the currently executing physical code page must return before
     // any following translated instruction, including writes through aliases.
-    return (physical&~1023u)==(run->physical&~1023u)?4:0;
+    const uint32_t activePage=run->physical&~1023u;
+    return (physical&~1023u)==activePage || ((physical+Width-1)&~1023u)==activePage?4:0;
 }
 void checkedAbort(ARM920T* cpu) { cpu->completeCheckedDataAbort(); }
 bool executableReadOnly(const void* address) {
@@ -122,6 +125,8 @@ struct X64ExecutionEngine::Impl {
     struct HotEntry { CacheEntry* entry=nullptr; Cache::iterator iterator; size_t limit=0; };
     static constexpr size_t hotCount=1024;
     std::array<HotEntry,hotCount> hot{};
+    struct CompilationSample { std::array<uint32_t,5> context{}; size_t visits=0; };
+    std::array<CompilationSample,hotCount> samples{};
     static size_t hotIndex(uint32_t pc) { return ((pc>>1)^(pc>>12))&(hotCount-1); }
     std::unordered_multimap<uint32_t,Cache::iterator> cacheByPc;
     NativeCacheLimits limits;
@@ -140,8 +145,18 @@ struct X64ExecutionEngine::Impl {
     }
     void clearCache() {
         hot.fill({});
+        samples.fill({});
         for (const auto& entry : cache) if(entry.function) runtime.release(entry.function);
         cacheByPc.clear(); cache.clear(); cacheBytes=0;
+    }
+    bool sampledHotEntry() {
+        const auto& state=architecturalState;
+        const std::array<uint32_t,5> context={state.r[15],(state.cpsr&0x3fu)|(bus.isUserMode()?0x100u:0u),
+            state.cp15_control,state.cp15_ttb,state.cp15_dacr};
+        auto& sample=samples[hotIndex(context[0])];
+        if(!sample.visits || sample.context!=context) { sample.context=context; sample.visits=1; }
+        else if(sample.visits<limits.compileThreshold) ++sample.visits;
+        return sample.visits>=limits.compileThreshold;
     }
 
     Function publish(asmjit::CodeHolder& code,size_t& bytes) {
@@ -156,6 +171,7 @@ struct X64ExecutionEngine::Impl {
     asmjit::x86::Gp emitMemory(asmjit::x86::Compiler& cc,asmjit::x86::Gp pointer,asmjit::x86::Gp run,const Instruction& instruction) {
         using namespace asmjit;
         const auto& memory=*instruction.memory;
+        const unsigned width=memory.byte?1:(memory.halfword?2:4);
         auto reg=[&](unsigned index) { return x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+index*4)); };
         cc.mov(reg(15),instruction.pc+4);
         auto base=cc.new_gp32(),updated=cc.new_gp32(),address=cc.new_gp32();
@@ -187,7 +203,7 @@ struct X64ExecutionEngine::Impl {
             const auto slow=cc.new_label(),translated=cc.new_label(),sram=cc.new_label(),loaded=cc.new_label(),complete=cc.new_label();
             const auto view=bus.nativeReadView();
             auto physical=cc.new_gp32(),vpn=cc.new_gp32(),index=cc.new_gp64(),tag=cc.new_gp32(),token=cc.new_gp_ptr();
-            cc.mov(physical,address); if(!memory.byte) cc.and_(physical,~3u);
+            cc.mov(physical,address); if(width==4) cc.and_(physical,~3u);
             cc.mov(token,uintptr_t(view.enabled)); cc.cmp(x86::byte_ptr(token),0); cc.je(translated);
             cc.mov(vpn,physical); cc.shr(vpn,12); cc.mov(index.r32(),vpn); cc.and_(index.r32(),uint32_t(view.size-1));
             cc.mov(token,uintptr_t(view.entries)); cc.lea(token,x86::ptr(token,index,3));
@@ -205,12 +221,13 @@ struct X64ExecutionEngine::Impl {
             cc.bind(translated);
             auto offset=cc.new_gp64(),host=cc.new_gp_ptr();
             cc.mov(offset.r32(),physical); cc.sub(offset.r32(),ADDR_SDRAM_BASE);
-            cc.cmp(offset.r32(),ADDR_SDRAM_SIZE); cc.jae(sram);
+            cc.cmp(offset.r32(),ADDR_SDRAM_SIZE-(width-1)); cc.jae(sram);
             cc.mov(host,uintptr_t(bus.getSdramPtr())); cc.jmp(loaded);
-            cc.bind(sram); cc.cmp(physical,ADDR_STEPPINGSTONE_SIZE); cc.jae(slow);
+            cc.bind(sram); cc.cmp(physical,ADDR_STEPPINGSTONE_SIZE-(width-1)); cc.jae(slow);
             cc.mov(offset.r32(),physical); cc.mov(host,uintptr_t(bus.getSteppingstonePtr()));
             cc.bind(loaded);
-            if(memory.byte) cc.movzx(result.r32(),x86::byte_ptr(host,offset));
+            if(width==1) cc.movzx(result.r32(),x86::byte_ptr(host,offset));
+            else if(width==2) cc.movzx(result.r32(),x86::word_ptr(host,offset));
             else {
                 cc.mov(result.r32(),x86::dword_ptr(host,offset));
                 auto rotate=cc.new_gp32(); cc.mov(rotate,address); cc.and_(rotate,3); cc.shl(rotate,3);
@@ -220,14 +237,17 @@ struct X64ExecutionEngine::Impl {
             cc.inc(x86::dword_ptr(run,int32_t(offsetof(NativeRun,memorySteps))));
             cc.inc(x86::dword_ptr(run,int32_t(offsetof(NativeRun,inlineLoads))));
             cc.jmp(complete); cc.bind(slow);
-            cc.invoke(Out(invoke),imm(memory.byte?(void*)checkedLoad<true>:(void*)checkedLoad<false>),FuncSignature::build<uint64_t,Bus*,NativeRun*,uint32_t>());
+            cc.invoke(Out(invoke),imm(width==1?(void*)checkedLoad<1>:(width==2?(void*)checkedLoad<2>:(void*)checkedLoad<4>)),FuncSignature::build<uint64_t,Bus*,NativeRun*,uint32_t>());
             invoke->set_arg(0,busPointer); invoke->set_arg(1,run); invoke->set_arg(2,address); invoke->set_ret(0,result);
             auto high=cc.new_gp64(); cc.mov(high,result); cc.shr(high,32); cc.mov(error,high.r32());
             cc.bind(complete);
             data=result.r32();
+            if(memory.signExtend) {
+                if(width==1) cc.movsx(data,data.r8()); else cc.movsx(data,data.r16());
+            }
         } else {
             auto value=cc.new_gp32(); cc.mov(value,reg(memory.destination));
-            cc.invoke(Out(invoke),imm(memory.byte?(void*)checkedStore<true>:(void*)checkedStore<false>),FuncSignature::build<uint32_t,Bus*,NativeRun*,uint32_t,uint32_t>());
+            cc.invoke(Out(invoke),imm(width==1?(void*)checkedStore<1>:(width==2?(void*)checkedStore<2>:(void*)checkedStore<4>)),FuncSignature::build<uint32_t,Bus*,NativeRun*,uint32_t,uint32_t>());
             invoke->set_arg(0,busPointer); invoke->set_arg(1,run); invoke->set_arg(2,address); invoke->set_arg(3,value); invoke->set_ret(0,error);
         }
         Label abort=cc.new_label(),done=cc.new_label();
@@ -317,6 +337,7 @@ struct X64ExecutionEngine::Impl {
                 if(op.left.kind==ValueKind::Register) readRegister(op.left.value);
                 if(op.right.kind==ValueKind::Register) readRegister(op.right.value);
                 if(op.addend) readRegister(*op.addend);
+                if(op.shiftRegister) readRegister(*op.shiftRegister);
                 if(instruction.condition!=Condition::Always && op.destination) readRegister(*op.destination);
             }
             auto flags=compiler.new_gp32();
@@ -395,7 +416,38 @@ struct X64ExecutionEngine::Impl {
             const bool unary=op.opcode==IntegerOpcode::Move || op.opcode==IntegerOpcode::Not;
             auto left=unary?right:load(op.left);
             auto carry=compiler.new_gp32();
-            if (op.shifterCarry==CarrySource::Zero) { if(logicalFlags) compiler.mov(carry,0); }
+            if(op.shiftRegister) {
+                auto amount=compiler.new_gp32(); compiler.mov(amount,readRegister(*op.shiftRegister));
+                compiler.and_(amount,255);
+                const auto done=compiler.new_label();
+                if(logicalFlags) { compiler.mov(carry,flags); compiler.shr(carry,29); compiler.and_(carry,1); }
+                compiler.test(amount,amount); compiler.jz(done);
+                if(op.shift==Shift::Ror) {
+                    compiler.ror(right,amount.r8());
+                    if(logicalFlags) { compiler.mov(carry,right); compiler.shr(carry,31); }
+                } else {
+                    const auto large=compiler.new_label(); compiler.cmp(amount,32); compiler.jae(large);
+                    if(op.shift==Shift::Lsl) compiler.shl(right,amount.r8());
+                    else if(op.shift==Shift::Lsr) compiler.shr(right,amount.r8());
+                    else compiler.sar(right,amount.r8());
+                    if(logicalFlags) { compiler.setb(carry.r8()); capture(carry); }
+                    compiler.jmp(done); compiler.bind(large);
+                    if(op.shift==Shift::Asr) {
+                        if(logicalFlags) { compiler.mov(carry,right); compiler.shr(carry,31); }
+                        compiler.sar(right,31);
+                    } else {
+                        if(logicalFlags) {
+                            const auto clearCarry=compiler.new_label(); compiler.mov(carry,0);
+                            compiler.cmp(amount,32); compiler.jne(clearCarry);
+                            compiler.mov(carry,right);
+                            if(op.shift==Shift::Lsl) compiler.and_(carry,1); else compiler.shr(carry,31);
+                            compiler.bind(clearCarry);
+                        }
+                        compiler.mov(right,0);
+                    }
+                }
+                compiler.bind(done);
+            } else if (op.shifterCarry==CarrySource::Zero) { if(logicalFlags) compiler.mov(carry,0); }
             else if (op.shifterCarry==CarrySource::One) { if(logicalFlags) compiler.mov(carry,1); }
             else if (op.shifterCarry==CarrySource::Shifter) {
                 const unsigned amount=op.shiftAmount;
@@ -714,6 +766,19 @@ size_t X64ExecutionEngine::run(ExecutionTimeline& timeline,size_t budget,uint64_
                     continue;
                 }
             }
+        }
+        if(engine.limits.sampledCompilation && !engine.sampledHotEntry()) {
+            // Sampling is a compilation hint only. The existing interpreter
+            // owns every cold instruction, interrupt and peripheral step.
+            // Its bulk runner avoids decoding/looking up each cold JIT block.
+            engine.eventWindowDirty=true;
+            const size_t completed=engine.reference.run(timeline,left,stopTicks);
+            engine.counters.fallbackSteps+=completed;
+            engine.counters.sampledFallbackSteps+=completed;
+            ++engine.counters.sampledFallbackBatches;
+            steps+=completed;
+            if(!completed) break;
+            continue;
         }
         const auto exit=runUntilDeadline(timeline,budget-steps,stopTicks,eventDeadline);
         steps+=exit.steps;

@@ -21,6 +21,9 @@ add_library(oceanblast_jit_core STATIC
 target_compile_features(oceanblast_jit_core PUBLIC cxx_std_17)
 target_include_directories(oceanblast_jit_core PUBLIC ../src)
 target_link_libraries(oceanblast_jit_core PUBLIC asmjit::asmjit)
+set_target_properties(oceanblast_jit_core PROPERTIES UNITY_BUILD ON UNITY_BUILD_BATCH_SIZE 8)
+# GCC 16.2 fails internally when the AsmJit emitter joins this unity unit.
+set_source_files_properties(../src/cpu/x64_execution_engine.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_compile_options(oceanblast_jit_core PRIVATE -Wall -Wextra)
 endif()
