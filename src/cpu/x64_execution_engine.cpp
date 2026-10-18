@@ -94,6 +94,37 @@ template<unsigned Width> uint32_t checkedStore(Bus* bus,NativeRun* run,uint32_t 
     return (physical&~1023u)==activePage || ((physical+Width-1)&~1023u)==activePage?4:0;
 }
 void checkedAbort(ARM920T* cpu) { cpu->completeCheckedDataAbort(); }
+uint32_t checkedMultiple(Bus* bus,ARM920T* cpu,NativeRun* run,uint32_t encoding) {
+    ++run->memorySteps;
+    // Commit the integer prefix before any partial register/memory update.
+    // A later word can fault or access a device after earlier words succeed.
+    materializeBeforeMemory(bus,run);
+    auto& state=*run->state;
+    const unsigned baseRegister=(encoding>>16)&15;
+    const uint32_t registers=encoding&0xffffu,base=state.r[baseRegister];
+    const unsigned count=__builtin_popcount(registers);
+    const bool load=encoding&(1u<<20),up=encoding&(1u<<23),pre=encoding&(1u<<24);
+    uint32_t address=up?base:base-count*4;
+    if(pre==up) address+=4;
+    uint32_t status=0;
+    for(uint32_t list=registers;list;list&=list-1,address+=4) {
+        const unsigned reg=__builtin_ctz(list);
+        uint32_t physical=0;
+        if(!bus->translateDataAddress(address,!load,physical)) { checkedAbort(cpu);return 1; }
+        if(!ordinaryRam(physical)) status|=2;
+        if(load) {
+            const uint32_t value=bus->read32Phys(physical);
+            state.r[reg]=reg==15?value&~3u:value;
+        } else {
+            bus->write32Phys(physical,reg==15?state.r[15]+4:state.r[reg]);
+            const uint32_t active=run->physical&~1023u;
+            if((physical&~1023u)==active || ((physical+3)&~1023u)==active) status|=4;
+        }
+    }
+    if((encoding&(1u<<21)) && (!load || !(registers&(1u<<baseRegister))))
+        state.r[baseRegister]=up?base+count*4:base-count*4;
+    return status;
+}
 bool executableReadOnly(const void* address) {
     MEMORY_BASIC_INFORMATION information{};
     return VirtualQuery(address,&information,sizeof(information)) &&
@@ -332,7 +363,7 @@ struct X64ExecutionEngine::Impl {
             // Helpers and control-flow exits observe authoritative registers.
             // Predicated destinations start with their old value so a skipped
             // operation can share the same cached register at the merge point.
-            if(instruction.memory || instruction.branch) flushRegisters();
+            if(instruction.memory || instruction.multiple || instruction.branch) flushRegisters();
             else {
                 if(op.left.kind==ValueKind::Register) readRegister(op.left.value);
                 if(op.right.kind==ValueKind::Register) readRegister(op.right.value);
@@ -381,14 +412,23 @@ struct X64ExecutionEngine::Impl {
                     case Condition::Always:break;
                 }
             }
-            if(instruction.memory) {
+            if(instruction.memory || instruction.multiple) {
                 if(repeatable) {
                     auto completed=compiler.new_gp32(); compiler.mov(completed,loopBase); compiler.add(completed,uint32_t(index+1));
                     compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,retired))),completed);
                 } else compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,retired))),uint32_t(index+1));
-                auto status=emitMemory(compiler,pointer,run,instruction);
+                auto status=compiler.new_gp32();
+                if(instruction.multiple) {
+                    compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+15*4)),instruction.pc+4);
+                    auto busPointer=compiler.new_gp_ptr(),cpuPointer=compiler.new_gp_ptr();
+                    compiler.mov(busPointer,uintptr_t(&bus));compiler.mov(cpuPointer,uintptr_t(&cpu));
+                    InvokeNode* invoke=nullptr;
+                    compiler.invoke(Out(invoke),imm((void*)checkedMultiple),FuncSignature::build<uint32_t,Bus*,ARM920T*,NativeRun*,uint32_t>());
+                    invoke->set_arg(0,busPointer);invoke->set_arg(1,cpuPointer);invoke->set_arg(2,run);invoke->set_arg(3,imm(instruction.encoding));invoke->set_ret(0,status);
+                } else compiler.mov(status,emitMemory(compiler,pointer,run,instruction));
                 auto next=compiler.new_label(); compiler.test(status,status); compiler.je(next);
                 compiler.ret(status); compiler.bind(next);
+                if(instruction.multiple && instruction.multiple->load && (instruction.multiple->registers&0x8000u)) compiler.jmp(blockExit);
                 compiler.bind(skipped); continue;
             }
             if(instruction.branch) {

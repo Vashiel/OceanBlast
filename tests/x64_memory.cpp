@@ -11,6 +11,112 @@ static bool equal(const Machine& a,const Machine& b) {
 }
 int main() {
     {
+        Machine machine;machine.state().r[13]=0x30001100;machine.state().r[14]=0x1234567b;
+        machine.state().cpsr=0xd3|FLAG_N|FLAG_C|FLAG_V;
+        for(unsigned reg=4;reg<8;++reg)machine.state().r[reg]=0x11111111u*reg;
+        machine.bus().write32(0,0xe92d40f0);machine.bus().write32(4,0xe8bd80f0);
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+        machine.execution().run(1);
+        const bool stored=machine.state().r[13]==0x300010ec&&machine.bus().read32(0x300010ec)==0x44444444&&
+            machine.bus().read32(0x300010f0)==0x55555555&&machine.bus().read32(0x300010f4)==0x66666666&&
+            machine.bus().read32(0x300010f8)==0x77777777&&machine.bus().read32(0x300010fc)==0x1234567b;
+        for(unsigned reg=4;reg<8;++reg)machine.state().r[reg]=0;
+        machine.state().r[14]=0;machine.execution().run(1);
+        check("Native full-descending stack save and incrementing PC restore match fixed address/register expectations",
+            stored&&machine.state().r[13]==0x30001100&&machine.state().r[15]==0x12345678&&
+            machine.state().r[4]==0x44444444&&machine.state().r[7]==0x77777777&&machine.state().cpsr==(0xd3|FLAG_N|FLAG_C|FLAG_V)&&
+            native.stats().generatedSteps==2&&native.stats().fallbackSteps==0);
+    }
+    {
+        Machine machine,reference;bool same=true;uint64_t cases=0;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+        for(bool load:{false,true})for(bool pre:{false,true})for(bool up:{false,true})for(bool writeback:{false,true})
+        for(unsigned base:{1u,13u})for(unsigned registers:{0x000cu,0x2002u,0x8004u,0x4001u,0x0001u,0x0003u,0xffffu})
+        for(unsigned alignment:{0u,1u})for(uint32_t flags:{0u,FLAG_Z}) {
+            const uint32_t opcode=0x08000000u|(uint32_t(pre)<<24)|(uint32_t(up)<<23)|(uint32_t(writeback)<<21)|
+                (uint32_t(load)<<20)|(base<<16)|registers;
+            for(Machine* target:{&machine,&reference}) {
+                for(unsigned reg=0;reg<15;++reg)target->state().r[reg]=0x11220000+reg;
+                target->state().r[15]=0;target->state().cpsr=0xd3|flags;target->state().r[base]=0x30001040+alignment;
+                for(unsigned i=0;i<256;++i)target->bus().write8(0x30000fc0+i,uint8_t(i^0x5a));
+                target->bus().write32(0,opcode);
+            }
+            machine.execution().run(1);reference.execution().run(1);same=same&&equal(machine,reference);
+            for(unsigned i=0;i<256;++i)same=same&&machine.bus().read8(0x30000fc0+i)==reference.bus().read8(0x30000fc0+i);
+            ++cases;
+        }
+        check("Native ARM multiple transfers preserve all addressing modes, writeback, register overlap, PC and predication",
+            same&&cases==896&&native.stats().generatedSteps==cases&&native.stats().memorySteps==cases/2&&native.stats().fallbackSteps==0);
+    }
+    {
+        bool same=true;
+        for(size_t ratio:{1u,3u,6u,16u})for(size_t phase=0;phase<ratio;++phase)
+        for(size_t budget:{1u,2u,4u,5u,7u,11u,50u,51u}) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->configureExecution(false,ratio);target->execution().run(phase);
+                target->state().r[15]=0;target->state().r[0]=10;target->state().r[1]=0x30001000;
+                const uint32_t code[]={0xe8b1000c,0xe0844002,0xe0844003,0xe2500001,0x1afffffa};
+                for(unsigned i=0;i<5;++i)target->bus().write32(i*4,code[i]);
+                for(unsigned i=0;i<64;++i)target->bus().write32(0x30001000+i*4,i+1);
+            }
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+            const auto deadline=machine.execution().time().ticks+7;
+            const auto actual=machine.execution().run(budget,deadline),expected=reference.execution().run(budget,deadline);
+            same=same&&actual==expected&&equal(machine,reference);
+        }
+        check("Multiple-transfer native loops retain partial budgets and exact event phases",same);
+    }
+    {
+        bool same=true;
+        for(size_t ratio:{1u,3u,6u,16u})for(size_t phase=0;phase<ratio;++phase)
+        for(bool load:{false,true})for(bool includePc:{false,true}) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->configureExecution(false,ratio);target->execution().run(phase);
+                target->bus().write32(0x30004000,0x30008001);target->bus().write32(0x30008000,0x30000ff2);
+                target->bus().write32(0x30008004,0x30001ff2);
+                target->bus().write32(0x30000000,0xe3a04063);
+                target->bus().write32(0x30000004,0xe8a1000cu|(uint32_t(load)<<20)|(includePc?0x8000u:0));
+                target->bus().write32(0x30000008,0xe2800001);target->bus().write32(0x30001ffc,0x12345678);
+                target->state().cp15_control|=1;target->state().cp15_ttb=0x30004000;target->state().cp15_dacr=1;
+                target->state().cpsr=0x10;target->state().r[15]=0;target->state().r[1]=0x1ffc;
+                target->state().r[2]=0xaabbccdd;target->state().r[3]=0x87654321;
+                target->execution().selectInterpreter(target->cpu());
+            }
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+            const auto actual=machine.execution().runToBoundary(32);reference.execution().run(2);
+            same=same&&actual.steps==2&&actual.event==CpuStepEvent::DataAbort&&equal(machine,reference)&&
+                machine.state().r[1]==0x1ffc&&machine.state().r[4]==99&&machine.state().r[3]==0x87654321&&machine.state().r[14]==12&&
+                machine.bus().read32Phys(0x30001ffc)==reference.bus().read32Phys(0x30001ffc);
+        }
+        check("Multiple-transfer late-word aborts preserve partial results, suppress writeback and retain prefix timing",same);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->state().r[15]=0x400;target->state().r[1]=0x400;target->state().r[2]=0xe3a0002a;target->state().r[3]=0xe881000c;
+            target->bus().write32(0x400,0xe3a00001);target->bus().write32(0x404,0xe881000c);target->bus().write32(0x408,0xeafffffc);
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+        machine.execution().run(7);reference.execution().run(7);
+        check("Multiple stores to active code finish their instruction and exit before a stale native iteration",
+            equal(machine,reference)&&machine.state().r[0]==42);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->state().r[1]=0x51000000;target->state().r[2]=0;target->state().r[3]=0;target->state().r[4]=(1u<<20)|(1u<<22);
+            target->bus().write32(0x5100003c,2);target->bus().write32(0x51000008,1u<<21);
+            target->bus().write32(0,0xe3a05007);target->bus().write32(4,0xe8a1001c);target->bus().write32(8,0xe2800001);
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+        const auto actual=machine.execution().runToBoundary(32);reference.execution().run(2);
+        check("A device-touching multiple transfer completes all words and reasserts the precise event boundary",
+            actual.steps==2&&equal(machine,reference)&&machine.bus().ticksUntilEvent()==reference.bus().ticksUntilEvent()&&
+            machine.bus().getMmio(0x51000008)==reference.bus().getMmio(0x51000008));
+    }
+    {
         Machine machine,reference; bool same=true; uint64_t cases=0;
         X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
         for(unsigned kind=0;kind<4;++kind) for(bool immediate:{false,true}) for(unsigned indexing=0;indexing<3;++indexing)

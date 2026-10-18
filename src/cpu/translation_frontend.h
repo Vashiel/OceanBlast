@@ -218,6 +218,18 @@ Block decodeBlock(uint32_t pc,InstructionSet set,Fetch&& fetch,BlockLimits limit
                 if(next<pc) { pc=next; block.stop=BlockStop::AddressWrap; break; }
                 pc=next; continue;
             }
+            if(set==InstructionSet::Arm && (raw>>28)!=15 && (raw&0x0e400000u)==0x08000000u &&
+                ((raw>>16)&15)!=15 && (raw&0xffffu)) {
+                const Instruction::MultipleMemoryOperation multiple={uint8_t((raw>>16)&15),uint16_t(raw),
+                    bool(raw&(1u<<20)),bool(raw&(1u<<24)),bool(raw&(1u<<23)),bool(raw&(1u<<21))};
+                block.instructions.push_back({pc,raw,uint8_t(bytes),static_cast<Condition>(raw>>28),{},std::nullopt,std::nullopt,multiple});
+                consumed+=bytes;
+                const uint32_t next=pc+bytes;
+                if(next<pc) { pc=next;block.stop=BlockStop::AddressWrap;break; }
+                pc=next;
+                if(multiple.load && (multiple.registers&0x8000u)) { block.stop=BlockStop::ControlFlow;block.stopEncoding=raw;break; }
+                continue;
+            }
             block.stop=isControlFlow(raw,set)?BlockStop::ControlFlow:BlockStop::Unsupported;
             block.stopEncoding=raw;
             break;

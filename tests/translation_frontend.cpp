@@ -104,7 +104,8 @@ int main() {
     check("Block remains inside a 1 KB permission span",decodeBlock(1020,arm,constant).stop==BlockStop::PageBoundary);
     check("Address wrap produces a bounded exit",decodeBlock(0xfffffffc,arm,constant).stop==BlockStop::AddressWrap);
     check("Unavailable fetch does not produce an instruction",decodeBlock(0,arm,[](uint32_t,InstructionSet){return FetchResult{false,0};}).instructions.empty());
-    for (uint32_t raw : {0xe5bf0000u,0xee070f90u,0xe121f000u,0xe0800f11u,0xe1a0f00fu,0xe08f0001u,0xf2800001u}) {
+    for (uint32_t raw : {0xe5bf0000u,0xee070f90u,0xe121f000u,0xe0800f11u,0xe1a0f00fu,0xe08f0001u,0xf2800001u,
+                         0xe8b10000u,0xe8bf000cu,0xe8f1000cu}) {
         auto block=decodeBlock(0,arm,[&](uint32_t,InstructionSet){return FetchResult{true,raw};});
         check("Unsupported memory control or PC operation exits before execution",
             block.instructions.empty() && block.stopPc==0 && block.stopEncoding==raw);

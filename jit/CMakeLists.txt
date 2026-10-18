@@ -61,3 +61,26 @@ add_executable(oceanblast_jit_player
 target_compile_definitions(oceanblast_jit_player PRIVATE OCEANBLAST_WITH_JIT=1)
 target_link_libraries(oceanblast_jit_player PRIVATE oceanblast_jit_core
   gdi32 user32 winmm comdlg32 comctl32 shell32 ole32 dinput8 dxguid d3d11 dxgi d3dcompiler gdiplus)
+
+set(OCEANBLAST_PGO_MODE "OFF" CACHE STRING "GCC profile mode: OFF, GENERATE or USE")
+set_property(CACHE OCEANBLAST_PGO_MODE PROPERTY STRINGS OFF GENERATE USE)
+set(OCEANBLAST_PGO_DIRECTORY "" CACHE PATH "Matching GCC profile directory")
+if(NOT OCEANBLAST_PGO_MODE STREQUAL "OFF")
+  if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR NOT OCEANBLAST_PGO_DIRECTORY)
+    message(FATAL_ERROR "Profile builds require GCC and OCEANBLAST_PGO_DIRECTORY")
+  endif()
+  if(OCEANBLAST_PGO_MODE STREQUAL "GENERATE")
+    set(OCEANBLAST_PGO_FLAG "-fprofile-generate=${OCEANBLAST_PGO_DIRECTORY}")
+  elseif(OCEANBLAST_PGO_MODE STREQUAL "USE")
+    set(OCEANBLAST_PGO_FLAG "-fprofile-use=${OCEANBLAST_PGO_DIRECTORY}")
+    target_compile_options(oceanblast_jit_core PRIVATE -Werror=coverage-mismatch -Werror=missing-profile)
+    target_compile_options(oceanblast_jit_player PRIVATE -Werror=coverage-mismatch -Werror=missing-profile)
+  else()
+    message(FATAL_ERROR "Unknown OCEANBLAST_PGO_MODE")
+  endif()
+  # Keep the same build tree and object paths between generation and use.
+  # Only project code is trained; the pinned emitter library is unchanged.
+  target_compile_options(oceanblast_jit_core PRIVATE "${OCEANBLAST_PGO_FLAG}")
+  target_compile_options(oceanblast_jit_player PRIVATE "${OCEANBLAST_PGO_FLAG}")
+  target_link_options(oceanblast_jit_core INTERFACE "${OCEANBLAST_PGO_FLAG}")
+endif()

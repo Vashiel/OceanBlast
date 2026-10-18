@@ -53,6 +53,8 @@ struct Instruction {
     std::optional<MemoryOperation> memory;
     struct BranchOperation { uint32_t target; bool link; std::optional<uint8_t> targetRegister=std::nullopt; };
     std::optional<BranchOperation> branch;
+    struct MultipleMemoryOperation { uint8_t base; uint16_t registers; bool load,pre,up,writeback; };
+    std::optional<MultipleMemoryOperation> multiple=std::nullopt;
 };
 enum class BlockStop { Unsupported, ControlFlow, InstructionLimit, ByteLimit,
                        PageBoundary, FetchUnavailable, MisalignedEntry, AddressWrap, MemoryBoundary };
