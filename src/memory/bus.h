@@ -81,6 +81,14 @@ public:
     u32 translate(u32 va, MmuFault* fault = nullptr, bool isWrite = false) const {
         return mmu.translate(va, sdramPtr, fault, isWrite);
     }
+    // Checked native access translates once, retaining the ordinary data-fault
+    // attribution before choosing RAM or device physical access.
+    bool translateDataAddress(u32 address,bool write,u32& physical) {
+        MmuFault fault=MmuFault::NONE;
+        physical=translate(address,&fault,write);
+        if(fault==MmuFault::NONE) return true;
+        lastFault=fault; lastFaultAddr=address; return false;
+    }
 
     // Physical (translated) memory access slow paths
     u8   read8PhysSlow(u32 addr);
@@ -143,6 +151,13 @@ public:
             return;
         }
         write8PhysSlow(pa, val);
+    }
+    inline void write32Phys(u32 pa,u32 value) {
+        if((pa-ADDR_SDRAM_BASE)<=ADDR_SDRAM_SIZE-4 && !(pa&3)) {
+            std::memcpy(sdramPtr+(pa-ADDR_SDRAM_BASE),&value,4);
+            captureFrameWrite(pa,4); return;
+        }
+        write32PhysSlow(pa,value);
     }
 
     inline u8 read8(u32 addr) {

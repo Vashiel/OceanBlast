@@ -162,10 +162,11 @@ Block decodeBlock(uint32_t pc,InstructionSet set,Fetch&& fetch,BlockLimits limit
             }
             Instruction::MemoryOperation memory{};
             if (set==InstructionSet::Arm && decodeArmMemory(raw,memory)) {
-                block.stop=BlockStop::MemoryBoundary;
                 block.instructions.push_back({pc,raw,uint8_t(bytes),Condition::Always,{},memory,std::nullopt});
-                pc+=bytes;
-                break;
+                consumed+=bytes;
+                const uint32_t next=pc+bytes;
+                if(next<pc) { pc=next; block.stop=BlockStop::AddressWrap; break; }
+                pc=next; continue;
             }
             block.stop=isControlFlow(raw,set)?BlockStop::ControlFlow:BlockStop::Unsupported;
             block.stopEncoding=raw;

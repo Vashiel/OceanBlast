@@ -1,0 +1,175 @@
+{
+  "date": "2026-10-18",
+  "base_revision": "174f64d6491593826477b6a80eb74efa37b01536",
+  "scope": "Mixed checked RAM blocks with dynamic early exits and bounded time accumulation",
+  "work_block_budget_minutes": 45,
+  "compiler": "GCC 16.2.0",
+  "native_flags": "-march=x86-64 -O3 -DNDEBUG -std=c++20 -Wall -Wextra",
+  "asmjit_revision": "0464e1c8f1f43c861a0c73d4e59437fff255cdd9",
+  "pgo": false,
+  "final_build": {
+    "executable_sha256": "bee0da8236676d952fc37c1ef25b8da1e14342560d0883c9208254167d8e868f",
+    "preserved_local_directory": "build/2026-10-18-bounded-memory-final",
+    "technical_suites": {
+      "x64_execution": {
+        "passed": true,
+        "executable_sha256": "e9bccd98703e9b89008ee9a0af67f33adbf53e10ba8bfd7c380333d2bbe368be"
+      },
+      "native_semantics": {
+        "passed": true,
+        "executable_sha256": "57d3f4b898b8778db9ced678c04b8f0113faea890c46ac3263bf9435dd3f6c05"
+      },
+      "x64_memory": {
+        "passed": true,
+        "executable_sha256": "10021ef636e40ce878bf2ffd69d6054b0acc98967506e5e860c2f48ddaa39d67"
+      },
+      "x64_invalidation": {
+        "passed": true,
+        "executable_sha256": "f87f2024310f50da2292b9603e3a55e3c807027c74d516a93ab860cd078a557c"
+      },
+      "jit_cpu_regression": {
+        "passed": true,
+        "executable_sha256": "109d486722c53efca33642f0b33999db7f3be1525f00baf366bfe1cbe3a009f7"
+      },
+      "jit_emulation_timing": {
+        "passed": true,
+        "executable_sha256": "f2e47988eea1490852c49a36845efacba089d2a3960f7f4e9efd982c0f647942"
+      }
+    },
+    "ctest_seconds": 5.05,
+    "semantic_cases_per_executor": 4580,
+    "cxx17_header_compatibility": true,
+    "preparation_script_syntax": true,
+    "wade_run": false,
+    "title_gameplay_accepted": false,
+    "live_audio_accepted": false,
+    "speed_accepted": false
+  },
+  "intermediate_before_time_accumulation": {
+    "description": "Per-access completion guard version, superseded by final bounded time accumulation. Results must not be attributed to final executable.",
+    "source_snapshot_retained": false,
+    "exact_executable_retained": true,
+    "wade_check": {
+      "executable_sha256": "c5c4a028227f002072b01b649d30e78373d84cc772967d540748ff8cbe4c5d9f",
+      "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+      "eeprom_seed_sha256": "47c12bf246aa2c887d4706d9cf8bc1f207df6ba18ac373703adbbe4c173aebbc",
+      "ac_status_before": 1,
+      "steps": 100000000,
+      "ratio": 6,
+      "gui": false,
+      "audio": false,
+      "pacing": false,
+      "order": [
+        "interpreter",
+        "jit"
+      ],
+      "rows": [
+        {
+          "mode": "interpreter",
+          "wall_seconds": 1.416201000000001,
+          "cpu_seconds": 1.1875,
+          "affinity_mask": 4,
+          "exit": 0,
+          "cpu_sha256": "0e16af9ca7a97cbdeaf6b21335cf3feb0f87971c6e8b4ef990b6730e7b53644e",
+          "sdram_sha256": "ec2176bf8b9ecf06323be5fcd2a90a26458787a4024ea2fcab967cdddf779df4",
+          "snapshot_sha256": "337d2325b27391f8f27f20e7cb25a58445df83e5407253d2a8de4aa7d55b38b7"
+        },
+        {
+          "mode": "jit",
+          "wall_seconds": 4.5314634999999726,
+          "cpu_seconds": 4.40625,
+          "affinity_mask": 4,
+          "exit": 0,
+          "cpu_sha256": "0e16af9ca7a97cbdeaf6b21335cf3feb0f87971c6e8b4ef990b6730e7b53644e",
+          "sdram_sha256": "ec2176bf8b9ecf06323be5fcd2a90a26458787a4024ea2fcab967cdddf779df4",
+          "snapshot_sha256": "337d2325b27391f8f27f20e7cb25a58445df83e5407253d2a8de4aa7d55b38b7",
+          "stats": {
+            "steps": 100000000,
+            "generated": 87147254,
+            "memory": 28609975,
+            "fallback": 12852746,
+            "compilations": 2578,
+            "cache_hits": 29734073,
+            "evictions": 0,
+            "failures": 0,
+            "fast_cache_hits": 29734073,
+            "source_validations": 0
+          }
+        }
+      ],
+      "ac_status_after": 0
+    },
+    "speed_accepted": false
+  },
+  "previous_terminal_access_cache_hits": 49678905,
+  "installed_player": {
+    "changed": false,
+    "sha256": "858c64effd03fb43738d3bb12b1e98c98063b463d4f6d112293c907607942ab2"
+  },
+  "previous_isolated_package": {
+    "changed": false,
+    "sha256": "77bd1a3de55668c9fefe8e2bff731f422560ebfcf293389d0e3ffbe4755bf926"
+  },
+  "next_gate": "One short matched Wade CPU/SDRAM/snapshot and process CPU check on preserved final executable; stop on failure or clear regression.",
+  "source_sha256_lf_normalized": {
+    "jit/CMakeLists.txt": "f056a0633f61c20566432c0d82788c6d09e5ada8353a2049ad4d7d2217053a2f",
+    "Makefile": "9efaae48ffabd277b85b8fae5785375cdd2a071bdb46e36be8329dc93a74bf1b",
+    "src/audio/audio.h": "3a052b0a54d0a7dccf0377c1496950b2aaf6279e3bfca737c0df0f632e671f2d",
+    "src/audio/audio_win32.cpp": "be3de208484164785a6e239cd8fe7a931198a0c4565754f9a5d10fe6093d329f",
+    "src/audio/resampler.h": "38e50025a6566658e4588f2c2293810328d5d8a124be8faf502f957984992bbb",
+    "src/cartridge/cart_parser.cpp": "69afb530f11cb2a122a38d5968345b71058bd493b328aba4ac9f1e656532f5c1",
+    "src/cartridge/cart_parser.h": "34fa6124c54d56132c560466af5cef36492b62e2baeddbad64e3ae475b548c89",
+    "src/core/button_pulses.h": "4ac12ca0385deba49a1f5e9167f1fb4c55b3ea33415b568a6bfb65b058f0ec7f",
+    "src/core/cartridge_language.h": "740342a2199dc3282a97db31a9d4c7731c3ac0e842e00ae2b8adfa8d52845ada",
+    "src/core/cartridge_nvram.h": "5559addd8e352dc33f64feb401e66a2f62791e246269850380f52fe7c34903f0",
+    "src/core/cartridge_settings.h": "2306f0bc4fdb11df73b658372ec98b7bb0471787f455626adac45f3f5b4009dc",
+    "src/core/emulation_clock.h": "ace6fa504270072af335084805fa61b3590bcfab7d9ac240fca4d058fff7cc1e",
+    "src/core/execution_batch.h": "ffd471d7097eac945971216959f170346acc9ad63374326475ab56d95681a062",
+    "src/core/execution_checkpoint.h": "f731c92b529eb349cede5eb3bc03462b48e3d12c19106a866544b9db79b2d670",
+    "src/core/execution_engine.h": "8d018a863e3e202f85757d08b67f82d5ffd9820089fa6e8041c1d5583e5dc37c",
+    "src/core/execution_scheduler.h": "db6af222291d7ecc00d8e5d2fb16794b3e9b0abb49c21df03218c242d816dce7",
+    "src/core/guest_symbols.h": "2d6d2d1d681a897fb3770bd54d9c75d8c77468685f20a8f9901bb9689d2904a2",
+    "src/core/host_pacer.h": "155f41b2f96c73f27a805c7cac6cf40ce0e84efa9379bda20f81c52b886103c1",
+    "src/core/input_script.h": "b287e1d8e3596863ddbc2bff9e77c30015c5666aa4f0ae99ea9889e86aaeb3dd",
+    "src/core/interpreter_engine.h": "ce9cdee6d7faaf6741927d717dcf34264424c3a666a75be6130ae518cb524534",
+    "src/core/machine.h": "d45753fc103d2eab0a35411888eafcb303a293996b6727d7234e02b4682f0072",
+    "src/core/mp3_storage.h": "5e509f36ee98298e50dd9a180027a31d2a9b68ad3a4562b6b5b23fc7ac2cc406",
+    "src/core/types.h": "19aeace2c269d78d9d249d0512d9572a07558b47e6749201f46e0b68bff2b79f",
+    "src/cpu/arm920t.cpp": "b843decd579f5441111223b49bf604e8db000a0bd75784204de9922837d43329",
+    "src/cpu/arm920t.h": "b059fa16ddedabaa2af08bbef9fe297d30fdc2a5016d5b432c8cce930dc18359",
+    "src/cpu/arm920t_state.h": "7897976542a8c10b28108b6cbddbfca339668c489d78bfb44f247e37164b3600",
+    "src/cpu/translation_frontend.h": "cedb11fee907e4ce5765319daaa4c9e7366c0670d57acda5c29b4b79db0669a5",
+    "src/cpu/translation_ir.h": "740ee4a0f55ae6a3a2e1b414c6f0ade679e9becac9c8ea5537916db6c3f827b6",
+    "src/cpu/x64_execution_engine.cpp": "ac130a765ba0724e43cb15f9497addce309428b86bd9c14e624d7238fc30441e",
+    "src/cpu/x64_execution_engine.h": "35f006ea3e0fa33429ecfe720b7d253a0aef11d4ce979aae31d179074459b171",
+    "src/display/console_skin_win32.h": "398b43eb7f79b9506251df949e92be38cf8e773f59e383069357afce4d1f6b9a",
+    "src/display/display.h": "4f20f86b13137cbd207104b0f0d39ecf29471b542cede0cefde36e81a6fd5364",
+    "src/display/display_profile.h": "6be7f9928bfdbe66510d07714ef8f1952556d8e18e34c686dbdca330f4b68838",
+    "src/display/display_win32.cpp": "3ab34675af8365e106f4aa00e8c1fd996882bea7486fc9d445c2ab5c3bacdb4f",
+    "src/display/frame_latch.h": "9a4a67f7539df5f6135a1c53c1d4ef73f8ac6d72539d8fbbf1a77bcc4fbe8bc8",
+    "src/display/framebuffer.h": "0150f326aa2a08fe7ee9887073be02b7e1e302a0130466f0d05fe97394630161",
+    "src/display/input_mapping.h": "741e9d000353f9d4eb7f33385272488cbffa4b78893652c023f3a97c55dfd664",
+    "src/display/launcher.h": "6eeee5639683109194b96c41cb84071f7b5466b350b59117f1224a33ce75a545",
+    "src/display/mp3_manager_win32.h": "4d3852695231bd4d8f9d58fd58f9b52f6ffa673d7f0c9b1c7c17c25a9c3d88db",
+    "src/display/oceanblast.rc": "94a5c740b2e8c0bdb806f7a3442524367285dc6e8de595d6d4952153d4affe24",
+    "src/display/presenter_win32.h": "1ac502ddd22622ec55066eb2763bdf2cc94148ce8046d9db34763900a1c7c8d4",
+    "src/display/windows_input.h": "06726e8d85cca6dbb96ebafc8185914f0ecc64db6e1b78c4c13f21c0aaa872a1",
+    "src/main.cpp": "5e6cb235873e9952113e1ce1f6f8198ec4cf6c160cfca256ea4534f7d9698c1e",
+    "src/memory/address_map.h": "5b3a0b32fbf2301662f75d6a322f61e1477b85e2174cd875684df70452de8a67",
+    "src/memory/arm920t_mmu.h": "9c362329e64dd94b9033d688282351218550b1c8b83a4ae5b8d49f9ff0f22923",
+    "src/memory/bus.cpp": "e93e93aebbc7e83a6fde18870185fd7951387da8a707598894e30f2c681f3959",
+    "src/memory/bus.h": "12805de29b2cef395e8ed4daf89cd42ce73f513470641d62ed51c9092fa1c003",
+    "src/memory/clock_tree.h": "e04a40f1aef838829011c0f908305b0383ba2013e6a3916d8b542bb779f0ed09",
+    "src/memory/i2c_eeprom.h": "7d6380b346b0db574fd29d117988ca33cb41fc149d1ccc8d0eb18be27db6882c",
+    "src/memory/timer4.h": "369d098a041ab95d1fc12380f4760057c2b4abc33ec31957af834de8a2ef6c1f",
+    "src/memory/usb_mass_storage.h": "ae0925bba72a990389aba406f1727676762b026a926aeb59132a739f1ebb1b15",
+    "src/memory/usb_ohci.h": "2508127ac6729c2e38f264955327451743c7e20a3e543726137d66fe974ffdee",
+    "tests/cpu_regression.cpp": "8beacc1342336e16f619c0da6788683a91095940c0f5d50e9cbd623224bc1a32",
+    "tests/emulation_timing.cpp": "157426abfa894c34b72cb11127c30385dcb610865e5c1344411653d9f0c953b9",
+    "tests/translation_frontend.cpp": "b3d882fbcea6e03dd08e60bb7e888f7dca0e3faf353d4e299031fbac8d765207",
+    "tests/x64_execution.cpp": "2004e3ddb6063c8041f97af221a2c1c7d778f336feeaf24863fc936a6da64b31",
+    "tests/x64_invalidation.cpp": "934ea857ac8403246b398241b96e113f3e39d93d5d591556faac57527f3efdd2",
+    "tests/x64_memory.cpp": "8b25bf063ffc22c286319f64b314fb51b79ee563e21bbdf7d2481bce8c6f52f5",
+    "tools/prepare_jit_test.ps1": "acfb4ce5397f28987f22ad6340540c91d93f78ef9b3758887854c536b12c171e"
+  }
+}

@@ -11,6 +11,110 @@ static bool equal(const Machine& a,const Machine& b) {
 }
 int main() {
     {
+        Machine machine,reference;
+        std::vector<int16_t> pcm,referencePcm;
+        machine.bus().setAudioCallback([&](const int16_t* p,size_t n){pcm.insert(pcm.end(),p,p+n);});
+        reference.bus().setAudioCallback([&](const int16_t* p,size_t n){referencePcm.insert(referencePcm.end(),p,p+n);});
+        for(Machine* target:{&machine,&reference}) {
+            target->configureExecution(false,3); target->state().r[1]=0x30010000;
+            target->bus().write32(0,0xe5812000); target->bus().write32(4,0xe5913000);
+            target->bus().write32(8,0xe2822001); target->bus().write32(12,0xeafffffb);
+            for(unsigned i=0;i<16;++i) target->bus().write16(0x30010000+i*2,uint16_t(i*31));
+            target->bus().write32(0x4b000080,0x30010000); target->bus().write32(0x4b000088,0x55000010);
+            target->bus().write32(0x4b000090,16|(1u<<20)|(1u<<22)); target->bus().write32(0x4b0000a0,2);
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        machine.execution().run(25000); reference.execution().run(25000);
+        check("Mixed RAM blocks preserve PCM samples while repeatedly updating DMA source memory",
+            equal(machine,reference) && pcm==referencePcm && pcm.size()==16 &&
+            machine.bus().getMmio(0x4b000098)==reference.bus().getMmio(0x4b000098) &&
+            machine.bus().getMmio(0x4b000094)==reference.bus().getMmio(0x4b000094));
+    }
+    {
+        bool same=true;
+        for(size_t ratio:{1u,3u,6u,16u}) for(size_t phase=0;phase<ratio;++phase) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->configureExecution(false,ratio); target->execution().run(phase);
+                target->state().r[15]=0; target->state().r[1]=0x30001000;
+                for(unsigned i=0;i<32;++i) target->bus().write32(i*4,(i&1)?0xe5913000:0xe5812000);
+            }
+            const auto deadline=machine.execution().time().ticks+2;
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+            const auto exit=machine.execution().runToBoundary(32,deadline); reference.execution().run(exit.steps,deadline);
+            same=same&&exit.reason==ExecutionExitReason::Deadline && equal(machine,reference) &&
+                machine.execution().time().ticks==deadline && native.stats().memorySteps==exit.steps;
+        }
+        check("Batched RAM time stops at the exact external deadline for every legacy phase",same);
+    }
+    {
+        bool same=true;
+        for(size_t ratio:{1u,3u,6u,16u}) for(size_t phase=0;phase<ratio;++phase) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->configureExecution(false,ratio); target->execution().run(phase);
+                target->state().r[15]=0; target->state().r[1]=0x30001000;
+                const uint32_t code[]={0xe3a02001,0xe5812000,0xe5913000,0xe2833029,0xe5c13004,0xe5d14004,0xeafffff8};
+                for(unsigned i=0;i<7;++i) target->bus().write32(i*4,code[i]);
+            }
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+            const auto exit=machine.execution().runToBoundary(32); reference.execution().run(7);
+            same=same&&exit.steps==7 && equal(machine,reference) && machine.cpu().getReg(4)==42 &&
+                machine.bus().read32(0x30001000)==reference.bus().read32(0x30001000) &&
+                machine.bus().read8(0x30001004)==reference.bus().read8(0x30001004) &&
+                native.stats().memorySteps==4 && native.stats().compilations==1;
+            machine.execution().selectInterpreter(machine.cpu()); machine.execution().run(5); reference.execution().run(5);
+            same=same&&equal(machine,reference);
+        }
+        check("Several dependent RAM accesses share one native block with exact phase and handoff",same);
+    }
+    for(bool mirror:{false,true}) {
+        Machine machine,reference; const uint32_t pc=mirror?0x30008000u:0;
+        for(Machine* target:{&machine,&reference}) {
+            target->state().r[15]=pc; target->state().r[0]=7;
+            target->state().r[1]=pc+4+(mirror?0x02000000u:0); target->state().r[2]=0xe3a0002a;
+            target->bus().write32(pc,0xe5812000); target->bus().write32(pc+4,0xe3a00001);
+            target->bus().write32(pc+8,0xe12fff1e);
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        const auto first=machine.execution().runToBoundary(32); reference.execution().run(1);
+        const bool stopped=first.steps==1 && equal(machine,reference) && machine.cpu().getReg(0)==7;
+        const auto second=machine.execution().runToBoundary(32); reference.execution().run(1);
+        check("An in-block code write through SRAM or a RAM mirror stops before stale following code",
+            stopped && second.steps==1 && equal(machine,reference) && machine.cpu().getReg(0)==42);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->bus().write32(0x30004000,0x30000c02);
+            target->bus().write32(0x30000000,0xe5812000); target->bus().write32(0x30000004,0xe5943000);
+            target->bus().write32(0x30000008,0xe3a05063); target->bus().write32(0x3000000c,0xe12fff1e);
+            target->state().cp15_control|=1; target->state().cp15_ttb=0x30004000; target->state().cp15_dacr=1;
+            target->state().cpsr=0x10; target->state().r[1]=0x1000; target->state().r[2]=42;
+            target->state().r[4]=0x200000; target->state().r[5]=7;
+            target->execution().selectInterpreter(target->cpu());
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        const auto exit=machine.execution().runToBoundary(32); reference.execution().run(2);
+        check("A second-access abort retains the first store and skips later integer work",
+            exit.steps==2 && exit.event==CpuStepEvent::DataAbort && equal(machine,reference) &&
+            machine.cpu().getLR()==12 && machine.cpu().getReg(5)==7 && machine.bus().read32Phys(0x30001000)==42 &&
+            native.stats().memorySteps==2);
+    }
+    {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->state().r[1]=0x30001000; target->state().r[2]=1; target->state().r[4]=0x58000000;
+            target->bus().write32(0,0xe5812000); target->bus().write32(4,0xe5842000);
+            target->bus().write32(8,0xe3a03063); target->bus().write32(12,0xe12fff1e);
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        const auto exit=machine.execution().runToBoundary(32); reference.execution().run(2);
+        check("A device access after RAM ends the block before later guest work",
+            exit.steps==2 && equal(machine,reference) && machine.cpu().getReg(3)==0 &&
+            machine.bus().ticksUntilEvent()==reference.bus().ticksUntilEvent() && native.stats().memorySteps==2);
+    }
+    {
         bool same=true;
         for(size_t ratio:{1u,3u,6u,16u}) for(size_t phase=0;phase<ratio;++phase) {
             Machine machine,reference;
@@ -70,6 +174,7 @@ int main() {
             for (Machine* target : {&machine,&reference}) {
                 target->state().r[15]=0; target->state().r[1]=0x30001008; target->state().r[2]=0x123456ab;
                 target->bus().write32(0,instruction);
+                target->bus().write32(4,0xe12fff1e); // Unsupported BX ends this fixture before execution.
                 for(unsigned offset=0;offset<24;++offset)target->bus().write8(0x30001000+offset,uint8_t(offset+1));
             }
             auto exit=machine.execution().runToBoundary(32); reference.execution().run(1);

@@ -31,21 +31,58 @@ public:
     asmjit::Error error=asmjit::Error::kOk;
     void handle_error(asmjit::Error value,const char*,asmjit::BaseEmitter*) override { error=value; }
 };
-uint64_t checkedLoad(Bus* bus,uint32_t address,uint32_t byte) {
-    uint32_t value=byte?bus->read8(address):bus->read32(address&~3u);
-    if (!byte && (address&3u)) { const unsigned shift=(address&3u)*8; value=(value>>shift)|(value<<(32-shift)); }
-    return (uint64_t(static_cast<uint32_t>(bus->getLastFault()))<<32)|value;
-}
-uint32_t checkedStore(Bus* bus,uint32_t address,uint32_t value,uint32_t byte) {
-    if (byte) bus->write8(address,uint8_t(value)); else bus->write32(address&~3u,value);
-    return static_cast<uint32_t>(bus->getLastFault());
-}
-void checkedAbort(ARM920T* cpu) { cpu->completeCheckedDataAbort(); }
+struct NativeRun {
+    ExecutionTimeline* timeline;
+    ARM920TState* state;
+    uint32_t physical;
+    uint32_t retired=0,tickedSteps=0,memorySteps=0;
+};
 void advanceIntegerPrefix(Bus* bus,ExecutionTimeline* timeline,uint32_t count) {
     const uint64_t ticks=(timeline->phase+count-1)/timeline->ratio+(timeline->phase==0?1:0);
     timeline->phase=(timeline->phase+count)%timeline->ratio;
     bus->tick(ticks); timeline->elapsed.ticks+=ticks;
 }
+// Entry is bounded by the first device event. Ordinary RAM cannot arm a new
+// event or change execution context, so its ticks can be committed together.
+// Before a device access or fault, commit all preceding instructions first.
+void materializeBeforeMemory(Bus* bus,NativeRun* run) {
+    const uint32_t completed=run->retired-1;
+    if(completed>run->tickedSteps) {
+        const auto pc=run->state->r[15]; run->state->r[15]=pc-4;
+        advanceIntegerPrefix(bus,run->timeline,completed-run->tickedSteps);
+        run->state->r[15]=pc; run->tickedSteps=completed;
+    }
+}
+bool ordinaryRam(uint32_t physical) {
+    return physical<ADDR_STEPPINGSTONE_SIZE || physical-ADDR_SDRAM_BASE<ADDR_SDRAM_SIZE;
+}
+template<bool Byte> uint64_t checkedLoad(Bus* bus,NativeRun* run,uint32_t address) {
+    ++run->memorySteps;
+    uint32_t physical=0;
+    if(!bus->translateDataAddress(Byte?address:address&~3u,false,physical)) {
+        materializeBeforeMemory(bus,run); return uint64_t(1)<<32;
+    }
+    const bool ram=ordinaryRam(physical);
+    if(!ram) materializeBeforeMemory(bus,run);
+    uint32_t value=Byte?bus->read8Phys(physical):bus->read32Phys(physical);
+    if (!Byte && (address&3u)) { const unsigned shift=(address&3u)*8; value=(value>>shift)|(value<<(32-shift)); }
+    return (uint64_t(ram?0:2)<<32)|value;
+}
+template<bool Byte> uint32_t checkedStore(Bus* bus,NativeRun* run,uint32_t address,uint32_t value) {
+    ++run->memorySteps;
+    uint32_t physical=0;
+    if(!bus->translateDataAddress(Byte?address:address&~3u,true,physical)) {
+        materializeBeforeMemory(bus,run); return 1;
+    }
+    const bool ram=ordinaryRam(physical);
+    if(!ram) materializeBeforeMemory(bus,run);
+    if (Byte) bus->write8Phys(physical,uint8_t(value)); else bus->write32Phys(physical,value);
+    if(!ram) return 2;
+    // A store to the currently executing physical code page must return before
+    // any following translated instruction, including writes through aliases.
+    return (physical&~1023u)==(run->physical&~1023u)?4:0;
+}
+void checkedAbort(ARM920T* cpu) { cpu->completeCheckedDataAbort(); }
 bool executableReadOnly(const void* address) {
     MEMORY_BASIC_INFORMATION information{};
     return VirtualQuery(address,&information,sizeof(information)) &&
@@ -53,7 +90,7 @@ bool executableReadOnly(const void* address) {
 }
 }
 struct X64ExecutionEngine::Impl {
-    using Function=uint32_t(*)(ARM920TState*,ExecutionTimeline*);
+    using Function=uint32_t(*)(ARM920TState*,NativeRun*);
     ARM920TState& architecturalState;
     ARM920T& cpu;
     Bus& bus;
@@ -67,7 +104,6 @@ struct X64ExecutionEngine::Impl {
         Function function;
         size_t bytes;
         uint64_t used;
-        bool memory;
         uint64_t mapping=0,epoch=0;
         uint32_t version=0;
     };
@@ -101,7 +137,7 @@ struct X64ExecutionEngine::Impl {
         ++counters.compilations;
         return result;
     }
-    asmjit::x86::Gp emitMemory(asmjit::x86::Compiler& cc,asmjit::x86::Gp pointer,const Instruction& instruction) {
+    asmjit::x86::Gp emitMemory(asmjit::x86::Compiler& cc,asmjit::x86::Gp pointer,asmjit::x86::Gp run,const Instruction& instruction) {
         using namespace asmjit;
         const auto& memory=*instruction.memory;
         auto reg=[&](unsigned index) { return x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+index*4)); };
@@ -110,27 +146,27 @@ struct X64ExecutionEngine::Impl {
         cc.mov(base,reg(memory.base)); cc.mov(updated,base);
         if (memory.up) cc.add(updated,memory.offset); else cc.sub(updated,memory.offset);
         cc.mov(address,memory.pre?updated:base);
-        auto busPointer=cc.new_gp_ptr(),byte=cc.new_gp32();
-        cc.mov(busPointer,uintptr_t(&bus)); cc.mov(byte,uint32_t(memory.byte));
+        auto busPointer=cc.new_gp_ptr();
+        cc.mov(busPointer,uintptr_t(&bus));
         auto error=cc.new_gp32(),status=cc.new_gp32();
         InvokeNode* invoke=nullptr;
         x86::Gp data;
         if (memory.load) {
             auto result=cc.new_gp64();
-            cc.invoke(Out(invoke),imm((void*)checkedLoad),FuncSignature::build<uint64_t,Bus*,uint32_t,uint32_t>());
-            invoke->set_arg(0,busPointer); invoke->set_arg(1,address); invoke->set_arg(2,byte); invoke->set_ret(0,result);
+            cc.invoke(Out(invoke),imm(memory.byte?(void*)checkedLoad<true>:(void*)checkedLoad<false>),FuncSignature::build<uint64_t,Bus*,NativeRun*,uint32_t>());
+            invoke->set_arg(0,busPointer); invoke->set_arg(1,run); invoke->set_arg(2,address); invoke->set_ret(0,result);
             auto high=cc.new_gp64(); cc.mov(high,result); cc.shr(high,32); cc.mov(error,high.r32());
             data=result.r32();
         } else {
             auto value=cc.new_gp32(); cc.mov(value,reg(memory.destination));
-            cc.invoke(Out(invoke),imm((void*)checkedStore),FuncSignature::build<uint32_t,Bus*,uint32_t,uint32_t,uint32_t>());
-            invoke->set_arg(0,busPointer); invoke->set_arg(1,address); invoke->set_arg(2,value); invoke->set_arg(3,byte); invoke->set_ret(0,error);
+            cc.invoke(Out(invoke),imm(memory.byte?(void*)checkedStore<true>:(void*)checkedStore<false>),FuncSignature::build<uint32_t,Bus*,NativeRun*,uint32_t,uint32_t>());
+            invoke->set_arg(0,busPointer); invoke->set_arg(1,run); invoke->set_arg(2,address); invoke->set_arg(3,value); invoke->set_ret(0,error);
         }
         Label abort=cc.new_label(),done=cc.new_label();
-        cc.test(error,error); cc.jnz(abort);
+        cc.test(error,1); cc.jnz(abort);
         if (memory.load) cc.mov(reg(memory.destination),data);
         if (memory.writeback) cc.mov(reg(memory.base),updated);
-        cc.mov(status,0); cc.jmp(done);
+        cc.mov(status,error); cc.jmp(done);
         cc.bind(abort);
         auto cpuPointer=cc.new_gp_ptr(); cc.mov(cpuPointer,uintptr_t(&cpu));
         cc.invoke(Out(invoke),imm((void*)checkedAbort),FuncSignature::build<void,ARM920T*>());
@@ -147,11 +183,11 @@ struct X64ExecutionEngine::Impl {
         code.set_error_handler(&errors);
         x86::Compiler compiler(&code);
         auto pointer=compiler.new_gp_ptr("state");
-        auto timeline=compiler.new_gp_ptr("timeline");
-        auto* function=compiler.add_func(FuncSignature::build<uint32_t,ARM920TState*,ExecutionTimeline*>());
+        auto run=compiler.new_gp_ptr("run");
+        auto* function=compiler.add_func(FuncSignature::build<uint32_t,ARM920TState*,NativeRun*>());
         if (!function) return nullptr;
         function->set_arg(0,pointer);
-        function->set_arg(1,timeline);
+        function->set_arg(1,run);
         auto load=[&](Value value) {
             auto target=compiler.new_gp32();
             if (value.kind==ValueKind::Register)
@@ -169,19 +205,11 @@ struct X64ExecutionEngine::Impl {
         for (size_t index=0;index<count;++index) {
             const auto& instruction=block.instructions[index];
             if(instruction.memory) {
-                if(index) {
-                    // Materialize the prefix before the checked access. The
-                    // entry deadline bound excludes any event inside the prefix.
-                    compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+15*4)),instruction.pc);
-                    auto busPointer=compiler.new_gp_ptr(),steps=compiler.new_gp32();
-                    compiler.mov(busPointer,uintptr_t(&bus)); compiler.mov(steps,uint32_t(index));
-                    InvokeNode* invoke=nullptr;
-                    compiler.invoke(Out(invoke),imm((void*)advanceIntegerPrefix),
-                        FuncSignature::build<void,Bus*,ExecutionTimeline*,uint32_t>());
-                    invoke->set_arg(0,busPointer); invoke->set_arg(1,timeline); invoke->set_arg(2,steps);
-                }
-                compiler.ret(emitMemory(compiler,pointer,instruction));
-                break;
+                compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,retired))),uint32_t(index+1));
+                auto status=emitMemory(compiler,pointer,run,instruction);
+                auto next=compiler.new_label(); compiler.test(status,status); compiler.je(next);
+                compiler.ret(status); compiler.bind(next);
+                continue;
             }
             const auto& op=instruction.operation;
             auto flags=compiler.new_gp32();
@@ -277,6 +305,7 @@ struct X64ExecutionEngine::Impl {
         const auto& last=block.instructions[count-1];
         compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+15*4)),last.pc+last.bytes);
         compiler.bind(blockExit);
+        compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,retired))),uint32_t(count));
         auto status=compiler.new_gp32(); compiler.mov(status,0); compiler.ret(status); compiler.end_func();
         if (compiler.finalize()!=Error::kOk || errors.error!=Error::kOk) return nullptr;
         return publish(code,bytes);
@@ -311,7 +340,7 @@ struct X64ExecutionEngine::Impl {
             ++counters.cacheEvictions;
         }
         try {
-            cache.push_back({context,source,function,bytes,++useCounter,bool(block.instructions.back().memory)});
+            cache.push_back({context,source,function,bytes,++useCounter});
             refreshDependency(cache.back());
             try { cacheByPc.emplace(context[0],std::prev(cache.end())); }
             catch (...) { cache.pop_back(); throw; }
@@ -319,7 +348,7 @@ struct X64ExecutionEngine::Impl {
         cacheBytes+=bytes;
         return function;
     }
-    Function reusable(size_t limit,size_t& count,bool& memoryBlock) {
+    Function reusable(size_t limit,size_t& count,uint32_t& sourcePhysical) {
         const auto& state=cpu.getState();
         const uint32_t pc=state.r[15],width=(state.cpsr&FLAG_T)?2:4;
         Bus::MmuFault fault=Bus::MmuFault::NONE;
@@ -364,7 +393,7 @@ struct X64ExecutionEngine::Impl {
         cache.splice(cache.end(),cache,best);
         best->used=++useCounter; ++counters.cacheHits;
         if(bestFast) ++counters.fastCacheHits;
-        count=best->source.size(); memoryBlock=best->memory;
+        count=best->source.size(); sourcePhysical=best->source.front().first;
         return best->function;
     }
     ExecutionExit fallback(ExecutionTimeline& timeline,size_t budget,uint64_t deadline) {
@@ -408,8 +437,8 @@ ExecutionExit X64ExecutionEngine::runToBoundary(ExecutionTimeline& timeline,size
     if (engine.bus.needsLevelInterruptRefresh()) count=1;
     if (remaining<=count) count=std::min<uint64_t>(count,legacyStepsUntilTickLimit(remaining,timeline.ratio,timeline.phase));
     size_t nativeCount=0;
-    bool memoryBlock=false;
-    auto function=engine.reusable(count,nativeCount,memoryBlock);
+    uint32_t sourcePhysical=0;
+    auto function=engine.reusable(count,nativeCount,sourcePhysical);
     if (!function) {
         try {
             std::vector<std::pair<uint32_t,uint32_t>> source;
@@ -425,8 +454,8 @@ ExecutionExit X64ExecutionEngine::runToBoundary(ExecutionTimeline& timeline,size
             };
             auto block=decodeBlock(state.r[15],(state.cpsr&FLAG_T)?InstructionSet::Thumb:InstructionSet::Arm,fetch,{uint32_t(count),128});
             nativeCount=block.instructions.size();
-            memoryBlock=nativeCount && bool(block.instructions.back().memory);
             if (!nativeCount) return engine.fallback(timeline,budget,stopTicks);
+            sourcePhysical=source.front().first;
             source.resize(nativeCount);
             function=engine.findOrCompile(block,source);
             if (!function) { ++engine.counters.compilationFailures; return engine.fallback(timeline,budget,stopTicks); }
@@ -435,19 +464,18 @@ ExecutionExit X64ExecutionEngine::runToBoundary(ExecutionTimeline& timeline,size
             return engine.fallback(timeline,budget,stopTicks);
         }
     }
-    // A terminal memory operation follows a materialized/ticked integer prefix.
-    // No later guest work can run past its MMIO, fault or code-write effects.
+    // Memory guards may return before the statically decoded end. Device/fault
+    // paths have ticked their prefix; ordinary RAM retains one bounded batch.
     const auto startTicks=timeline.elapsed.ticks;
-    const uint32_t fault=function(&engine.architecturalState,&timeline);
-    const size_t tail=memoryBlock?1:nativeCount;
-    const uint64_t tailTicks=(timeline.phase+tail-1)/timeline.ratio+(timeline.phase==0?1:0);
-    timeline.phase=(timeline.phase+tail)%timeline.ratio;
-    engine.bus.tick(tailTicks);
-    timeline.elapsed.ticks+=tailTicks;
+    NativeRun run{&timeline,&engine.architecturalState,sourcePhysical};
+    const uint32_t status=function(&engine.architecturalState,&run);
+    nativeCount=run.retired;
+    const size_t tail=nativeCount-run.tickedSteps;
+    if(tail) advanceIntegerPrefix(&engine.bus,&timeline,uint32_t(tail));
     const uint64_t ticks=timeline.elapsed.ticks-startTicks;
     engine.counters.generatedSteps+=nativeCount;
-    if (memoryBlock) ++engine.counters.memorySteps;
-    if (fault) return {ExecutionExitReason::CpuEvent,nativeCount,ticks,CpuStepEvent::DataAbort};
+    engine.counters.memorySteps+=run.memorySteps;
+    if (status&1) return {ExecutionExitReason::CpuEvent,nativeCount,ticks,CpuStepEvent::DataAbort};
     const auto reason=ticks>=remaining?ExecutionExitReason::Deadline:
         (nativeCount==budget?ExecutionExitReason::Budget:ExecutionExitReason::BlockEnd);
     return {reason,nativeCount,ticks,std::nullopt};

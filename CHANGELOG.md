@@ -6,6 +6,8 @@ This changelog records development, hardware reverse-engineering milestones and 
 
 ## 2026-10-18 — Checked Memory and Developer Player
 
+* **[Mixed RAM Blocks](docs/98_mixed_ram_blocks.md):** Several supported RAM operations can share a generated block, with actual retired-step accounting and early exits for devices, faults and code-writing stores. Final bounded time accumulation passes six technical suites, including exact deadlines and PCM/DMA ordering. One intermediate Wade pair matched state but remained slower; the final build's Wade gate is pending. Installed/test-package executables unchanged.
+
 * **[Native Memory and Invalidation](docs/97_checked_memory_and_player_integration.md):** Added checked ARM byte/word loads and stores, precise abort exits, direct ARM/Thumb branches, indexed bounded LRU reuse and physical code-page/mapping generations. Six targeted suites pass; a short Wade boot check matches canonical CPU state and complete SDRAM.
 * **Separate JIT developer player:** Added the Windows frontend target, isolated test preparation, backend selection, counters and diagnostic checkpoints. Ordinary builds and the installed player retain their existing engine. The current JIT remains slower; integer prefixes now share a terminal checked memory access, but repeated memory boundaries still need consolidation. Title/gameplay, pacing, live audio and CPU reserve are unaccepted.
 

@@ -2,6 +2,8 @@
 
 Status: checked J3 slice and initial J4 integration delivered, 2026-10-18. The native engine is not accepted for game speed, pacing or live audio.
 
+This report preserves the terminal-memory slice. [Mixed RAM blocks and precise early exits](98_mixed_ram_blocks.md) record the subsequent implementation and its separate acceptance limits.
+
 ## Delivered behavior
 
 The ARM frontend now represents unconditional immediate byte/word loads and stores. Generated code computes addressing and applies destination/base updates only after a successful checked bus access. Alignment, rotated word loads, permissions, MMIO and data-abort entry reuse the reference behavior. Conditional accesses, PC operands, register offsets, unprivileged variants and unsupported overlap cases still execute through the interpreter.

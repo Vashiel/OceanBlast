@@ -33,7 +33,7 @@ foreach ($mode in @('jit','interpreter')) {
 @{
     rom = $rom
     executable_sha256 = (Get-FileHash -LiteralPath (Join-Path $out 'OceanBlast-JIT.exe') -Algorithm SHA256).Hash.ToLower()
-    status = 'Development build: slower than interpreter; pacing and audio unaccepted.'
+    status = 'Development build: performance, pacing and audio unaccepted.'
 } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $out 'test-config.json') -Encoding UTF8
 $start = @'
 param([ValidateSet('jit','interpreter')][string]$Engine='jit')
@@ -45,7 +45,7 @@ $previousSettings=$env:OCEANBLAST_SETTINGS_PATH
 $env:OCEANBLAST_SETTINGS_PATH=Join-Path $PSScriptRoot 'settings.ini'
 Push-Location -LiteralPath $run
 try {
-    Write-Host 'OceanBlast development test. JIT is currently slower; audio acceptance is open.'
+    Write-Host 'OceanBlast development test. Performance and audio acceptance are open.'
     Write-Host 'Close the game window to finish. Logs and saves stay in this test folder.'
     & $exe $config.rom --engine $Engine --title-blit off --gui --sound --profile --timing legacy --cpu-steps-per-tick 6 --cart-language keep --nvram (Join-Path $run 'wade-test.nvram') --window-mode plain --scale 3 *> (Join-Path $run 'run.log')
     if ($LASTEXITCODE -ne 0) { throw "Game exited with code $LASTEXITCODE. See $run\run.log" }
@@ -67,8 +67,8 @@ Wade-JIT-Test.cmd starts the native engine.
 Wade-Interpreter-Reference.cmd starts the reference engine in the same EXE.
 Run one at a time. Both disable the legacy title shortcut and use ratio 6.
 
-Status: the JIT is currently slower than the interpreter. The short boot
-CPU/SDRAM check passes; title, gameplay, pacing and live audio are unaccepted.
+Status: performance, title, gameplay, pacing and live audio are unaccepted.
+Consult the current development report for checks tied to this exact build.
 This is an early development test, not an upgrade to the installed player.
 
 Keyboard mappings are copied from your existing settings when prepared.
