@@ -20,6 +20,10 @@ public:
         ticks += whole;
         return whole;
     }
+    uint64_t ticksForCycles(uint32_t cycles, uint32_t hz) const {
+        auto copy = *this;
+        return copy.advance(cycles, hz);
+    }
     void advanceIdle(uint64_t amount) { ticks += amount; }
     uint64_t elapsedTicks() const { return ticks; }
     double seconds() const { return double(ticks) / ticksPerSecond; }

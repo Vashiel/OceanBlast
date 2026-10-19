@@ -39,6 +39,8 @@ public:
         return (state.cp15_control & (1u << 30)) ? bus.getCpuClock() : bus.getBusClock();
     }
     uint32_t getLastCycles() const { return lastCycles; }
+    // Native exits materialize the same last-instruction metadata.
+    void completeNativeInstruction(uint32_t cycles) { lastCycles = cycles; lastEvent = StepEvent::Instruction; }
     bool isWaitingForInterrupt() const { return state.waitingForInterrupt; }
     void setDebugLogging(bool enabled) { debugLogging = enabled; }
     void setFaultLogging(bool enabled) { faultLogging = enabled; }

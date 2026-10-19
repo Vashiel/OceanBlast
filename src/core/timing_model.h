@@ -10,8 +10,9 @@ inline constexpr TimingModel timingModel(bool registerClocks) {
 inline constexpr const char* timingModelName(TimingModel model) {
     return model==TimingModel::RegisterCycleEstimate?"register_cycle_estimate":"legacy_instruction_ratio";
 }
-inline constexpr const char* effectiveExecutionBackend(bool jitRequested,TimingModel model) {
-    return jitRequested&&model==TimingModel::LegacyInstructionRatio?"jit_hybrid":"interpreter";
+inline constexpr const char* effectiveExecutionBackend(bool jitRequested,TimingModel model,bool clockedNative=false) {
+    return !jitRequested?"interpreter":
+        (model==TimingModel::LegacyInstructionRatio?"jit_hybrid":(clockedNative?"jit_clocked_hybrid":"interpreter"));
 }
 inline constexpr double legacyDefaultInstructionCapMips(size_t ratio) {
     return double(EmulatedTime::ticksPerSecond)/1000000.0*ratio;

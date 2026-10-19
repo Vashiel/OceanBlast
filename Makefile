@@ -30,6 +30,7 @@ HEADERS = src/core/types.h \
           src/core/button_pulses.h \
           src/core/mp3_storage.h \
           src/cpu/arm920t.h \
+          src/cpu/arm920t_cycles.h \
           src/cpu/arm920t_state.h \
           src/cpu/translation_ir.h \
           src/cpu/translation_frontend.h \
@@ -70,7 +71,7 @@ build/unity.o: build/unity.cpp $(SRCS) $(HEADERS)
 	$(CXX) $(CXXFLAGS) --param inline-unit-growth=400 --param large-unit-insns=100000 --param max-inline-insns-single=1000 --param max-inline-insns-auto=200 -c $< -o $@
 
 build/framebuffer.exe: src/display/display_profile.h
-build/emulation_timing.exe build/cpu_regression.exe build/audio_clock.exe build/timer4.exe build/dma_audio_stream.exe build/execution_boundary.exe build/machine.exe: src/core/emulated_time.h
+build/emulation_timing.exe build/cpu_regression.exe build/audio_clock.exe build/timer4.exe build/dma_audio_stream.exe build/execution_boundary.exe build/machine.exe: src/core/emulated_time.h src/cpu/arm920t_cycles.h
 
 $(RES_OBJ): src/display/oceanblast.rc assets/oceanblast-logo.png assets/oceanblast-symbol.png
 	@mkdir -p build

@@ -1,0 +1,31 @@
+Test project <isolated-build>
+      Start  1: x64_clocked_timing
+ 1/13 Test  #1: x64_clocked_timing ...............   Passed    2.24 sec
+      Start  2: x64_execution
+ 2/13 Test  #2: x64_execution ....................   Passed   10.42 sec
+      Start  3: x64_entry_abi
+ 3/13 Test  #3: x64_entry_abi ....................   Passed    0.14 sec
+      Start  4: native_semantics
+ 4/13 Test  #4: native_semantics .................   Passed    1.02 sec
+      Start  5: x64_memory
+ 5/13 Test  #5: x64_memory .......................   Passed    7.90 sec
+      Start  6: x64_invalidation
+ 6/13 Test  #6: x64_invalidation .................   Passed    1.04 sec
+      Start  7: jit_cpu_regression
+ 7/13 Test  #7: jit_cpu_regression ...............   Passed    1.33 sec
+      Start  8: jit_emulation_timing
+ 8/13 Test  #8: jit_emulation_timing .............   Passed    1.26 sec
+      Start  9: timing_contract
+ 9/13 Test  #9: timing_contract ..................   Passed    1.13 sec
+      Start 10: timing_audio_clock
+10/13 Test #10: timing_audio_clock ...............   Passed    0.76 sec
+      Start 11: timing_timer4
+11/13 Test #11: timing_timer4 ....................   Passed    0.85 sec
+      Start 12: timing_dma_audio_stream
+12/13 Test #12: timing_dma_audio_stream ..........   Passed    0.91 sec
+      Start 13: timing_landmarks
+13/13 Test #13: timing_landmarks .................   Passed    0.25 sec
+
+100% tests passed out of 13
+
+Total Test time (real) =  29.30 sec

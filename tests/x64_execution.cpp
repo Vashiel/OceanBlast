@@ -644,11 +644,12 @@ int main() {
         for (Machine* target : {&machine,&reference}) {
             target->bus().write32(0,0xe2800001); target->configureExecution(true,1);
         }
-        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());
+        NativeCacheLimits limits;limits.clockedNative=true;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus(),limits);
         machine.execution().selectEngine(native);
         machine.execution().run(1); reference.execution().run(1);
-        check("Experimental register clocks retain scalar accounting",
-            equivalent(machine,reference) && native.stats().fallbackSteps==1 && native.stats().generatedSteps==0);
+        check("Register clocks use native integer execution with shared accounting",
+            equivalent(machine,reference) && native.stats().fallbackSteps==0 && native.stats().generatedSteps==1);
     }
     std::cout<<failures<<" failure(s)\n";
     return failures?1:0;

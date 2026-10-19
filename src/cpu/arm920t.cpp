@@ -1,3 +1,4 @@
+#include "arm920t_cycles.h"
 #include "arm920t.h"
 #include <iostream>
 #include <iomanip>
@@ -1121,7 +1122,7 @@ bool ARM920T::executeFPA11Operation(u32 instr) {
 }
 
 void ARM920T::executeBranch(u32 instr) {
-    lastCycles = 3;
+    lastCycles = ARM920TCycles::branch;
     bool link = (instr & (1 << 24)) != 0;
     i32 offset = instr & 0x00FFFFFF;
     if (offset & 0x00800000) offset |= 0xFF000000;
@@ -1132,7 +1133,7 @@ void ARM920T::executeBranch(u32 instr) {
 }
 
 void ARM920T::executeBX(u32 instr) {
-    lastCycles = 3;
+    lastCycles = ARM920TCycles::branch;
     bool link = (instr & (1 << 5)) != 0;
     u32 rm = instr & 0xF;
     u32 target = (rm == 15) ? (state.r[15] + 4) : state.r[rm];
@@ -1238,8 +1239,7 @@ void ARM920T::executeDataProcessing(u32 instr) {
     u32 rn = (instr >> 16) & 0xF;
     u32 rd = (instr >> 12) & 0xF;
 
-    lastCycles = (!isImm && (instr & (1u << 4))) ? 2 : 1;
-    if (rd == 15 && !(opcode >= 8 && opcode <= 11)) lastCycles += 2;
+    lastCycles = ARM920TCycles::dataProcessing(instr);
     u32 op1 = (rn == 15) ? (state.r[15] + 4) : state.r[rn];
     u32 op2 = 0;
     bool carry = (state.cpsr & FLAG_C) != 0;

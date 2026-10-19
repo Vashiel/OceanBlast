@@ -1,5 +1,6 @@
 #include "x64_execution_engine.h"
 #include "translation_frontend.h"
+#include "arm920t_cycles.h"
 #include <asmjit/x86.h>
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -38,6 +39,7 @@ struct NativeRun {
     uint32_t limit;
     uint32_t base=0;
     uint32_t retired=0,tickedSteps=0,memorySteps=0,inlineLoads=0,loopTrips=0;
+    uint32_t cycles=0,lastCycles=1,tickedCycles=0,frequency=0;
 };
 void advanceIntegerPrefix(Bus* bus,ExecutionTimeline* timeline,uint32_t count) {
     // Native windows contain at most 65,536 steps; the scheduler bounds ratios
@@ -56,6 +58,16 @@ void advanceIntegerPrefix(Bus* bus,ExecutionTimeline* timeline,uint32_t count) {
 // Before a device access or fault, commit all preceding instructions first.
 void materializeBeforeMemory(Bus* bus,NativeRun* run) {
     const uint32_t completed=run->retired-1;
+    if(run->timeline->registerClocks) {
+        const uint32_t cycles=run->cycles-run->lastCycles;
+        if(cycles>run->tickedCycles) {
+            const auto pc=run->state->r[15];run->state->r[15]=pc-4;
+            bus->tick(run->timeline->clock.advance(cycles-run->tickedCycles,run->frequency));
+            run->timeline->elapsed.ticks=run->timeline->clock.elapsedTicks();
+            run->state->r[15]=pc;run->tickedCycles=cycles;run->tickedSteps=completed;
+        }
+        return;
+    }
     if(completed>run->tickedSteps) {
         const auto pc=run->state->r[15]; run->state->r[15]=pc-4;
         advanceIntegerPrefix(bus,run->timeline,completed-run->tickedSteps);
@@ -171,6 +183,32 @@ struct X64ExecutionEngine::Impl {
     uint64_t cacheLifetime=1;
     size_t cacheBytes=0;
     bool eventWindowDirty=true;
+    bool cycleMode=false;
+    void selectCycleMode(bool clocks) {
+        if(cycleMode==clocks) return;
+        clearCache(); cycleMode=clocks; eventWindowDirty=true;
+    }
+    size_t clockedLimit(const ExecutionTimeline& timeline,size_t wanted,uint64_t remaining,uint32_t frequency) const {
+        wanted=std::min<size_t>(wanted,65536);
+        if(timeline.clock.ticksForCycles(uint32_t(wanted)*ARM920TCycles::branch,frequency)<remaining) return wanted;
+        size_t low=0,high=wanted;
+        while(low<high) {
+            const size_t mid=(low+high+1)/2;
+            if(timeline.clock.ticksForCycles(uint32_t(mid)*ARM920TCycles::branch,frequency)<remaining) low=mid;
+            else high=mid-1;
+        }
+        return low;
+    }
+    void restrictClockedBlock(Block& block) const {
+        if(!cycleMode) return;
+        const auto stop=std::find_if(block.instructions.begin(),block.instructions.end(),[](const Instruction& instruction) {
+            return instruction.multiple ||
+                (!instruction.branch && instruction.operation.opcode==IntegerOpcode::Multiply);
+        });
+        if(stop==block.instructions.end()) return;
+        block.stopPc=stop->pc; block.stopEncoding=stop->encoding; block.stop=BlockStop::Unsupported;
+        block.instructions.erase(stop,block.instructions.end());
+    }
     Impl(ARM920TState& state,ARM920T& cpu,Bus& bus,NativeCacheLimits limits) : architecturalState(state),cpu(cpu),bus(bus),reference(cpu,bus),limits(limits) {
         if (&state!=&cpu.getState()) throw std::invalid_argument("Native and reference CPU state must match");
         if (!limits.blocks || !limits.bytes || !limits.compileThreshold) throw std::invalid_argument("Native cache limits must be positive");
@@ -359,6 +397,8 @@ struct X64ExecutionEngine::Impl {
         }
         const bool repeatable=loopEntry<count;
         const uint32_t loopLength=uint32_t(count-loopEntry);
+        auto cycleCount=compiler.new_gp32(),lastCycleCount=compiler.new_gp32();
+        if(cycleMode) compiler.mov(cycleCount,x86::dword_ptr(run,int32_t(offsetof(NativeRun,cycles))));
         auto loopBase=compiler.new_gp32();
         compiler.mov(loopBase,x86::dword_ptr(run,int32_t(offsetof(NativeRun,base))));
         for (size_t index=0;index<count;++index) {
@@ -385,6 +425,10 @@ struct X64ExecutionEngine::Impl {
                 op.opcode==IntegerOpcode::ReverseSubtractCarry || op.shift==Shift::Rrx;
             if(instruction.condition!=Condition::Always || op.flags!=FlagWrite::Preserve || usesCarry)
                 compiler.mov(flags,readFlags());
+            if(cycleMode) {
+                compiler.inc(cycleCount);
+                compiler.mov(lastCycleCount,ARM920TCycles::failedCondition);
+            }
             Label skipped=compiler.new_label();
             if (instruction.condition!=Condition::Always) {
                 auto skipBit=[&](uint32_t mask,bool whenSet) {
@@ -420,9 +464,19 @@ struct X64ExecutionEngine::Impl {
                     case Condition::Always:break;
                 }
             }
+            if(cycleMode) {
+                const uint32_t cycles=instruction.memory?ARM920TCycles::singleMemory:
+                    (instruction.branch?ARM920TCycles::branch:ARM920TCycles::integer(bool(op.shiftRegister)));
+                if(cycles>1) compiler.add(cycleCount,cycles-1);
+                compiler.mov(lastCycleCount,cycles);
+            }
             if(instruction.memory || instruction.multiple) {
                 auto completed=compiler.new_gp32(); compiler.mov(completed,loopBase); compiler.add(completed,uint32_t(index+1));
                 compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,retired))),completed);
+                if(cycleMode) {
+                    compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,cycles))),cycleCount);
+                    compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,lastCycles))),lastCycleCount);
+                }
                 auto status=compiler.new_gp32();
                 if(instruction.multiple) {
                     compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+15*4)),instruction.pc+4);
@@ -574,6 +628,10 @@ struct X64ExecutionEngine::Impl {
             compiler.add(loopBase,uint32_t(count));
             compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,retired))),loopBase);
         }
+        if(cycleMode) {
+            compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,cycles))),cycleCount);
+            compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,lastCycles))),lastCycleCount);
+        }
         auto status=compiler.new_gp32(); compiler.mov(status,0); compiler.ret(status); compiler.end_func();
         if (compiler.finalize()!=Error::kOk || errors.error!=Error::kOk) return nullptr;
         return publish(code,bytes);
@@ -600,6 +658,7 @@ struct X64ExecutionEngine::Impl {
             return word!=entry.source.end()?FetchResult{true,word->second}:FetchResult{false,0};
         };
         auto block=decodeBlock(entry.context[0],set,fetch,{entry.context[5],128,limits.followDirectBranches});
+        restrictClockedBlock(block);
         size_t bytes=0;
         auto function=compile(block,block.instructions.size(),bytes);
         if(!function || bytes>limits.bytes) {
@@ -749,16 +808,7 @@ struct X64ExecutionEngine::Impl {
             (state.waitingForInterrupt&&!bus.hasPendingIrq()?ExecutionExitReason::Waiting:ExecutionExitReason::Budget));
         return {reason,1,ticks,std::nullopt};
     }
-    ExecutionExit executeNative(CacheEntry& entry,ExecutionTimeline& timeline,size_t budget,uint64_t remaining,bool linkWindow=false) {
-        const auto startTicks=timeline.elapsed.ticks;
-        // Source decoding remains capped at 32 instructions. Validated loops
-        // may repeat up to the real event/budget boundary without a cache trip.
-        size_t executionLimit=std::min<size_t>(budget,65536);
-        if(bus.needsLevelInterruptRefresh()) executionLimit=1;
-        if(remaining<=executionLimit) executionLimit=std::min<uint64_t>(executionLimit,
-            legacyStepsUntilTickLimit(remaining,timeline.ratio,timeline.phase));
-        NativeRun run{&timeline,&architecturalState,entry.source.front().first,uint32_t(executionLimit)};
-        ++counters.nativeWindows;
+    uint32_t executeWindow(CacheEntry& entry,NativeRun& run,bool linkWindow) {
         uint32_t status=0;
         auto* current=&entry;
         for(;;) {
@@ -794,6 +844,44 @@ struct X64ExecutionEngine::Impl {
             ++counters.windowLinks;
             current=next;
         }
+        return status;
+    }
+    ExecutionExit executeNative(CacheEntry& entry,ExecutionTimeline& timeline,size_t budget,uint64_t remaining,bool linkWindow=false) {
+        const auto startTicks=timeline.elapsed.ticks;
+        if(timeline.registerClocks) {
+            // Integer/branch and existing checked single-memory instructions are emitted here.
+            // The entry limit conservatively fits their worst cost before the
+            // first event. The scalar path handles the final crossing instruction.
+            const uint32_t frequency=cpu.getExecutionClock();
+            const auto limit=clockedLimit(timeline,budget,remaining,frequency);
+            NativeRun run{&timeline,&architecturalState,entry.source.front().first,uint32_t(limit)};
+            run.frequency=frequency;
+            ++counters.nativeWindows;
+            const auto status=executeWindow(entry,run,linkWindow);
+            if(!run.retired || run.retired>limit || !run.cycles || run.tickedCycles>run.cycles)
+                throw std::logic_error("Invalid clocked native block exit");
+            bus.tick(timeline.clock.advance(run.cycles-run.tickedCycles,frequency));
+            timeline.elapsed.ticks=timeline.clock.elapsedTicks();
+            if(!(status&1)) cpu.completeNativeInstruction(run.lastCycles);
+            if(status) eventWindowDirty=true;
+            counters.internalBackedges+=run.loopTrips;
+            counters.generatedSteps+=run.retired;
+            counters.generatedCycles+=run.cycles;
+            counters.memorySteps+=run.memorySteps;counters.inlineLoads+=run.inlineLoads;
+            const uint64_t ticks=timeline.elapsed.ticks-startTicks;
+            if(status&1) return {ExecutionExitReason::CpuEvent,run.retired,ticks,CpuStepEvent::DataAbort};
+            return {ticks>=remaining?ExecutionExitReason::Deadline:
+                (run.retired==budget?ExecutionExitReason::Budget:ExecutionExitReason::BlockEnd),run.retired,ticks,std::nullopt};
+        }
+        // Source decoding remains capped at 32 instructions. Validated loops
+        // may repeat up to the real event/budget boundary without a cache trip.
+        size_t executionLimit=std::min<size_t>(budget,65536);
+        if(bus.needsLevelInterruptRefresh()) executionLimit=1;
+        if(remaining<=executionLimit) executionLimit=std::min<uint64_t>(executionLimit,
+            legacyStepsUntilTickLimit(remaining,timeline.ratio,timeline.phase));
+        NativeRun run{&timeline,&architecturalState,entry.source.front().first,uint32_t(executionLimit)};
+        ++counters.nativeWindows;
+        const uint32_t status=executeWindow(entry,run,linkWindow);
         if(status) eventWindowDirty=true;
         const size_t count=run.retired;
         counters.internalBackedges+=run.loopTrips;
@@ -810,13 +898,26 @@ X64ExecutionEngine::~X64ExecutionEngine()=default;
 const ARM920TState& X64ExecutionEngine::state() const { return impl->cpu.getState(); }
 const Bus& X64ExecutionEngine::memory() const { return impl->bus; }
 bool X64ExecutionEngine::canHandoff() const { return impl->cpu.canHandoff(); }
-void X64ExecutionEngine::enter(bool clocks) { impl->cpu.enterExecution(clocks); }
+void X64ExecutionEngine::enter(bool clocks) { impl->selectCycleMode(clocks); impl->cpu.enterExecution(clocks); }
 const NativeExecutionStats& X64ExecutionEngine::stats() const { return impl->counters; }
 void X64ExecutionEngine::resetCodeCache() { impl->clearCache(); ++impl->counters.cacheResets; }
 size_t X64ExecutionEngine::run(ExecutionTimeline& timeline,size_t budget,uint64_t stopTicks) {
+    impl->selectCycleMode(timeline.registerClocks);
+    if(timeline.registerClocks && !impl->limits.clockedNative) {
+        const auto steps=impl->reference.run(timeline,budget,stopTicks);
+        impl->counters.fallbackSteps+=steps;return steps;
+    }
     if(timeline.registerClocks) {
-        const size_t steps=impl->reference.run(timeline,budget,stopTicks);
-        impl->counters.fallbackSteps+=steps; return steps;
+        const uint64_t deadline=timeline.elapsed.ticks+std::min(impl->bus.ticksUntilEvent(),
+            stopTicks>timeline.elapsed.ticks?stopTicks-timeline.elapsed.ticks:0);
+        size_t steps=0;
+        while(steps<budget && !state().halted && timeline.elapsed.ticks<deadline) {
+            const auto eventDeadline=timeline.elapsed.ticks+std::min(impl->bus.ticksUntilEvent(),deadline-timeline.elapsed.ticks);
+            const auto exit=runUntilDeadline(timeline,budget-steps,deadline,eventDeadline,impl->limits.linkNativeWindows);
+            steps+=exit.steps;
+            if(!exit.steps || state().halted || state().waitingForInterrupt) break;
+        }
+        return steps;
     }
     size_t steps=0;
     uint64_t eventDeadline=timeline.elapsed.ticks;
@@ -886,17 +987,26 @@ ExecutionExit X64ExecutionEngine::runToBoundary(ExecutionTimeline& timeline,size
 }
 ExecutionExit X64ExecutionEngine::runUntilDeadline(ExecutionTimeline& timeline,size_t budget,uint64_t stopTicks,uint64_t eventDeadline,bool linkWindow) {
     auto& engine=*impl;
+    engine.selectCycleMode(timeline.registerClocks);
     const auto& state=engine.cpu.getState();
-    // Complex entry conditions and the experimental clock model retain the
-    // scalar contract. The legacy title hook is excluded from native fixtures.
-    if (!budget || state.halted || state.waitingForInterrupt || timeline.registerClocks ||
-        timeline.elapsed.ticks>=stopTicks || engine.bus.wadeTitleBlitEnabled() ||
+    // Complex entry conditions retain the scalar contract. The legacy title
+    // hook is excluded from native fixtures.
+    if (!budget || state.halted || state.waitingForInterrupt ||
+        (timeline.registerClocks && !engine.limits.clockedNative) || timeline.elapsed.ticks>=stopTicks || engine.bus.wadeTitleBlitEnabled() ||
         (engine.bus.hasPendingIrq() && !(state.cpsr&FLAG_I)) || !engine.cpu.canHandoff())
         return engine.fallback(timeline,budget,stopTicks);
     const uint64_t remaining=eventDeadline-timeline.elapsed.ticks;
     size_t count=std::min<size_t>(budget,32);
-    if (engine.bus.needsLevelInterruptRefresh()) count=1;
-    if (remaining<=count) count=std::min<uint64_t>(count,legacyStepsUntilTickLimit(remaining,timeline.ratio,timeline.phase));
+    if(timeline.registerClocks) {
+        if(engine.bus.needsLevelInterruptRefresh()) return engine.fallback(timeline,budget,stopTicks);
+        const uint32_t frequency=engine.cpu.getExecutionClock();
+        if(!frequency) return engine.fallback(timeline,budget,stopTicks);
+        count=engine.clockedLimit(timeline,count,remaining,frequency);
+        if(!count) return engine.fallback(timeline,budget,stopTicks);
+    } else {
+        if (engine.bus.needsLevelInterruptRefresh()) count=1;
+        if (remaining<=count) count=std::min<uint64_t>(count,legacyStepsUntilTickLimit(remaining,timeline.ratio,timeline.phase));
+    }
     auto entry=engine.reusable(count);
     if (!entry) {
         try {
@@ -913,6 +1023,7 @@ ExecutionExit X64ExecutionEngine::runUntilDeadline(ExecutionTimeline& timeline,s
             };
             auto block=decodeBlock(state.r[15],(state.cpsr&FLAG_T)?InstructionSet::Thumb:InstructionSet::Arm,fetch,
                 {uint32_t(count),128,engine.limits.followDirectBranches});
+            engine.restrictClockedBlock(block);
             const size_t nativeCount=block.instructions.size();
             if (!nativeCount && source.empty()) return engine.fallback(timeline,budget,stopTicks);
             // A safe, fetched unsupported opcode caches a scalar exit. Never

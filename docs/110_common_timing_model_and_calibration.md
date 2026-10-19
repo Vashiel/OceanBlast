@@ -73,3 +73,7 @@ No original-console event timings are collected or invented in this slice. The t
 | T4: Preset migration and performance acceptance | Open | Use the common accepted model for matched game checks before removing compatibility ratios or claiming real-time CPU reserve. No forced equal-ratio migration. |
 
 Further standalone native-dispatch optimizations wait behind this timing work. The accepted JIT architecture remains the long-term execution strategy; the new priority establishes which guest work and time it must preserve.
+
+## Clocked-native follow-up
+
+The [initial clocked-native timeline](113_clocked_native_timeline.md) adds explicit developer execution through `--jit-clocked`, with shared cycle accumulation, guarded native windows, checked memory boundaries and precise reference exits. Thirteen final suites and the short Chefs CPU/RAM/time comparison pass. The default register-clock backend remains the interpreter. Full T1/T2/T3/T4 acceptance, hardware calibration, real-time reserve and the battery audio failure remain open. The observations and fallback statements above record the earlier T0 delivery.

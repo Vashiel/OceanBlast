@@ -39,10 +39,19 @@ int main() {
     }
     {
         Machine a,b;setup(a,true,3,true);setup(b,true,6,true);
-        X64ExecutionEngine native(b.state(),b.cpu(),b.bus());b.execution().selectEngine(native);
+        NativeCacheLimits limits;limits.clockedNative=true;
+        X64ExecutionEngine native(b.state(),b.cpu(),b.bus(),limits);b.execution().selectEngine(native);
         const auto x=a.execution().run(1200),y=b.execution().run(1200);
-        check("Register-cycle execution ignores legacy allocation and truthfully reports the JIT reference fallback",
+        check("Register-cycle execution ignores legacy allocation and uses the shared native integer costs",
             x==y&&a.execution().time().ticks==b.execution().time().ticks&&a.state().r[0]==b.state().r[0]&&
+            native.stats().generatedSteps==1200&&native.stats().fallbackSteps==0&&
+            std::string(effectiveExecutionBackend(true,TimingModel::RegisterCycleEstimate,true))=="jit_clocked_hybrid");
+    }
+    {
+        Machine machine;setup(machine,true,3,true);
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+        machine.execution().run(1200);
+        check("Clocked native execution remains explicit opt-in while the default retains reference accounting",
             native.stats().generatedSteps==0&&native.stats().fallbackSteps==1200&&
             std::string(effectiveExecutionBackend(true,TimingModel::RegisterCycleEstimate))=="interpreter");
     }

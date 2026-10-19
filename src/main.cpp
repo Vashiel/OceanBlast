@@ -66,6 +66,7 @@ void printUsage(const char* progName) {
               << "  --host-wait <timer|sleep> GUI pacing wait (default high-resolution timer when supported)\n"
               << "  --audio-rate <Hz> Host output rate (default 22050)\n"
               << "  --profile          Write GUI performance.csv, including audio rate and dropped samples\n";
+    std::cout << "  --jit-clocked      Experimental cycle-accounted JIT; requires --engine jit --timing auto\n";
     std::cout << "  --host-cost-profile <start-step>  Write host_cost.csv from this instruction step\n";
     std::cout << "  --snapshot-interval <N> Save framebuffer/state every N instructions\n"
               << "  --exit-on-limit         Close GUI after the instruction budget is exhausted\n"
@@ -137,7 +138,7 @@ int main(int argc, char* argv[]) {
 #else
     bool useJit=false;
 #endif
-    bool disableTitleBlit=false;
+    bool disableTitleBlit=false,clockedNative=false;
     std::string checkpointPrefix;
     int displayFormat = 0; // 0: LCD registers, 1: RGB444, 2: RGB565.
     bool automaticDisplay = true;
@@ -173,6 +174,8 @@ int main(int argc, char* argv[]) {
 #ifndef OCEANBLAST_WITH_JIT
             if(useJit) { std::cerr<<"[Error] This executable has no JIT backend.\n"; return 1; }
 #endif
+        } else if (arg == "--jit-clocked") {
+            clockedNative=true;
         } else if (arg == "--title-blit" && i + 1 < argc) {
             const std::string mode=argv[++i];
             if(mode!="auto" && mode!="off") { std::cerr<<"[Error] Invalid title blit mode.\n"; return 1; }
@@ -302,6 +305,9 @@ int main(int argc, char* argv[]) {
     if (!cpuStepsPerTick || cpuStepsPerTick > 16) {
         std::cerr << "[Error] CPU steps per tick must be between 1 and 16.\n"; return 1;
     }
+    if(clockedNative && (!useJit || !autoTiming)) {
+        std::cerr<<"[Error] --jit-clocked requires --engine jit --timing auto.\n";return 1;
+    }
     if (autoTiming && (cpuStepsPerTick != 1 || (explicitClock && clockMips != 0))) {
         std::cerr << "[Error] Automatic timing cannot be combined with an instruction ratio or MIPS limit.\n"; return 1;
     }
@@ -389,7 +395,7 @@ int main(int argc, char* argv[]) {
     cpuStepsPerTick = cartridgeSettings.cpuStepsPerTick;
     if (!explicitClock) clockMips = legacyDefaultInstructionCapMips(cpuStepsPerTick);
     const auto activeTimingModel=timingModel(autoTiming);
-    const char* effectiveBackend=effectiveExecutionBackend(useJit,activeTimingModel);
+    const char* effectiveBackend=effectiveExecutionBackend(useJit,activeTimingModel,clockedNative);
     if (const auto* identity = identifyCartridge(cartridge.size(), cartridgeCrc))
         bus.setWadeTitleBlit(identity->crc == 0xeba2a2c3u);
     if (useJit || disableTitleBlit) bus.setWadeTitleBlit(false);
@@ -414,6 +420,7 @@ int main(int argc, char* argv[]) {
     std::unique_ptr<X64ExecutionEngine> nativeEngine;
     if(useJit) {
         NativeCacheLimits nativeLimits;
+        nativeLimits.clockedNative=clockedNative;
         nativeLimits.compileThreshold=3;
         nativeLimits.sampledCompilation=true;
         nativeLimits.followDirectBranches=true;
@@ -423,7 +430,7 @@ int main(int argc, char* argv[]) {
 #endif
     std::cout<<"[Engine] Requested: "<<(useJit?"jit":"interpreter")<<"; effective: "<<effectiveBackend
         <<"; title shortcut: "<<(bus.wadeTitleBlitEnabled()?"on":"off")<<'\n';
-    if(useJit&&autoTiming) std::cout<<"[Engine] Register-cycle estimates currently execute through the reference interpreter.\n";
+    if(useJit&&autoTiming) std::cout<<(clockedNative?"[Engine] Experimental native blocks share CPU/device time with checked memory and reference exits.\n":"[Engine] Register-cycle estimates use the reference interpreter; --jit-clocked enables the developer path.\n");
 
     oceanblast::Display display(scale);
     display.configureWindow(windowSkin, startFullscreen);
@@ -431,7 +438,7 @@ int main(int argc, char* argv[]) {
     display.useGdiPresentation(gdiPresentation);
     oceanblast::Audio audio;
     if (gui) {
-        if (!display.init(useJit?(autoTiming?"OceanBlast - Clocked Reference Test":"OceanBlast - JIT Test"):"OceanBlast - Nikko digiBLAST (2005)")) {
+        if (!display.init(useJit?(autoTiming?(clockedNative?"OceanBlast - Clocked JIT Test":"OceanBlast - Clocked Reference Test"):"OceanBlast - JIT Test"):"OceanBlast - Nikko digiBLAST (2005)")) {
             std::cerr << "[Warning] Failed to initialize display window; falling back to headless mode." << std::endl;
             gui = false;
         } else {
@@ -474,7 +481,7 @@ int main(int argc, char* argv[]) {
     std::ofstream engineStats;
     if(nativeEngine) {
         engineStats.open("engine_stats.csv");
-        engineStats<<"steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads,sampled_fallback_steps,sampled_fallback_batches,native_windows,window_links,fast_window_links\n";
+        engineStats<<"steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads,sampled_fallback_steps,sampled_fallback_batches,native_windows,window_links,fast_window_links,generated_cycles\n";
     }
     auto writeEngineStats=[&]() {
         if(!nativeEngine || !engineStats) return;
@@ -483,7 +490,7 @@ int main(int argc, char* argv[]) {
             <<stats.compilations<<','<<stats.cacheHits<<','<<stats.cacheEvictions<<','<<stats.compilationFailures<<','
             <<stats.fastCacheHits<<','<<stats.sourceValidations<<','<<stats.fallbackCacheHits<<','<<stats.fallbackEntries<<','<<stats.directCacheHits<<','
             <<stats.peakCacheEntries<<','<<stats.peakCacheBytes<<','<<stats.mappingRevalidations<<','
-            <<stats.coldBlockSteps<<','<<stats.coldCacheHits<<','<<stats.promotions<<','<<stats.internalBackedges<<','<<stats.inlineLoads<<','<<stats.sampledFallbackSteps<<','<<stats.sampledFallbackBatches<<','<<stats.nativeWindows<<','<<stats.windowLinks<<','<<stats.fastWindowLinks<<'\n';
+            <<stats.coldBlockSteps<<','<<stats.coldCacheHits<<','<<stats.promotions<<','<<stats.internalBackedges<<','<<stats.inlineLoads<<','<<stats.sampledFallbackSteps<<','<<stats.sampledFallbackBatches<<','<<stats.nativeWindows<<','<<stats.windowLinks<<','<<stats.fastWindowLinks<<','<<stats.generatedCycles<<'\n';
         engineStats.flush();
     };
 #endif
@@ -737,7 +744,7 @@ int main(int argc, char* argv[]) {
                 const double mips = (executedSteps - statsSteps) / seconds / 1000000.0;
                 const double speed = (guestTicks - statsTicks) * 100.0 / EmulationClock::ticksPerSecond / seconds;
                 std::ostringstream title;
-                title << "OceanBlast" << (useJit?(autoTiming?" Clocked Reference":" JIT-Test"):" Interpreter") << " | Display " << std::fixed << std::setprecision(1) << presented / seconds
+                title << "OceanBlast" << (useJit?(autoTiming?(clockedNative?" Clocked JIT-Test":" Clocked Reference"):" JIT-Test"):" Interpreter") << " | Display " << std::fixed << std::setprecision(1) << presented / seconds
                       << " FPS | Changes " << changed / seconds << "/s | " << mips << " MIPS"
                       << " | CPU " << cpuStepsPerTick << "x"
                       << " | Model " << speed << "%" << (autoTiming ? " Auto" : "")

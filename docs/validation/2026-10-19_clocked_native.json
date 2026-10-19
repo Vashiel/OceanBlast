@@ -1,0 +1,145 @@
+{
+  "date": "2026-10-19",
+  "base_commit": "f339792becd939ba55b97017f8fefefe0cf2e55c",
+  "budget_minutes": 45,
+  "status": "Initial shared clocked-native timeline accepted for explicit developer use; performance and hardware calibration remain open.",
+  "source_sha256": {
+    "Makefile": "42577e3bced110fa176e77656c16dd80be6f1e65d8c84e5c688104ebc5bd73c7",
+    "jit/CMakeLists.txt": "89ed79c67ccb3bef2425f46ad5dd96748f2aa58eeb3808f08ac73763090c1489",
+    "src/core/emulation_clock.h": "d94c12c7adeb71e44dc0548310780a9848a64f3a9b418fd8958af62fccb4db7c",
+    "src/core/timing_model.h": "e87ce67e8045db9150a2627c0dcb617854d16e1b1e08eae04b2dafa748de6dc7",
+    "src/cpu/arm920t_cycles.h": "cca668c345cab078c4b49ce6c092c862c00c91fc53d9bac81c5ffeac8f9b135b",
+    "src/cpu/arm920t.h": "8979bba9298ffbaf0a40fa3403045e82947c78bbc89758651e9534205ffa2fb0",
+    "src/cpu/arm920t.cpp": "2271013fb16920977d0c50967535fa72f8434b9c97a5308d9cf4fb7173491bc0",
+    "src/cpu/x64_execution_engine.h": "a4f91e6efeab46b96eea6052265016036c1f484531eb2186d814df626edb6b81",
+    "src/cpu/x64_execution_engine.cpp": "91fd9364608f5b78e1d724b0cbb21fd49d21d1c0c1455f2a2160e4a95e4438fb",
+    "src/main.cpp": "9c19c433f6453730f27c78f3bcabdf50943f8bcaec5a31e935b3947515340e54",
+    "tests/timing_contract.cpp": "5ea55172aa68fa8ec6f972f9379fa1e1dbc499d995fb4cacad5cb0f2d4a45237",
+    "tests/x64_execution.cpp": "f5e3cdd3569cab5c9f946bfd9da36e03e6f91a4fecf3c0c4a1e621971b240d5b",
+    "tests/x64_clocked_timing.cpp": "33bd3478174122a98c2f3509dac5345a40d310e6cff0eecb3999a62ce86b4843"
+  },
+  "candidate_sha256": "59e754c0321bbc535565cd46fd378e6d4e9eccb984df820c38858c5f556949a3",
+  "build": "GCC 16.2 Release O3 DNDEBUG march=x86-64 PGO OFF; existing pinned AsmJit.",
+  "primary_timing_source": "https://documentation-service.arm.com/static/5e8e2a5b88295d1e18d381bb",
+  "source_scope": "DDI0151C chapter 12 cached ALU/register-shift/branch and single-transfer base costs; external waits and dependencies remain incomplete.",
+  "checks": {
+    "suites": 13,
+    "seconds": 29.3,
+    "log_sha256": "307ab7e396a83054141a683915088ec09c4b92a84e2920afa222e822e10e0685",
+    "original_log_sha256": "965db14c21571122d2b21aa32b8c53243d10b69ff37e029a1c3a6deb8d968a1a"
+  },
+  "chefs_probe": {
+    "steps": 300000000,
+    "timing": "register_cycle_estimate",
+    "gui": false,
+    "sound": false,
+    "pacing": false,
+    "affinity_mask": 4,
+    "ac_before": 0,
+    "rom_sha256": "465ddcd7f9722d73b4fd748d3b8d822bc99c06ea91c301bd768f583a1d52b2ff",
+    "eeprom_sha256": "fc334d44d67db6db1943805563133e5b2d0923cc2dfed2eedfffea2add2621b7",
+    "input_sha256": "7f5e369bdf97a453cd2307e2dda63a4d7b7b5f7dce5877917d29335de28c246d",
+    "rows": [
+      {
+        "variant": "reference",
+        "executable_sha256": "c9f68a8acff43653daa4b408b0e128e44c955492c9711c05bf66e1d2e62130d3",
+        "exit": 0,
+        "cpu_seconds": 5.953125,
+        "wall_seconds": 6.522660900000119,
+        "cpu_sha256": "99bb42cd7fd47438dccd8059b6b10e2858dbff42fb0aa06fa144f1f167ed3642",
+        "ram_sha256": "a4570016d413c88dd8814cae794124a951a242a3da7ab2a7fc617f8d45d1f79e",
+        "fields": {
+          "guest_ticks": "49421519",
+          "idle_ticks": "0",
+          "timing_model": "register_cycle_estimate",
+          "effective_engine": "interpreter",
+          "timing_calibration": "unverified"
+        },
+        "stats": "300000000,0,0,300000000,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+      },
+      {
+        "variant": "candidate",
+        "executable_sha256": "59e754c0321bbc535565cd46fd378e6d4e9eccb984df820c38858c5f556949a3",
+        "exit": 0,
+        "cpu_seconds": 7.25,
+        "wall_seconds": 7.822139799998695,
+        "cpu_sha256": "99bb42cd7fd47438dccd8059b6b10e2858dbff42fb0aa06fa144f1f167ed3642",
+        "ram_sha256": "a4570016d413c88dd8814cae794124a951a242a3da7ab2a7fc617f8d45d1f79e",
+        "fields": {
+          "guest_ticks": "49421519",
+          "idle_ticks": "0",
+          "timing_model": "register_cycle_estimate",
+          "effective_engine": "jit_clocked_hybrid",
+          "timing_calibration": "unverified"
+        },
+        "stats": "300000000,288940380,92035962,11059620,54921,56029832,107536,0,55162400,23,19274748,37049,44425400,33474,8388608,1518236,736246,160309,54921,16686130,55151948,0,0,25012674,31072079,28052434,382601710"
+      }
+    ],
+    "reference_reused_from": "clocked-native-chefs-20261019/reference",
+    "ac_after": 0,
+    "same": true
+  },
+  "final_snapshot_fields": [
+    {
+      "steps": "300000000",
+      "guest_ticks": "49421520",
+      "idle_ticks": "0",
+      "timing_model": "register_cycle_estimate",
+      "effective_engine": "interpreter",
+      "timing_calibration": "unverified"
+    },
+    {
+      "steps": "300000000",
+      "guest_ticks": "49421520",
+      "idle_ticks": "0",
+      "timing_model": "register_cycle_estimate",
+      "effective_engine": "jit_clocked_hybrid",
+      "timing_calibration": "unverified"
+    }
+  ],
+  "final_engine_stats": {
+    "steps": "300000000",
+    "generated": "288940380",
+    "memory": "92035962",
+    "fallback": "11059620",
+    "compilations": "54921",
+    "cache_hits": "56029832",
+    "evictions": "107536",
+    "failures": "0",
+    "fast_cache_hits": "55162400",
+    "source_validations": "23",
+    "fallback_cache_hits": "19274748",
+    "fallback_entries": "37049",
+    "direct_cache_hits": "44425400",
+    "peak_cache_entries": "33474",
+    "peak_cache_bytes": "8388608",
+    "mapping_revalidations": "1518236",
+    "cold_block_steps": "736246",
+    "cold_cache_hits": "160309",
+    "promotions": "54921",
+    "internal_backedges": "16686130",
+    "inline_loads": "55151948",
+    "sampled_fallback_steps": "0",
+    "sampled_fallback_batches": "0",
+    "native_windows": "25012674",
+    "window_links": "31072079",
+    "fast_window_links": "28052434",
+    "generated_cycles": "382601710"
+  },
+  "native_instruction_percent": 96.31345999999999,
+  "options": "Candidate: --engine jit --timing auto --jit-clocked --title-blit off --clock-mips 0; 300M steps, no GUI/audio; copied valid EEPROM/input fixture.",
+  "default_clocked_backend": "interpreter",
+  "opt_in_clocked_backend": "jit_clocked_hybrid",
+  "changed_presets": false,
+  "changed_existing_cycle_estimates": false,
+  "installed_sha256": "858c64effd03fb43738d3bb12b1e98c98063b463d4f6d112293c907607942ab2",
+  "existing_manual_package_sha256": "081269a368d1a68c05d1eac2358de02d39d96123d229a1e8b424225b24ac198a",
+  "limits": [
+    "Headless boot/state equivalence, not gameplay, live audio or original-hardware tempo acceptance.",
+    "Candidate uses more CPU than reference in the recorded short check; no speedup or improved playable EXE claimed.",
+    "Initial clocked support excludes native multiple transfers and multiply; precise scalar exits remain.",
+    "Load-use interlocks, memory/cache waits, fault and accelerated-FPA11 costs remain incomplete.",
+    "The earlier Chefs battery audio failure is not resolved by this acceptance."
+  ],
+  "engine_stats_csv_sha256": "3b81edd00a05ed3262a2876f0d758f36510e5c37f0f7c66f55d7ecd070d88337"
+}

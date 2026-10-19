@@ -17,6 +17,7 @@ struct NativeExecutionStats {
     uint64_t inlineLoads=0;
     uint64_t sampledFallbackSteps=0,sampledFallbackBatches=0;
     uint64_t nativeWindows=0,windowLinks=0,fastWindowLinks=0;
+    uint64_t generatedCycles=0;
 };
 struct NativeCacheLimits {
     size_t blocks=65536;
@@ -25,6 +26,7 @@ struct NativeCacheLimits {
     bool followDirectBranches=false;
     bool sampledCompilation=false;
     bool linkNativeWindows=true;
+    bool clockedNative=false; // Explicit developer opt-in until runtime acceptance.
 };
 // Checked integration with bounded, generation-validated code reuse.
 // Whole-machine pacing, audio and performance acceptance remain separate gates.
