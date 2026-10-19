@@ -1,0 +1,507 @@
+{
+  "date": "2026-10-19",
+  "scope": "Single executable-level comparison; different compiler profiles, not an isolated JIT speedup.",
+  "steps": 1600000000,
+  "ratio": 3,
+  "clock_mips": 60,
+  "gui": true,
+  "sound": true,
+  "host_pacing": true,
+  "affinity_mask": 4,
+  "required_ac_line_status": 0,
+  "ac_before": 0,
+  "power_scheme": "GUID des Energieschemas: 381b4222-f694-41f0-9685-ff5bb260df2e  (Ausbalanciert)",
+  "rom_sha256": "465ddcd7f9722d73b4fd748d3b8d822bc99c06ea91c301bd768f583a1d52b2ff",
+  "input_sha256": "7f5e369bdf97a453cd2307e2dda63a4d7b7b5f7dce5877917d29335de28c246d",
+  "initial_eeprom_sha256": "fc334d44d67db6db1943805563133e5b2d0923cc2dfed2eedfffea2add2621b7",
+  "settings_sha256": "d5f19a98a5e70d4482a7630cb98b2dd74e422b8887d568f8001cc45ad6e746b0",
+  "order": [
+    "installed",
+    "packaged_jit"
+  ],
+  "battery_before": {
+    "ac_line_status": 0,
+    "percent": 97,
+    "battery_flags": 1,
+    "energy_saver_flag": 0
+  },
+  "ac_after": 0,
+  "battery_after": {
+    "ac_line_status": 0,
+    "percent": 96,
+    "battery_flags": 1,
+    "energy_saver_flag": 0
+  },
+  "same_final_registers": true,
+  "same_final_sdram_and_framebuffer": true,
+  "comparable_completed_pair": true,
+  "cpu_time_change_percent": -5.727762803234504,
+  "base_commit": "4970926916c480bc31e0dd42b48a477514dff83d",
+  "host_processor": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+  "task_budget_minutes": 10,
+  "rows": [
+    {
+      "variant": "installed",
+      "executable_sha256": "858c64effd03fb43738d3bb12b1e98c98063b463d4f6d112293c907607942ab2",
+      "build_profile": "GCC16.2 O3 unity PGO with existing profiles",
+      "exit": 0,
+      "completed": true,
+      "reason": "step limit completed",
+      "wall_seconds": 31.31690350000008,
+      "cpu_seconds": 23.1875,
+      "cpu_observations": [
+        {
+          "latest_csv_steps": 60050000,
+          "cpu_seconds": 3.703125,
+          "wall_seconds": 4.98029409999981
+        },
+        {
+          "latest_csv_steps": 119500000,
+          "cpu_seconds": 4.4375,
+          "wall_seconds": 6.098987399999714
+        },
+        {
+          "latest_csv_steps": 184900000,
+          "cpu_seconds": 5.03125,
+          "wall_seconds": 7.017733399999997
+        },
+        {
+          "latest_csv_steps": 244900000,
+          "cpu_seconds": 5.703125,
+          "wall_seconds": 8.038956899999903
+        },
+        {
+          "latest_csv_steps": 304200000,
+          "cpu_seconds": 6.28125,
+          "wall_seconds": 9.056964399999742
+        },
+        {
+          "latest_csv_steps": 364900000,
+          "cpu_seconds": 7.078125,
+          "wall_seconds": 10.072885800000222
+        },
+        {
+          "latest_csv_steps": 425050000,
+          "cpu_seconds": 7.6875,
+          "wall_seconds": 11.09395880000011
+        },
+        {
+          "latest_csv_steps": 485100000,
+          "cpu_seconds": 8.328125,
+          "wall_seconds": 12.019664899999952
+        },
+        {
+          "latest_csv_steps": 545150000,
+          "cpu_seconds": 8.890625,
+          "wall_seconds": 13.039229799999703
+        },
+        {
+          "latest_csv_steps": 604400000,
+          "cpu_seconds": 9.734375,
+          "wall_seconds": 14.056420500000058
+        },
+        {
+          "latest_csv_steps": 664900000,
+          "cpu_seconds": 10.609375,
+          "wall_seconds": 15.078130699999747
+        },
+        {
+          "latest_csv_steps": 726950000,
+          "cpu_seconds": 11.40625,
+          "wall_seconds": 16.12123580000025
+        },
+        {
+          "latest_csv_steps": 786200000,
+          "cpu_seconds": 12.171875,
+          "wall_seconds": 17.039617100000214
+        },
+        {
+          "latest_csv_steps": 846150000,
+          "cpu_seconds": 12.921875,
+          "wall_seconds": 18.06141149999985
+        },
+        {
+          "latest_csv_steps": 906300000,
+          "cpu_seconds": 13.75,
+          "wall_seconds": 19.082319999999527
+        },
+        {
+          "latest_csv_steps": 965950000,
+          "cpu_seconds": 14.609375,
+          "wall_seconds": 20.10299909999958
+        },
+        {
+          "latest_csv_steps": 1027350000,
+          "cpu_seconds": 15.4375,
+          "wall_seconds": 21.123062099999515
+        },
+        {
+          "latest_csv_steps": 1087750000,
+          "cpu_seconds": 16.265625,
+          "wall_seconds": 22.143306500000108
+        },
+        {
+          "latest_csv_steps": 1148500000,
+          "cpu_seconds": 16.828125,
+          "wall_seconds": 23.06087419999949
+        },
+        {
+          "latest_csv_steps": 1208500000,
+          "cpu_seconds": 17.515625,
+          "wall_seconds": 24.08072230000016
+        },
+        {
+          "latest_csv_steps": 1268550000,
+          "cpu_seconds": 18.375,
+          "wall_seconds": 25.100579099999777
+        },
+        {
+          "latest_csv_steps": 1328600000,
+          "cpu_seconds": 19.109375,
+          "wall_seconds": 26.119797899999867
+        },
+        {
+          "latest_csv_steps": 1386550000,
+          "cpu_seconds": 19.90625,
+          "wall_seconds": 27.139578399999664
+        },
+        {
+          "latest_csv_steps": 1447200000,
+          "cpu_seconds": 20.71875,
+          "wall_seconds": 28.161948400000256
+        },
+        {
+          "latest_csv_steps": 1508050000,
+          "cpu_seconds": 21.5,
+          "wall_seconds": 29.08035689999997
+        },
+        {
+          "latest_csv_steps": 1567150000,
+          "cpu_seconds": 22.359375,
+          "wall_seconds": 30.10297399999945
+        }
+      ],
+      "battery_after_run": {
+        "ac_line_status": 0,
+        "percent": 96,
+        "battery_flags": 1,
+        "energy_saver_flag": 0
+      },
+      "process_cpu_fraction_of_one_logical_cpu": 0.740414836990507,
+      "expected_power_state_throughout": true,
+      "registers": {
+        "PC": "00011acc",
+        "SP": "befffb80",
+        "LR": "0000000b",
+        "CPSR": "80000010",
+        "r12": "00000f0f",
+        "r0": "406edf9c",
+        "r1": "405c5c9c",
+        "r2": "00000017",
+        "r3": "00000416",
+        "r4": "00000020",
+        "r5": "000004c0",
+        "r6": "00000040",
+        "r7": "0006d384",
+        "r8": "00000280",
+        "r9": "00000000",
+        "r10": "0006d1ac",
+        "r11": "005106e0"
+      },
+      "sampled_peak_private_bytes": 127451136,
+      "peak_working_set_bytes": 115838976,
+      "artifacts_sha256": {
+        "sdram.bin": "a28db7797d70311b64c4a6ff92562afd7bd8368923a26f6cd224553609f8d130",
+        "fb_active.raw": "d880de22570ce11fd9351b5685a8d338d1a1e1e4958e49b1896d2fdbbb8ed6b3"
+      },
+      "last_four_model_speed_percent": [
+        96.5502,
+        101.083,
+        101.406,
+        98.4967
+      ],
+      "empty_queue_events": 0,
+      "dropped_samples": 0,
+      "csv_sha256": "c80e29682faeb69e8b551c7ac0abbc31cef16cd9d243485803a241cc57d0fc84",
+      "csv_reported_interval_seconds": 26.14347,
+      "wall_seconds_outside_reported_intervals": 5.17343350000008,
+      "minimum_reported_model_speed_percent": 91.7329,
+      "empty_queue_counter_changes": [
+        {
+          "steps": 60050000,
+          "model_speed_percent": 99.997,
+          "empty_queue_events": 0
+        }
+      ]
+    },
+    {
+      "variant": "packaged_jit",
+      "executable_sha256": "081269a368d1a68c05d1eac2358de02d39d96123d229a1e8b424225b24ac198a",
+      "build_profile": "GCC16.2 O3 Release x86-64 PGO OFF",
+      "exit": 0,
+      "completed": true,
+      "reason": "step limit completed",
+      "wall_seconds": 30.12456629999997,
+      "cpu_seconds": 21.859375,
+      "cpu_observations": [
+        {
+          "latest_csv_steps": 57000000,
+          "cpu_seconds": 2.28125,
+          "wall_seconds": 2.847146000000066
+        },
+        {
+          "latest_csv_steps": 118500000,
+          "cpu_seconds": 2.65625,
+          "wall_seconds": 3.867389600000024
+        },
+        {
+          "latest_csv_steps": 169850000,
+          "cpu_seconds": 3.40625,
+          "wall_seconds": 4.895580499999596
+        },
+        {
+          "latest_csv_steps": 234350000,
+          "cpu_seconds": 4.265625,
+          "wall_seconds": 5.913392499999645
+        },
+        {
+          "latest_csv_steps": 295300000,
+          "cpu_seconds": 5.03125,
+          "wall_seconds": 6.833593999999721
+        },
+        {
+          "latest_csv_steps": 338600000,
+          "cpu_seconds": 5.9375,
+          "wall_seconds": 7.852886099999523
+        },
+        {
+          "latest_csv_steps": 403650000,
+          "cpu_seconds": 6.828125,
+          "wall_seconds": 8.87402849999944
+        },
+        {
+          "latest_csv_steps": 451600000,
+          "cpu_seconds": 7.671875,
+          "wall_seconds": 9.892360899999403
+        },
+        {
+          "latest_csv_steps": 495900000,
+          "cpu_seconds": 8.53125,
+          "wall_seconds": 10.913458799999717
+        },
+        {
+          "latest_csv_steps": 552250000,
+          "cpu_seconds": 9.1875,
+          "wall_seconds": 11.82941750000009
+        },
+        {
+          "latest_csv_steps": 613750000,
+          "cpu_seconds": 10.109375,
+          "wall_seconds": 12.952203599999848
+        },
+        {
+          "latest_csv_steps": 675950000,
+          "cpu_seconds": 10.828125,
+          "wall_seconds": 13.871360000000095
+        },
+        {
+          "latest_csv_steps": 735050000,
+          "cpu_seconds": 11.546875,
+          "wall_seconds": 14.889631000000008
+        },
+        {
+          "latest_csv_steps": 794850000,
+          "cpu_seconds": 12.328125,
+          "wall_seconds": 15.917493599999943
+        },
+        {
+          "latest_csv_steps": 855850000,
+          "cpu_seconds": 13.03125,
+          "wall_seconds": 16.948471400000017
+        },
+        {
+          "latest_csv_steps": 915850000,
+          "cpu_seconds": 13.6875,
+          "wall_seconds": 17.96894489999977
+        },
+        {
+          "latest_csv_steps": 976500000,
+          "cpu_seconds": 14.390625,
+          "wall_seconds": 18.98926669999946
+        },
+        {
+          "latest_csv_steps": 1038100000,
+          "cpu_seconds": 15.015625,
+          "wall_seconds": 19.910875900000065
+        },
+        {
+          "latest_csv_steps": 1096950000,
+          "cpu_seconds": 15.6875,
+          "wall_seconds": 20.931393500000013
+        },
+        {
+          "latest_csv_steps": 1158300000,
+          "cpu_seconds": 16.328125,
+          "wall_seconds": 21.95281299999988
+        },
+        {
+          "latest_csv_steps": 1218500000,
+          "cpu_seconds": 17.015625,
+          "wall_seconds": 22.98298109999996
+        },
+        {
+          "latest_csv_steps": 1278400000,
+          "cpu_seconds": 17.671875,
+          "wall_seconds": 23.901917199999843
+        },
+        {
+          "latest_csv_steps": 1338450000,
+          "cpu_seconds": 18.328125,
+          "wall_seconds": 24.9226493999995
+        },
+        {
+          "latest_csv_steps": 1397400000,
+          "cpu_seconds": 19.15625,
+          "wall_seconds": 25.948606400000244
+        },
+        {
+          "latest_csv_steps": 1456950000,
+          "cpu_seconds": 19.859375,
+          "wall_seconds": 26.968732600000294
+        },
+        {
+          "latest_csv_steps": 1518150000,
+          "cpu_seconds": 20.578125,
+          "wall_seconds": 27.991115799999534
+        },
+        {
+          "latest_csv_steps": 1578600000,
+          "cpu_seconds": 21.234375,
+          "wall_seconds": 28.90860749999956
+        }
+      ],
+      "battery_after_run": {
+        "ac_line_status": 0,
+        "percent": 96,
+        "battery_flags": 1,
+        "energy_saver_flag": 0
+      },
+      "process_cpu_fraction_of_one_logical_cpu": 0.7256328533433533,
+      "expected_power_state_throughout": true,
+      "registers": {
+        "PC": "00011acc",
+        "SP": "befffb80",
+        "LR": "0000000b",
+        "CPSR": "80000010",
+        "r12": "00000f0f",
+        "r0": "406edf9c",
+        "r1": "405c5c9c",
+        "r2": "00000017",
+        "r3": "00000416",
+        "r4": "00000020",
+        "r5": "000004c0",
+        "r6": "00000040",
+        "r7": "0006d384",
+        "r8": "00000280",
+        "r9": "00000000",
+        "r10": "0006d1ac",
+        "r11": "005106e0"
+      },
+      "sampled_peak_private_bytes": 127549440,
+      "peak_working_set_bytes": 119918592,
+      "artifacts_sha256": {
+        "sdram.bin": "a28db7797d70311b64c4a6ff92562afd7bd8368923a26f6cd224553609f8d130",
+        "fb_active.raw": "d880de22570ce11fd9351b5685a8d338d1a1e1e4958e49b1896d2fdbbb8ed6b3"
+      },
+      "last_four_model_speed_percent": [
+        98.1817,
+        99.1893,
+        101.952,
+        100.713
+      ],
+      "empty_queue_events": 23,
+      "dropped_samples": 0,
+      "csv_sha256": "da0a86f2bd55b8606bf57f99d7fb0dde0130e7fc81d8b2267c6e1c97eb754a6f",
+      "csv_reported_interval_seconds": 27.0872,
+      "wall_seconds_outside_reported_intervals": 3.03736629999997,
+      "minimum_reported_model_speed_percent": 72.0308,
+      "empty_queue_counter_changes": [
+        {
+          "steps": 57000000,
+          "model_speed_percent": 94.9477,
+          "empty_queue_events": 0
+        },
+        {
+          "steps": 338600000,
+          "model_speed_percent": 72.0308,
+          "empty_queue_events": 4
+        },
+        {
+          "steps": 403650000,
+          "model_speed_percent": 108.383,
+          "empty_queue_events": 6
+        },
+        {
+          "steps": 451600000,
+          "model_speed_percent": 79.8813,
+          "empty_queue_events": 7
+        },
+        {
+          "steps": 495900000,
+          "model_speed_percent": 73.7942,
+          "empty_queue_events": 20
+        },
+        {
+          "steps": 552250000,
+          "model_speed_percent": 93.8994,
+          "empty_queue_events": 23
+        }
+      ]
+    }
+  ],
+  "matching_ac_manifest": "2026-10-19_chefs_resources.json",
+  "common_options": [
+    "--gui",
+    "--sound",
+    "--profile",
+    "--timing legacy",
+    "--cpu-steps-per-tick 3",
+    "--clock-mips 60",
+    "--cart-language keep",
+    "--window-mode plain",
+    "--scale 3",
+    "--steps 1600000000",
+    "--exit-on-limit",
+    "--snapshot-interval 1599999999",
+    "--nvram <fresh copied per-run EEPROM>",
+    "--input-script <recorded input events>"
+  ],
+  "candidate_only_options": [
+    "--engine jit",
+    "--title-blit off"
+  ],
+  "input_events": [
+    "700000000 10",
+    "760000000 0",
+    "1100000000 10",
+    "1160000000 4",
+    "1220000000 14",
+    "1260000000 4",
+    "1320000000 14",
+    "1360000000 4"
+  ],
+  "compiler_profile_sources": [
+    "docs/validation/2026-10-17_chefs_eeprom_fix.json",
+    "docs/109_manual_jit_package_and_cross_game_checks.md"
+  ],
+  "result": "JIT battery audio gate failed: 23 empty-queue events versus zero for installed player; lower total CPU does not establish reliable real-time delivery.",
+  "limits": [
+    "One same-order battery pair; no repeated sweep or additional cartridge.",
+    "Same complete guest work and final state; configured legacy model remains uncalibrated.",
+    "Different compiler profiles; CPU totals include startup, JIT compilation, GUI/audio, dumps and shutdown.",
+    "Process CPU observations are polled when CSV rows become visible; they are not exact guest-step boundary samples.",
+    "Queue counters are transport observations; no listening acceptance or exact count of audible glitches.",
+    "AC versus battery pair differences do not establish the root cause of starvation or weak-device behavior.",
+    "Battery percentage change is coarse status information, not an energy-consumption measurement."
+  ]
+}
