@@ -15,6 +15,8 @@ HEADERS = src/core/types.h \
           src/core/guest_symbols.h \
           src/core/input_script.h \
           src/core/emulation_clock.h \
+          src/core/emulated_time.h \
+          src/core/timing_model.h \
           src/core/execution_batch.h \
           src/core/execution_engine.h \
           src/core/interpreter_engine.h \
@@ -68,6 +70,7 @@ build/unity.o: build/unity.cpp $(SRCS) $(HEADERS)
 	$(CXX) $(CXXFLAGS) --param inline-unit-growth=400 --param large-unit-insns=100000 --param max-inline-insns-single=1000 --param max-inline-insns-auto=200 -c $< -o $@
 
 build/framebuffer.exe: src/display/display_profile.h
+build/emulation_timing.exe build/cpu_regression.exe build/audio_clock.exe build/timer4.exe build/dma_audio_stream.exe build/execution_boundary.exe build/machine.exe: src/core/emulated_time.h
 
 $(RES_OBJ): src/display/oceanblast.rc assets/oceanblast-logo.png assets/oceanblast-symbol.png
 	@mkdir -p build

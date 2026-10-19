@@ -13,6 +13,7 @@
 #include "core/cartridge_settings.h"
 #include "core/cartridge_language.h"
 #include "core/emulation_clock.h"
+#include "core/timing_model.h"
 #include "core/machine.h"
 #include "core/execution_checkpoint.h"
 #include "core/host_pacer.h"
@@ -57,7 +58,7 @@ void printUsage(const char* progName) {
               << "  --title-blit <auto|off> Legacy title shortcut (disabled for JIT)\n"
               << "  --checkpoint <prefix> Write canonical CPU state and SDRAM on exit\n"
               << "  --preset <auto|off> Content-based cartridge settings (default auto); explicit CPU ratio overrides\n"
-              << "  --timing <legacy|auto> Register-clock CPU timing with cached cycle estimates (experimental)\n"
+              << "  --timing <legacy|auto> Uncalibrated timing models; auto uses interpreter cycle estimates\n"
               << "  --emulated-seconds <N> Stop after a bounded amount of modeled time\n"
               << "  --cpu-steps-per-tick <N> Diagnostic CPU work per peripheral tick (1..16; overrides cartridge preset)\n"
               << "  --execution-batch <N> Host bookkeeping batch (1..4096; 1 selects scalar execution)\n"
@@ -148,7 +149,7 @@ int main(int argc, char* argv[]) {
     bool profile = false;
     bool hostCostProfile = false;
     uint64_t hostCostStartStep = 0;
-    double clockMips = 20.0; // Timer/DMA model currently assumes 20M instructions/s.
+    double clockMips = legacyDefaultInstructionCapMips(1);
     bool explicitClock = false;
     bool autoTiming = false;
     bool automaticPreset = true, explicitRatio = false;
@@ -386,7 +387,9 @@ int main(int argc, char* argv[]) {
     const auto cartridgeSettings = resolveCartridgeSettings(cartridge.size(), cartridgeCrc,
         automaticPreset, explicitRatio, cpuStepsPerTick, autoTiming);
     cpuStepsPerTick = cartridgeSettings.cpuStepsPerTick;
-    if (!explicitClock) clockMips *= cpuStepsPerTick;
+    if (!explicitClock) clockMips = legacyDefaultInstructionCapMips(cpuStepsPerTick);
+    const auto activeTimingModel=timingModel(autoTiming);
+    const char* effectiveBackend=effectiveExecutionBackend(useJit,activeTimingModel);
     if (const auto* identity = identifyCartridge(cartridge.size(), cartridgeCrc))
         bus.setWadeTitleBlit(identity->crc == 0xeba2a2c3u);
     if (useJit || disableTitleBlit) bus.setWadeTitleBlit(false);
@@ -418,7 +421,9 @@ int main(int argc, char* argv[]) {
         machine.execution().selectEngine(*nativeEngine);
     }
 #endif
-    std::cout<<"[Engine] "<<(useJit?"x86-64 JIT (developer)":"Interpreter")<<"; title shortcut: "<<(bus.wadeTitleBlitEnabled()?"on":"off")<<'\n';
+    std::cout<<"[Engine] Requested: "<<(useJit?"jit":"interpreter")<<"; effective: "<<effectiveBackend
+        <<"; title shortcut: "<<(bus.wadeTitleBlitEnabled()?"on":"off")<<'\n';
+    if(useJit&&autoTiming) std::cout<<"[Engine] Register-cycle estimates currently execute through the reference interpreter.\n";
 
     oceanblast::Display display(scale);
     display.configureWindow(windowSkin, startFullscreen);
@@ -426,7 +431,7 @@ int main(int argc, char* argv[]) {
     display.useGdiPresentation(gdiPresentation);
     oceanblast::Audio audio;
     if (gui) {
-        if (!display.init(useJit?"OceanBlast - JIT Test":"OceanBlast - Nikko digiBLAST (2005)")) {
+        if (!display.init(useJit?(autoTiming?"OceanBlast - Clocked Reference Test":"OceanBlast - JIT Test"):"OceanBlast - Nikko digiBLAST (2005)")) {
             std::cerr << "[Warning] Failed to initialize display window; falling back to headless mode." << std::endl;
             gui = false;
         } else {
@@ -487,6 +492,8 @@ int main(int argc, char* argv[]) {
     const auto& idleTicks = execution.time().idleTicks;
     uint64_t guiTicks = 0;
     std::cout << "[Timing] Mode: " << (autoTiming ? "automatic register clocks (experimental)" : "legacy instruction ratio") << '\n';
+    std::cout << "[Timing] Model: " << timingModelName(activeTimingModel)
+              << "; hardware calibration: unverified; internal ticks/second: " << EmulatedTime::ticksPerSecond << '\n';
     if (autoTiming) std::cout << "[Timing] Instruction-ratio and MIPS pacing disabled; using modeled CPU time.\n";
     else std::cout << "[Timing] CPU steps per peripheral tick: " << cpuStepsPerTick
                    << "; GUI instruction-rate limit: " << clockMips << " MIPS\n";
@@ -589,6 +596,11 @@ int main(int argc, char* argv[]) {
               << "\nsubsrcpnd=" << bus.getMmio(0x4A000018)
               << "\nintsubmsk=" << bus.getMmio(0x4A00001C) << '\n';
         for (int reg = 0; reg < 16; ++reg) state << 'r' << std::dec << reg << '=' << std::hex << cpu.getReg(reg) << '\n';
+        state << "timing_model=" << timingModelName(activeTimingModel)
+              << "\ntiming_calibration=unverified\nrequested_engine=" << (useJit?"jit":"interpreter")
+              << "\neffective_engine=" << effectiveBackend << "\ninternal_ticks_per_second=" << std::dec << EmulatedTime::ticksPerSecond
+              << "\nhost_instruction_cap_mips=" << (autoTiming?0:clockMips)
+              << "\nhost_pacing=" << (gui&&clockMips>0) << '\n';
     };
 
     std::cout << "\n[OceanBlast] Starting ARM920T Steppingstone execution from 0x00000000..." << std::endl;
@@ -612,7 +624,7 @@ int main(int argc, char* argv[]) {
     uint64_t nextVideoProbe = 1000000000;
     bool videoDecoderRecognized = identifiedVideo;
     std::ofstream metrics;
-    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples,audio_submitted_frames,audio_queued_frames,audio_empty_queue_events,fclk,pclk,cpu_steps_per_tick,guest_seconds,speed_percent,idle_ticks,coherent_frames,partial_sweeps,synchronized_presentations,frame_capture_active,capture_ready,audio_played_frames,audio_remaining_frames,audio_pending_frames,audio_output_rate\n"; }
+    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples,audio_submitted_frames,audio_queued_frames,audio_empty_queue_events,fclk,pclk,cpu_steps_per_tick,guest_seconds,speed_percent,idle_ticks,coherent_frames,partial_sweeps,synchronized_presentations,frame_capture_active,capture_ready,audio_played_frames,audio_remaining_frames,audio_pending_frames,audio_output_rate,timing_model,timing_calibration,requested_engine,effective_engine,host_instruction_cap_mips,host_pacing\n"; }
     bool hostCostRunning = false;
     Clock::time_point hostCostBegin;
     uint64_t hostCpuNs = 0, hostUiNs = 0, hostWaitNs = 0;
@@ -725,10 +737,10 @@ int main(int argc, char* argv[]) {
                 const double mips = (executedSteps - statsSteps) / seconds / 1000000.0;
                 const double speed = (guestTicks - statsTicks) * 100.0 / EmulationClock::ticksPerSecond / seconds;
                 std::ostringstream title;
-                title << "OceanBlast" << (useJit?" JIT-Test":" Interpreter") << " | Display " << std::fixed << std::setprecision(1) << presented / seconds
+                title << "OceanBlast" << (useJit?(autoTiming?" Clocked Reference":" JIT-Test"):" Interpreter") << " | Display " << std::fixed << std::setprecision(1) << presented / seconds
                       << " FPS | Changes " << changed / seconds << "/s | " << mips << " MIPS"
                       << " | CPU " << cpuStepsPerTick << "x"
-                      << " | Speed " << speed << "%" << (autoTiming ? " Auto" : "")
+                      << " | Model " << speed << "%" << (autoTiming ? " Auto" : "")
                       << " | PC " << std::hex << cpu.getPC() << " | FB " << getActiveFbPhys()
                       << " | Audio " << std::dec << bus.getAudioSampleRate() << " Hz | Queue " << audio.getQueuedFrames() << "f | Empty " << audio.getEmptyQueueEvents() << " | Drop " << audio.getDroppedSamples()
                       << (display.usesSyncedPresentation() ? " | VSync" : " | GDI")
@@ -744,7 +756,9 @@ int main(int argc, char* argv[]) {
                     if (positionValid) metrics << playedFrames;
                     metrics << ',';
                     if (positionValid) metrics << (audio.getSubmittedFrames() > playedFrames ? audio.getSubmittedFrames() - playedFrames : 0);
-                    metrics << ',' << audio.getPendingFrames() << ',' << audio.getSampleRate() << '\n';
+                    metrics << ',' << audio.getPendingFrames() << ',' << audio.getSampleRate()
+                            << ',' << timingModelName(activeTimingModel) << ",unverified," << (useJit?"jit":"interpreter")
+                            << ',' << effectiveBackend << ',' << (autoTiming?0:clockMips) << ',' << (clockMips>0) << '\n';
                     metrics.flush();
                 }
                 lastStats = now; statsSteps = executedSteps; statsTicks = guestTicks; presented = changed = 0;
@@ -758,7 +772,7 @@ int main(int argc, char* argv[]) {
             display.singleStep = false;
             if (!display.paused && clockMips > 0) {
                 const auto target = paceStart + std::chrono::duration_cast<Clock::duration>(
-                    std::chrono::duration<double>(autoTiming ? double(guestTicks - paceTicks) / EmulationClock::ticksPerSecond : (executedSteps - paceSteps) / (clockMips * 1000000.0)));
+                    std::chrono::duration<double>(hostPacingSeconds(activeTimingModel,executedSteps-paceSteps,guestTicks-paceTicks,clockMips)));
                 const auto current = Clock::now();
                 if (target > current) {
                     HostCostTimer waitCost(hostCostRunning, hostWaitNs);

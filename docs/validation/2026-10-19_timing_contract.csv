@@ -1,0 +1,5 @@
+model,workload,ratio,steps,guest_ticks,timer_expirations
+register_cycle_estimate,add_branch,3,90000,20000,1
+register_cycle_estimate,branch,6,60000,20000,1
+legacy_instruction_ratio,branch,3,1200,400,0
+legacy_instruction_ratio,branch,6,1200,200,0

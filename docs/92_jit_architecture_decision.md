@@ -10,6 +10,10 @@ The product goal is correct real-time emulation with CPU reserve on older, low-e
 
 Existing CPU state, machine ownership, MMU, peripherals, cartridge handling and frontend remain reusable. Replace the execution strategy incrementally rather than rewriting the machine. Do not change guest timing, skip rendering work or shorten guest functions to obtain JIT performance acceptance. Existing local blit acceleration must remain separately identifiable and excluded from the primary interpreter/JIT equivalence fixture.
 
+## Timing priority amendment, 2026-10-19
+
+The [common timing-model plan](110_common_timing_model_and_calibration.md) precedes further standalone execution-speed work. Legacy per-cartridge ratios remain reproducible compatibility fixtures, not calibrated hardware requirements. Review CPU/device costs, collect original-console video event evidence with uncertainty, and then integrate the reviewed clocked accounting into native blocks. The current register-cycle mode uses interpreter fallback, which must be reported explicitly. Shared units/reporting are delivered; original-speed calibration and native cycle-accounting acceptance remain open. This amendment changes implementation priority, not the committed frontend/IR/backend architecture.
+
 ## Execution contract
 
 * Both engines use one authoritative architectural state and an explicit entry/exit contract. Materialize registers, flags, PC and relevant execution state at every observable exit. Engine switches must not lose pending exceptions, interrupt eligibility or timing phase.

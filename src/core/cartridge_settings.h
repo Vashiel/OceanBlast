@@ -5,6 +5,8 @@ namespace oceanblast {
 struct CartridgeSettings { const char* name; size_t cpuStepsPerTick; };
 struct CartridgeIdentity { size_t size; uint32_t crc; const char* name; size_t ratio; bool video; };
 inline const CartridgeIdentity* identifyCartridge(size_t size, uint32_t crc) {
+    // Ratios are historical legacy compatibility settings, not independently
+    // measured CPU frequencies or calibrated requirements of these cartridges.
     static constexpr CartridgeIdentity known[] = {
         {17301504, 0x9bce041au, "Crazy Jack", 2, false},
         {69206016, 0x40a18574u, "Cuccioli Cerca Amici", 3, false},

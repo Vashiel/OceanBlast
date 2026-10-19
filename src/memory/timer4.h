@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "core/emulated_time.h"
 
 namespace oceanblast {
 // Timer input follows PCLK; caller ticks retain the nominal 20M/s time base.
@@ -11,7 +12,7 @@ public:
         const uint32_t count = observe();
         const uint32_t mux = (cfg1 >> 16) & 15;
         external = mux >= 4; // No external TCLK1 source is currently modeled.
-        denominator = 20000000ull * (((cfg0 >> 8) & 255) + 1) * (2ull << (mux & 3));
+        denominator = EmulatedTime::ticksPerSecond * (((cfg0 >> 8) & 255) + 1) * (2ull << (mux & 3));
         if (remaining) remaining = (uint64_t(count) + 1) * denominator;
     }
     void setBuffer(uint32_t value) { buffer = value & 0xffff; }
@@ -38,7 +39,7 @@ public:
         return true;
     }
 private:
-    uint64_t denominator = 40000000, remaining = 0;
+    uint64_t denominator = 2*EmulatedTime::ticksPerSecond, remaining = 0;
     uint64_t expirations = 0;
     uint32_t buffer = 0;
     uint32_t pclk = 12000000;

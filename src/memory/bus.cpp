@@ -814,7 +814,7 @@ void Bus::writeMmio(u32 addr, u32 val) {
                 u32 rate = getAudioSampleRate();
                 u32 bytesPerSec = rate * 4; // 16-bit stereo PCM
                 dma2Timer = (dma2Count > 0 && bytesPerSec > 0)
-                    ? std::max<uint64_t>(1, uint64_t(dma2Count) * 20000000 / bytesPerSec) : 150000;
+                    ? std::max<uint64_t>(1, uint64_t(dma2Count) * EmulatedTime::ticksPerSecond / bytesPerSec) : 150000;
                 dma2Period = dma2Timer;
                 dma2EmittedBytes = 0;
                 dma2PcmPending.clear();
@@ -1077,7 +1077,7 @@ void Bus::updateClockedDevices() {
                  (mod != mmioRegs.end() && !(mod->second & 0x80));
     if (!dma2Active || !dma2Period) return;
     const uint64_t bytesPerSecond = uint64_t(getAudioSampleRate()) * 4;
-    const size_t period = std::max<uint64_t>(1, uint64_t(dma2Count) * 20000000 / bytesPerSecond);
+    const size_t period = std::max<uint64_t>(1, uint64_t(dma2Count) * EmulatedTime::ticksPerSecond / bytesPerSecond);
     if (period == dma2Period) return;
     // Preserve transfer progress when the source clock changes. Long double
     // avoids overflow for long transfers at a slow peripheral clock.

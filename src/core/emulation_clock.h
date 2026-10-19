@@ -1,12 +1,13 @@
 #pragma once
 #include <cstdint>
+#include "emulated_time.h"
 
 namespace oceanblast {
 // Peripheral models use a shared 20 MHz time unit. CPU cycles are converted
 // using the programmed FCLK, preserving fractional time across clock changes.
 class EmulationClock {
 public:
-    static constexpr uint64_t ticksPerSecond = 20000000;
+    static constexpr uint64_t ticksPerSecond = EmulatedTime::ticksPerSecond;
     uint64_t advance(uint32_t cycles, uint32_t hz) {
         if (!hz || !cycles) return 0;
         if (hz != frequency) {
