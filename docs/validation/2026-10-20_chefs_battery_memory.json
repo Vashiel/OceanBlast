@@ -1,0 +1,427 @@
+{
+  "date": "2026-10-20",
+  "budget_minutes": 40,
+  "budget_exceeded": true,
+  "power": "Battery throughout recorded comparisons; no policy changes",
+  "compiler": "GCC 16.2 O3 Release x86-64, PGO OFF, same build tree",
+  "rom_sha256": "465ddcd7f9722d73b4fd748d3b8d822bc99c06ea91c301bd768f583a1d52b2ff",
+  "initial_eeprom_sha256": "fc334d44d67db6db1943805563133e5b2d0923cc2dfed2eedfffea2add2621b7",
+  "input_sha256": "7f5e369bdf97a453cd2307e2dda63a4d7b7b5f7dce5877917d29335de28c246d",
+  "settings_sha256": "d5f19a98a5e70d4482a7630cb98b2dd74e422b8887d568f8001cc45ad6e746b0",
+  "gui_controls": {
+    "steps": 1600000000,
+    "ratio": 3,
+    "host_cap_mips": 60,
+    "affinity_mask": 4,
+    "gui": true,
+    "audio": true,
+    "scale": 3
+  },
+  "invalid_reference_attempt": {
+    "variant": "installed",
+    "executable_sha256": "59e754c0321bbc535565cd46fd378e6d4e9eccb984df820c38858c5f556949a3",
+    "build_profile": "GCC16.2 O3 Release x86-64 PGO OFF",
+    "exit": 1,
+    "completed": false,
+    "reason": "50-second run deadline; forced close",
+    "wall_seconds": 55.08504940000057,
+    "cpu_seconds": 53.265625,
+    "battery_after_run": {
+      "ac_line_status": 0,
+      "percent": 76,
+      "battery_flags": 1,
+      "energy_saver_flag": 0
+    },
+    "process_cpu_fraction_of_one_logical_cpu": 0.9669706314178135,
+    "expected_power_state_throughout": true,
+    "registers": {},
+    "sampled_peak_private_bytes": 127619072,
+    "peak_working_set_bytes": 120004608,
+    "artifacts_sha256": {},
+    "last_four_model_speed_percent": [],
+    "empty_queue_events": null,
+    "dropped_samples": null
+  },
+  "completed_reference": {
+    "variant": "installed",
+    "executable_sha256": "59e754c0321bbc535565cd46fd378e6d4e9eccb984df820c38858c5f556949a3",
+    "build_profile": "GCC16.2 O3 Release x86-64 PGO OFF",
+    "exit": 0,
+    "completed": true,
+    "reason": "step limit completed",
+    "wall_seconds": 30.618382200002088,
+    "cpu_seconds": 25.4375,
+    "battery_after_run": {
+      "ac_line_status": 0,
+      "percent": 76,
+      "battery_flags": 1,
+      "energy_saver_flag": 0
+    },
+    "process_cpu_fraction_of_one_logical_cpu": 0.8307917718787332,
+    "expected_power_state_throughout": true,
+    "registers": {
+      "PC": "00011acc",
+      "SP": "befffb80",
+      "LR": "0000000b",
+      "CPSR": "80000010",
+      "r12": "00000f0f",
+      "r0": "406edf9c",
+      "r1": "405c5c9c",
+      "r2": "00000017",
+      "r3": "00000416",
+      "r4": "00000020",
+      "r5": "000004c0",
+      "r6": "00000040",
+      "r7": "0006d384",
+      "r8": "00000280",
+      "r9": "00000000",
+      "r10": "0006d1ac",
+      "r11": "005106e0"
+    },
+    "sampled_peak_private_bytes": 121249792,
+    "peak_working_set_bytes": 118177792,
+    "artifacts_sha256": {
+      "sdram.bin": "a28db7797d70311b64c4a6ff92562afd7bd8368923a26f6cd224553609f8d130",
+      "fb_active.raw": "d880de22570ce11fd9351b5685a8d338d1a1e1e4958e49b1896d2fdbbb8ed6b3"
+    },
+    "last_four_model_speed_percent": [
+      98.1686,
+      102.551,
+      98.3205,
+      102.013
+    ],
+    "empty_queue_events": 7,
+    "dropped_samples": 0
+  },
+  "direct_store_candidate": {
+    "variant": "packaged_jit",
+    "executable_sha256": "6c419ec06f873a72fafb15891ef8d1996ec47f9e018f134078c1727b8d008b75",
+    "build_profile": "GCC16.2 O3 Release x86-64 PGO OFF",
+    "exit": 0,
+    "completed": true,
+    "reason": "step limit completed",
+    "wall_seconds": 32.27940909999961,
+    "cpu_seconds": 27.03125,
+    "battery_after_run": {
+      "ac_line_status": 0,
+      "percent": 76,
+      "battery_flags": 1,
+      "energy_saver_flag": 0
+    },
+    "process_cpu_fraction_of_one_logical_cpu": 0.8374146477173378,
+    "expected_power_state_throughout": true,
+    "registers": {
+      "PC": "00011acc",
+      "SP": "befffb80",
+      "LR": "0000000b",
+      "CPSR": "80000010",
+      "r12": "00000f0f",
+      "r0": "406edf9c",
+      "r1": "405c5c9c",
+      "r2": "00000017",
+      "r3": "00000416",
+      "r4": "00000020",
+      "r5": "000004c0",
+      "r6": "00000040",
+      "r7": "0006d384",
+      "r8": "00000280",
+      "r9": "00000000",
+      "r10": "0006d1ac",
+      "r11": "005106e0"
+    },
+    "sampled_peak_private_bytes": 120975360,
+    "peak_working_set_bytes": 121425920,
+    "artifacts_sha256": {
+      "sdram.bin": "a28db7797d70311b64c4a6ff92562afd7bd8368923a26f6cd224553609f8d130",
+      "fb_active.raw": "d880de22570ce11fd9351b5685a8d338d1a1e1e4958e49b1896d2fdbbb8ed6b3"
+    },
+    "last_four_model_speed_percent": [
+      98.5972,
+      99.5458,
+      99.7499,
+      103.977
+    ],
+    "empty_queue_events": 30,
+    "dropped_samples": 0
+  },
+  "register_cache_candidate": {
+    "variant": "packaged_jit",
+    "executable_sha256": "36e0fb7cbf993547728a968d2fee8a397511d30c59932c58a743e71d6988e1fc",
+    "build_profile": "GCC16.2 O3 Release x86-64 PGO OFF",
+    "exit": 0,
+    "completed": true,
+    "reason": "step limit completed",
+    "wall_seconds": 35.410571600001276,
+    "cpu_seconds": 30.5,
+    "battery_after_run": {
+      "ac_line_status": 0,
+      "percent": 75,
+      "battery_flags": 1,
+      "energy_saver_flag": 0
+    },
+    "process_cpu_fraction_of_one_logical_cpu": 0.8613247011239689,
+    "expected_power_state_throughout": true,
+    "registers": {
+      "PC": "00011acc",
+      "SP": "befffb80",
+      "LR": "0000000b",
+      "CPSR": "80000010",
+      "r12": "00000f0f",
+      "r0": "406edf9c",
+      "r1": "405c5c9c",
+      "r2": "00000017",
+      "r3": "00000416",
+      "r4": "00000020",
+      "r5": "000004c0",
+      "r6": "00000040",
+      "r7": "0006d384",
+      "r8": "00000280",
+      "r9": "00000000",
+      "r10": "0006d1ac",
+      "r11": "005106e0"
+    },
+    "sampled_peak_private_bytes": 121196544,
+    "peak_working_set_bytes": 118136832,
+    "artifacts_sha256": {
+      "sdram.bin": "a28db7797d70311b64c4a6ff92562afd7bd8368923a26f6cd224553609f8d130",
+      "fb_active.raw": "d880de22570ce11fd9351b5685a8d338d1a1e1e4958e49b1896d2fdbbb8ed6b3"
+    },
+    "last_four_model_speed_percent": [
+      100.577,
+      98.3029,
+      102.317,
+      98.3131
+    ],
+    "empty_queue_events": 12,
+    "dropped_samples": 0
+  },
+  "register_cache_engine_pair": {
+    "scope": "Single matched headless engine comparison to resolve variable GUI startup CPU cost. No audio acceptance.",
+    "power_before": {
+      "ac_line_status": 0,
+      "percent": 75,
+      "battery_flags": 1,
+      "energy_saver_flag": 0
+    },
+    "steps": 600000000,
+    "affinity_mask": 4,
+    "rows": [
+      {
+        "variant": "reference",
+        "executable_sha256": "59e754c0321bbc535565cd46fd378e6d4e9eccb984df820c38858c5f556949a3",
+        "exit": 0,
+        "cpu_seconds": 8.109375,
+        "wall_seconds": 8.18909160000112,
+        "power_after": {
+          "ac_line_status": 0,
+          "percent": 75,
+          "battery_flags": 1,
+          "energy_saver_flag": 0
+        },
+        "artifacts": {
+          "state.cpu.bin": "545a88993cc78da379508839b5df7336eea1dea0e35929dea06699778574a56c",
+          "state.ram.bin": "664c1d80898fe5c4673535310994af596c6cddc2fe978066fdc78a097eaf0463"
+        },
+        "engine_stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads,sampled_fallback_steps,sampled_fallback_batches,native_windows,window_links,fast_window_links,generated_cycles\n600000000,410917341,129733455,189082659,5714,80539996,0,0,78901914,9,7677699,443,39826901,7953,4173193,3660990,73707,19661,5714,26090875,65188348,184588151,49634,30694385,49851325,45337599,0\n"
+      },
+      {
+        "variant": "register_cache",
+        "executable_sha256": "36e0fb7cbf993547728a968d2fee8a397511d30c59932c58a743e71d6988e1fc",
+        "exit": 0,
+        "cpu_seconds": 8.21875,
+        "wall_seconds": 8.303759500002343,
+        "power_after": {
+          "ac_line_status": 0,
+          "percent": 75,
+          "battery_flags": 1,
+          "energy_saver_flag": 0
+        },
+        "artifacts": {
+          "state.cpu.bin": "545a88993cc78da379508839b5df7336eea1dea0e35929dea06699778574a56c",
+          "state.ram.bin": "664c1d80898fe5c4673535310994af596c6cddc2fe978066fdc78a097eaf0463"
+        },
+        "engine_stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads,sampled_fallback_steps,sampled_fallback_batches,native_windows,window_links,fast_window_links,generated_cycles\n600000000,410917341,129733455,189082659,5714,80539996,0,0,78901914,9,7677699,443,39826901,7953,4167609,3660990,73707,19661,5714,26090875,65188348,184588151,49634,30694385,49851325,45337599,0\n"
+      }
+    ],
+    "cpu_change_percent": 1.348747591522148,
+    "same_state": true
+  },
+  "multiple_span_engine_pair": {
+    "scope": "Single matched headless engine comparison to resolve variable GUI startup CPU cost. No audio acceptance.",
+    "power_before": {
+      "ac_line_status": 0,
+      "percent": 74,
+      "battery_flags": 1,
+      "energy_saver_flag": 0
+    },
+    "steps": 600000000,
+    "affinity_mask": 4,
+    "rows": [
+      {
+        "variant": "reference",
+        "executable_sha256": "59e754c0321bbc535565cd46fd378e6d4e9eccb984df820c38858c5f556949a3",
+        "exit": 0,
+        "cpu_seconds": 5.765625,
+        "wall_seconds": 8.34043969999766,
+        "power_after": {
+          "ac_line_status": 0,
+          "percent": 74,
+          "battery_flags": 1,
+          "energy_saver_flag": 0
+        },
+        "artifacts": {
+          "state.cpu.bin": "545a88993cc78da379508839b5df7336eea1dea0e35929dea06699778574a56c",
+          "state.ram.bin": "664c1d80898fe5c4673535310994af596c6cddc2fe978066fdc78a097eaf0463"
+        },
+        "engine_stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads,sampled_fallback_steps,sampled_fallback_batches,native_windows,window_links,fast_window_links,generated_cycles\n600000000,410917341,129733455,189082659,5714,80539996,0,0,78901914,9,7677699,443,39826901,7953,4173193,3660990,73707,19661,5714,26090875,65188348,184588151,49634,30694385,49851325,45337599,0\n"
+      },
+      {
+        "variant": "multiple_span",
+        "executable_sha256": "dbd4e51612e5b3e0d97deeb8ed5eac6966af10bf458f6fb4a82d6f15f2b60c6c",
+        "exit": 0,
+        "cpu_seconds": 5.9375,
+        "wall_seconds": 8.707245399997191,
+        "power_after": {
+          "ac_line_status": 0,
+          "percent": 74,
+          "battery_flags": 1,
+          "energy_saver_flag": 0
+        },
+        "artifacts": {
+          "state.cpu.bin": "545a88993cc78da379508839b5df7336eea1dea0e35929dea06699778574a56c",
+          "state.ram.bin": "664c1d80898fe5c4673535310994af596c6cddc2fe978066fdc78a097eaf0463"
+        },
+        "engine_stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads,sampled_fallback_steps,sampled_fallback_batches,native_windows,window_links,fast_window_links,generated_cycles\n600000000,410917341,129733455,189082659,5714,80539996,0,0,78901914,9,7677699,443,39826901,7953,4173193,3660990,73707,19661,5714,26090875,65188348,184588151,49634,30694385,49851325,45337599,0\n"
+      }
+    ],
+    "cpu_change_percent": 2.981029810298108,
+    "same_state": true
+  },
+  "reference_profile": {
+    "executable_sha256": "59e754c0321bbc535565cd46fd378e6d4e9eccb984df820c38858c5f556949a3",
+    "power_after": {
+      "ac_line_status": 0,
+      "percent": 73,
+      "battery_flags": 1,
+      "energy_saver_flag": 0
+    },
+    "sample_duration_ms": 3500,
+    "sample_interval_ms": 3,
+    "sampling_start_after_launch_seconds": 3,
+    "scope": "Hotspot attribution only; sampled execution is not a timing benchmark."
+  },
+  "profile_attribution": {
+    "method": "Nearest matching executable text symbol; approximate attribution, not a speed measurement. Outside-module PCs include native code and libraries and remain unclassified.",
+    "total_samples": 819,
+    "outside_module_samples": 69,
+    "functions": [
+      {
+        "function": "oceanblast::ARM920T::step(unsigned long long)",
+        "samples": 139,
+        "percent_all_samples": 16.97
+      },
+      {
+        "function": "oceanblast::X64ExecutionEngine::run(oceanblast::ExecutionTimeline&, unsigned long long, unsigned long long)",
+        "samples": 115,
+        "percent_all_samples": 14.04
+      },
+      {
+        "function": "oceanblast::ARM920T::stepARM(unsigned int)",
+        "samples": 54,
+        "percent_all_samples": 6.59
+      },
+      {
+        "function": "oceanblast::X64ExecutionEngine::Impl::executeNative(oceanblast::X64ExecutionEngine::Impl::CacheEntry&, oceanblast::ExecutionTimeline&, unsigned long long, unsigned long long, bool)",
+        "samples": 51,
+        "percent_all_samples": 6.23
+      },
+      {
+        "function": "oceanblast::Bus::tick(unsigned long long)",
+        "samples": 43,
+        "percent_all_samples": 5.25
+      },
+      {
+        "function": "std::_Hashtable<unsigned int, std::pair<unsigned int const, unsigned int>, std::allocator<std::pair<unsigned int const, unsigned int> >, std::__detail::_Select1st, std::equal_to<unsigned int>, std::hash<unsigned int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true> >::__location_type std::_Hashtable<unsigned int, std::pair<unsigned int const, unsigned int>, std::allocator<std::pair<unsigned int const, unsigned int> >, std::__detail::_Select1st, std::equal_to<unsigned int>, std::hash<unsigned int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true> >::_M_locate_tr<unsigned int>(unsigned int const&) const [clone .isra.0]",
+        "samples": 31,
+        "percent_all_samples": 3.79
+      },
+      {
+        "function": "oceanblast::(anonymous namespace)::materializeBeforeMemory(oceanblast::Bus*, oceanblast::(anonymous namespace)::NativeRun*)",
+        "samples": 28,
+        "percent_all_samples": 3.42
+      },
+      {
+        "function": "oceanblast::ARM920T::executeSimpleDataProcessing(unsigned int) [clone .part.0]",
+        "samples": 27,
+        "percent_all_samples": 3.3
+      },
+      {
+        "function": "oceanblast::Bus::read32(unsigned int)",
+        "samples": 26,
+        "percent_all_samples": 3.17
+      },
+      {
+        "function": "oceanblast::ARM920T::executeSingleDataTransfer(unsigned int)",
+        "samples": 24,
+        "percent_all_samples": 2.93
+      },
+      {
+        "function": "oceanblast::(anonymous namespace)::checkedMultiple(oceanblast::Bus*, oceanblast::ARM920T*, oceanblast::(anonymous namespace)::NativeRun*, unsigned int)",
+        "samples": 22,
+        "percent_all_samples": 2.69
+      },
+      {
+        "function": "oceanblast::ARM920T::executeBlockDataTransfer(unsigned int)",
+        "samples": 21,
+        "percent_all_samples": 2.56
+      },
+      {
+        "function": "oceanblast::X64ExecutionEngine::Impl::reusable(unsigned long long)",
+        "samples": 17,
+        "percent_all_samples": 2.08
+      },
+      {
+        "function": "std::__detail::_List_node_base::_M_transfer(std::__detail::_List_node_base*, std::__detail::_List_node_base*)",
+        "samples": 12,
+        "percent_all_samples": 1.47
+      },
+      {
+        "function": "std::_Hashtable<unsigned int, std::pair<unsigned int const, std::_List_iterator<oceanblast::X64ExecutionEngine::Impl::CacheEntry> >, std::allocator<std::pair<unsigned int const, std::_List_iterator<oceanblast::X64ExecutionEngine::Impl::CacheEntry> > >, std::__detail::_Select1st, std::equal_to<unsigned int>, std::hash<unsigned int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, false> >::equal_range(unsigned int const&) [clone .isra.0]",
+        "samples": 10,
+        "percent_all_samples": 1.22
+      },
+      {
+        "function": "oceanblast::Bus::readMmio(unsigned int, bool)",
+        "samples": 8,
+        "percent_all_samples": 0.98
+      },
+      {
+        "function": "unsigned long long oceanblast::(anonymous namespace)::checkedLoad<4u>(oceanblast::Bus*, oceanblast::(anonymous namespace)::NativeRun*, unsigned int)",
+        "samples": 8,
+        "percent_all_samples": 0.98
+      },
+      {
+        "function": "oceanblast::Arm920TMmu::translate(unsigned int, unsigned char const*, oceanblast::Arm920TMmu::MmuFault*, bool) const",
+        "samples": 7,
+        "percent_all_samples": 0.85
+      },
+      {
+        "function": "unsigned int oceanblast::(anonymous namespace)::checkedStore<1u>(oceanblast::Bus*, oceanblast::(anonymous namespace)::NativeRun*, unsigned int, unsigned int)",
+        "samples": 6,
+        "percent_all_samples": 0.73
+      },
+      {
+        "function": "asmjit::v1_24::x86::Assembler::_emit(unsigned int, asmjit::v1_24::Operand_ const&, asmjit::v1_24::Operand_ const&, asmjit::v1_24::Operand_ const&, asmjit::v1_24::Operand_ const*)",
+        "samples": 6,
+        "percent_all_samples": 0.73
+      }
+    ]
+  },
+  "decision": "Reject all three performance candidates; retain independent 1-KiB permission-boundary regression test only. No installed binary replacement.",
+  "final_checks": {
+    "ctest_suites_passed": 13,
+    "ctest_suites_failed": 0,
+    "total_seconds": 30.81,
+    "retained_code_change": "Independent 1-KiB multiple-transfer permission-boundary regression only"
+  }
+}

@@ -11,6 +11,31 @@ static bool equal(const Machine& a,const Machine& b) {
 }
 int main() {
     {
+        bool same=true;
+        for(bool load:{false,true}) for(uint32_t ap:{0x57u,0xffu}) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->bus().write32(0x30004000,0x30008001);
+                target->bus().write32(0x30008000,0x30000ff2);
+                target->bus().write32(0x30008004,0x30100002|(ap<<4));
+                target->bus().write32(0x30000000,0xe8a1001cu|(uint32_t(load)<<20));
+                target->bus().write32(0x301003fc,0x12345678);target->bus().write32(0x30100400,0x87654321);
+                target->state().cp15_control|=1;target->state().cp15_ttb=0x30004000;target->state().cp15_dacr=1;
+                target->state().cpsr=0x10;target->state().r[1]=0x13fc;
+                target->state().r[2]=0xaabbccdd;target->state().r[3]=0x11112222;target->state().r[4]=0x33334444;
+                target->execution().selectInterpreter(target->cpu());
+            }
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+            const auto actual=machine.execution().runToBoundary(1);reference.execution().run(1);
+            same=same&&actual.steps==1&&equal(machine,reference)&&native.stats().generatedSteps==1&&native.stats().fallbackSteps==0;
+            for(unsigned i=0;i<12;++i)same=same&&machine.bus().read8Phys(0x301003fc+i)==reference.bus().read8Phys(0x301003fc+i);
+            if(ap==0x57) same=same&&actual.event==CpuStepEvent::DataAbort&&machine.state().cp15_far==0x1400;
+            else same=same&&!actual.event&&machine.state().r[1]==0x1408;
+        }
+        check("Multiple transfers recheck 1-KiB subpage permissions and preserve partial effects on faults",same);
+    }
+
+    {
         bool same=true;uint64_t links=0;
         for(bool load:{false,true}) for(size_t ratio:{1u,3u,6u,16u}) for(size_t phase=0;phase<ratio;++phase) {
             Machine machine,reference;
