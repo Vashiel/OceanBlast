@@ -1,0 +1,88 @@
+{
+  "date": "2026-11-16",
+  "base_commit": "4d89d264aaf11eb9b504a23f746d198980410320",
+  "status": "Windows x64 JIT (13/13), Linux x86-64 System-V JIT (13/13 in WSL 1 Ubuntu 22.04), and Linux ARM64 interpreter+SDL2 (19/19 via qemu-aarch64-static) verified with bit-identical ROM checkpoint parity and release archives packaged.",
+  "source_sha256": {
+    "src/cpu/x64_execution_engine.cpp": "450242f26079aac3e0189d1c4b2b47e0a8699240eb995a31a9251f72dadaccdd",
+    "src/display/display_sdl.cpp": "b2444334a7342aafe5c7bb303eb5ebd35342e24ead4a9fa0fa7bef996014147e",
+    "src/audio/audio_sdl.cpp": "ecd4fa21dc21a73a3fac380f18dc1e82baa28327b2eb1fc191aecc2789bbac78",
+    "jit/CMakeLists.txt": "9e37215dc198e29b6484d60a42aacc9291103258589e243c8f9545f6ce1c0165",
+    "CMakeLists.txt": "099e304adb918e778a620cb2e143ba04fddbde4f39a49ba38c26d73dfa84b915",
+    "cmake/aarch64-linux-gnu.cmake": "f052e0b5097288fc5044424346c3b00a333760a2fe0f6dd6272def26b78b25d6",
+    "tests/x64_entry_abi.cpp": "acac845015002191e1f449315035a712007e0155819bd69c8c230d7e0fc0a67c",
+    "tests/x64_clocked_timing.cpp": "b74f2a649dd8fd98931afc5bffde734d1f506b84e3532c70e4adb7b6847c5169"
+  },
+  "release_packages_sha256": {
+    "oceanblast-v0.4.0-windows7-11-x64.zip": "07e813db4002af4ca8eb294038b867f8be23af902e8837d9b0ad3ea0738dcb74",
+    "oceanblast-v0.4.0-windows7-11-x86.zip": "ccde92adcda1425b53a6c0d78062f5fae6858738e6140a51a45bb593b67dcd55",
+    "oceanblast-v0.4.0-linux-x64.tar.gz": "7cfe968184a028ed07eecdcd38173ad960c0f4fcd19396584074565098c20f2d",
+    "oceanblast-v0.4.0-linux-arm64.tar.gz": "5899cd7725686ec0699458e8dd523f8403503f34980d96198f8370e89c8ef793"
+  },
+  "packaged_binaries_sha256": {
+    "windows7-11-x64/oceanblast.exe": "8bfd617beda25927e4baf8e7a7c9774d3d7ead830414077264d19d03d76470ee",
+    "windows7-11-x86/oceanblast-x86.exe": "f042b5ba9d0655566630a993f6edc1923b7f34a8e4af24e669f8cb9cead2a9e2",
+    "linux-x64/oceanblast": "c1d3df76e7a2682a41dc40700c7862cc83fdf3de4967c9371f1bf43b028b236b",
+    "linux-arm64/oceanblast": "f0b0ff9109a1ba093e011ebaec85984c7901b5311b3ac600716379e441bb3df9"
+  },
+  "ctest": {
+    "windows_x64_jit": {
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "seconds": 15.02
+    },
+    "linux_x64_jit_wsl1_ubuntu22": {
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "seconds": 65.83
+    },
+    "linux_arm64_qemu_user": {
+      "total": 19,
+      "passed": 19,
+      "failed": 0,
+      "seconds": 15.39
+    }
+  },
+  "linux_x64_benchmarks_ubuntu22_wsl1": {
+    "wade_2400m": {
+      "steps": 2400000000,
+      "wall_seconds": 21.748,
+      "generated_steps": 2156965208,
+      "memory_steps": 866206630,
+      "fallback_steps": 243034792,
+      "compilations": 8008,
+      "cache_hits": 529199722,
+      "evictions": 0,
+      "cpu_sha256": "da648c0e15cb3c9c64c24886aaa559153b202e4ee35d0c79d08871cd58fd8a0a",
+      "ram_sha256": "5fe4a1db3c2ce359f42d646dceeb946ff57632e7b7997671d7b292ea3e3bb1fa"
+    },
+    "chefs_600m": {
+      "steps": 600000000,
+      "wall_seconds": 5.420,
+      "generated_steps": 442608852,
+      "memory_steps": 138858191,
+      "fallback_steps": 157391148,
+      "compilations": 6454,
+      "cache_hits": 87389730,
+      "evictions": 0,
+      "cpu_sha256": "137783ecc64f2fdb7f440ae1a4fc0b923fcf944ad1704d739b05b6651ea3aa9a",
+      "ram_sha256": "29c365d657fd742f343c523922a4398756e75f71b1eb3197a084b23e6d4b2d44"
+    }
+  },
+  "chefs_10m_cross_platform_parity": {
+    "cpu_sha256": "33e7097e5e8a3c6470597517cb9e5da97f254167ef68773d19cde8b0c55507a2",
+    "ram_sha256": "a29f3c57074f609577fa0154ee3db51dd945946e37214d0b6b422b3b3fbb24b3",
+    "verified_targets": [
+      "windows7-11-x64",
+      "linux-x64 (Ubuntu 22.04 GLIBC 2.35 & Ubuntu 24.04 GLIBC 2.39)",
+      "linux-arm64 (qemu-aarch64-static)"
+    ]
+  },
+  "sdl2_dummy_runtime_check": {
+    "command": "SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy oceanblast_jit_player Chefs --engine jit --gui --sound --steps 200000 --exit-on-limit",
+    "exit_code": 0,
+    "display": "SDL2 display window initialized (720x480, 3x scale)",
+    "audio": "Initialized SDL2 audio (22050 Hz, 2 ch, 16-bit)"
+  }
+}

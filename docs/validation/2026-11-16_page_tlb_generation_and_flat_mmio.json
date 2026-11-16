@@ -1,0 +1,146 @@
+{
+  "date": "2026-11-16",
+  "base_commit": "4d89d264aaf11eb9b504a23f746d198980410320",
+  "status": "Per-page TLB mapping generation, compiled-block sampling retention, slab-cached VirtualQuery verification and flat MMIO register array passed all 13 CTest suites and controlled headless comparisons; installed binaries unchanged",
+  "compiler": "GCC 16.2; -O3 -DNDEBUG -march=x86-64; PGO OFF; same build tree; pinned AsmJit 0464e1c8f1f43c861a0c73d4e59437fff255cdd9",
+  "source_sha256": {
+    "src/memory/arm920t_mmu.h": "4b7451bf95219a94400634f71b752ddd6cd1304471ce71175adfc47826122499",
+    "src/memory/bus.h": "00596e4ac5938dfacd9f0032b2cf59da1192a5e309ac389645a65d4f158e8d78",
+    "src/memory/bus.cpp": "61fc658e15fb4aedefae72ecc8c5e4aab8b34363f014b251bde358fcc3479155",
+    "src/cpu/x64_execution_engine.cpp": "f3d830ff93e51f748bd8fb5561b01f67ed41c97b3c370121dd98b6d13ca88c27",
+    "tests/x64_invalidation.cpp": "f6f267e678ef095c4763270dcc97a88a6dc5e13dd01e278a173639488b8a706a"
+  },
+  "executables_sha256": {
+    "head_reference": "59e754c0321bbc535565cd46fd378e6d4e9eccb984df820c38858c5f556949a3",
+    "baseline_115": "b1af3fafe515402467ff6d59eaef1b308ca9b59099277d8316cff3b413bf1684",
+    "candidate_116": "d0aaed61c369e15008ec78d6c1b7bf46cad9bd534fc280cf6facbe8f36e00b36"
+  },
+  "ctest": {
+    "suites_total": 13,
+    "suites_passed": 13,
+    "suites_failed": 0,
+    "total_seconds": 20.00
+  },
+  "wade_2400m_headless_pair": {
+    "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+    "steps": 2400000000,
+    "ratio": 6,
+    "affinity_mask": 4,
+    "gui": false,
+    "sound": false,
+    "pacing": false,
+    "power_before": {
+      "ac_line_status": 1,
+      "percent": 98,
+      "battery_flags": 1,
+      "energy_saver_flag": 0
+    },
+    "same_state": true,
+    "cpu_change_vs_115_percent": -17.83,
+    "wall_change_vs_115_percent": -18.57,
+    "rows": [
+      {
+        "variant": "baseline_115",
+        "executable_sha256": "b1af3fafe515402467ff6d59eaef1b308ca9b59099277d8316cff3b413bf1684",
+        "exit": 0,
+        "cpu_seconds": 26.375,
+        "wall_seconds": 26.735439,
+        "power_after": {
+          "ac_line_status": 1,
+          "percent": 98,
+          "battery_flags": 1,
+          "energy_saver_flag": 0
+        },
+        "artifacts": {
+          "state.cpu.bin": "da648c0e15cb3c9c64c24886aaa559153b202e4ee35d0c79d08871cd58fd8a0a",
+          "state.ram.bin": "5fe4a1db3c2ce359f42d646dceeb946ff57632e7b7997671d7b292ea3e3bb1fa"
+        },
+        "engine_stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads,sampled_fallback_steps,sampled_fallback_batches,native_windows,window_links,fast_window_links,generated_cycles\n2400000000,1584265812,667775819,815734188,6874,452784897,0,0,449300047,9,35855004,349,229584901,8911,5801962,6904254,95621,24277,6874,28510417,337945975,797522097,203471,195415090,257376681,254165913,0"
+      },
+      {
+        "variant": "candidate_116",
+        "executable_sha256": "d0aaed61c369e15008ec78d6c1b7bf46cad9bd534fc280cf6facbe8f36e00b36",
+        "exit": 0,
+        "cpu_seconds": 21.671875,
+        "wall_seconds": 21.77164,
+        "power_after": {
+          "ac_line_status": 1,
+          "percent": 98,
+          "battery_flags": 1,
+          "energy_saver_flag": 0
+        },
+        "artifacts": {
+          "state.cpu.bin": "da648c0e15cb3c9c64c24886aaa559153b202e4ee35d0c79d08871cd58fd8a0a",
+          "state.ram.bin": "5fe4a1db3c2ce359f42d646dceeb946ff57632e7b7997671d7b292ea3e3bb1fa"
+        },
+        "engine_stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads,sampled_fallback_steps,sampled_fallback_batches,native_windows,window_links,fast_window_links,generated_cycles\n2400000000,2156965208,866206630,243034792,8008,529199722,0,0,529175763,9,77988507,474,292658427,10565,6363461,37344,106680,30875,8008,39480896,473589570,200479530,56629,216416039,312791691,311811621,0"
+      }
+    ]
+  },
+  "chefs_600m_headless_pairs": [
+    {
+      "pair": 1,
+      "steps": 600000000,
+      "ratio": 3,
+      "affinity_mask": 4,
+      "same_state": true,
+      "cpu_change_vs_115_percent": 9.51,
+      "wall_change_vs_115_percent": -7.44,
+      "rows": [
+        {
+          "variant": "baseline_115",
+          "executable_sha256": "b1af3fafe515402467ff6d59eaef1b308ca9b59099277d8316cff3b413bf1684",
+          "cpu_seconds": 5.09375,
+          "wall_seconds": 6.346592,
+          "artifacts": {
+            "state.cpu.bin": "137783ecc64f2fdb7f440ae1a4fc0b923fcf944ad1704d739b05b6651ea3aa9a",
+            "state.ram.bin": "29c365d657fd742f343c523922a4398756e75f71b1eb3197a084b23e6d4b2d44"
+          },
+          "engine_stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads,sampled_fallback_steps,sampled_fallback_batches,native_windows,window_links,fast_window_links,generated_cycles\n600000000,412221857,130234341,187778143,5813,83381619,0,0,81777742,9,7957661,457,39490435,8101,3712640,3743567,73915,19962,5813,25440494,65022106,183144609,49183,32167745,51219687,49712380,0"
+        },
+        {
+          "variant": "candidate_116",
+          "executable_sha256": "d0aaed61c369e15008ec78d6c1b7bf46cad9bd534fc280cf6facbe8f36e00b36",
+          "cpu_seconds": 5.578125,
+          "wall_seconds": 5.874592,
+          "artifacts": {
+            "state.cpu.bin": "137783ecc64f2fdb7f440ae1a4fc0b923fcf944ad1704d739b05b6651ea3aa9a",
+            "state.ram.bin": "29c365d657fd742f343c523922a4398756e75f71b1eb3197a084b23e6d4b2d44"
+          },
+          "engine_stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads,sampled_fallback_steps,sampled_fallback_batches,native_windows,window_links,fast_window_links,generated_cycles\n600000000,442608852,138858191,157391148,6454,87389730,0,0,87370843,9,8626999,547,41689736,8975,4089712,30024,80343,24152,6454,26306040,71723775,152337509,41555,32925816,54470368,54136549,0"
+        }
+      ]
+    },
+    {
+      "pair": 2,
+      "steps": 600000000,
+      "ratio": 3,
+      "affinity_mask": 4,
+      "same_state": true,
+      "cpu_change_vs_115_percent": 2.71,
+      "wall_change_vs_115_percent": -2.44,
+      "rows": [
+        {
+          "variant": "baseline_115",
+          "executable_sha256": "b1af3fafe515402467ff6d59eaef1b308ca9b59099277d8316cff3b413bf1684",
+          "cpu_seconds": 4.609375,
+          "wall_seconds": 5.817083,
+          "artifacts": {
+            "state.cpu.bin": "137783ecc64f2fdb7f440ae1a4fc0b923fcf944ad1704d739b05b6651ea3aa9a",
+            "state.ram.bin": "29c365d657fd742f343c523922a4398756e75f71b1eb3197a084b23e6d4b2d44"
+          }
+        },
+        {
+          "variant": "candidate_116",
+          "executable_sha256": "d0aaed61c369e15008ec78d6c1b7bf46cad9bd534fc280cf6facbe8f36e00b36",
+          "cpu_seconds": 4.734375,
+          "wall_seconds": 5.674963,
+          "artifacts": {
+            "state.cpu.bin": "137783ecc64f2fdb7f440ae1a4fc0b923fcf944ad1704d739b05b6651ea3aa9a",
+            "state.ram.bin": "29c365d657fd742f343c523922a4398756e75f71b1eb3197a084b23e6d4b2d44"
+          }
+        }
+      ]
+    }
+  ]
+}

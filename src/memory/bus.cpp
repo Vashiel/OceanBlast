@@ -12,9 +12,15 @@ Bus::Bus() {
     sdram.resize(ADDR_SDRAM_SIZE, 0);
     sdramPtr = sdram.data();
     usbHost.reset();
-    mmioRegs[0x4C000004] = 0x5c080;
-    mmioRegs[0x4C000010] = 4;
-    mmioRegs[0x4C000014] = 0;
+    mmioReg(0x4C000004) = 0x5c080;
+    mmioReg(0x4C000010) = 4;
+    mmioReg(0x4C000014) = 0;
+    mmioReg(0x4A000008) = 0xFFFFFFFF;
+    mmioReg(0x4A00001C) = 0x000007FF;
+    mmioReg(0x56000054) = 0x000000FF;
+    mmioReg(0x56000064) = 0x0000FFFF;
+    mmioReg(0x560000A4) = 0xFFFFFFF0;
+    mmioReg(0x560000A8) = 0x00000000;
 }
 
 Bus::~Bus() {}
@@ -56,19 +62,21 @@ void Bus::reset() {
     std::fill(steppingstone.begin(), steppingstone.end(), 0);
     std::fill(sdram.begin(), sdram.end(), 0);
     hostFrameEnabled = hostNativeVideo = false; hostFrameBase = hostFrameSize = 0; hostFrameCapture.configure(0, 0);
-    mmioRegs.clear();
+    mmioRegs.fill(0);
+    unmappedMmioReg = 0;
+    iisConWritten = iisModWritten = iisPsrWritten = false;
     mmioAccesses.clear();
     irqDiagnostics = {};
     clocks.reset();
-    mmioRegs[0x4C000004] = 0x5c080;
-    mmioRegs[0x4C000010] = 4;
-    mmioRegs[0x4C000014] = 0;
-    mmioRegs[0x4A000008] = 0xFFFFFFFF; // INTMSK default: all masked
-    mmioRegs[0x4A00001C] = 0x000007FF; // INTSUBMSK default: all sub-masked
-    mmioRegs[0x56000054] = 0x000000FF; // GPFDAT default: all pulled up
-    mmioRegs[0x56000064] = 0x0000FFFF; // GPGDAT default: all pulled up
-    mmioRegs[0x560000A4] = 0xFFFFFFF0; // EINTMASK default: all ext masked
-    mmioRegs[0x560000A8] = 0x00000000; // EINTPEND default: clear
+    mmioReg(0x4C000004) = 0x5c080;
+    mmioReg(0x4C000010) = 4;
+    mmioReg(0x4C000014) = 0;
+    mmioReg(0x4A000008) = 0xFFFFFFFF; // INTMSK default: all masked
+    mmioReg(0x4A00001C) = 0x000007FF; // INTSUBMSK default: all sub-masked
+    mmioReg(0x56000054) = 0x000000FF; // GPFDAT default: all pulled up
+    mmioReg(0x56000064) = 0x0000FFFF; // GPGDAT default: all pulled up
+    mmioReg(0x560000A4) = 0xFFFFFFF0; // EINTMASK default: all ext masked
+    mmioReg(0x560000A8) = 0x00000000; // EINTPEND default: clear
     buttonMask = 0;
     uart0TxLevelActive = false;
     timer4.reset();
@@ -572,42 +580,42 @@ u32 Bus::readMmio(u32 addr, bool guestAccess) {
         case 0x4B000094: // DSTAT2
         case 0x4B000098: // DCSRC2: current source address, used by ALSA's PCM pointer
         case 0x4B00009C: { // DCDST2
-            if (!dma2Active || !dma2Period) return mmioRegs[addr];
+            if (!dma2Active || !dma2Period) return getMmioReg(addr);
             const u32 totalItems = dma2Count / dma2ItemSize;
             const u32 done = uint64_t(totalItems) * (dma2Period - dma2Timer) / dma2Period;
             if (addr == 0x4B000094) return totalItems - done;
             if (addr == 0x4B000098) return dma2Src + (dma2SrcFixed ? 0 : done * dma2ItemSize);
             return dma2Dst + (dma2DstFixed ? 0 : done * dma2ItemSize);
         }
-        case 0x4B0000A0: return mmioRegs[0x4B0000A0]; // DMASKTRIG2
+        case 0x4B0000A0: return getMmioReg(0x4B0000A0); // DMASKTRIG2
 
         // Interrupt Controller (0x4A000000)
         case 0x4A000000: return regSrcpnd;
         case 0x4A000008: return regIntmsk;
         case 0x4A000010: return regIntpnd;
-        case 0x4A000014: return mmioRegs[0x4A000014]; // INTOFFSET
-        case 0x4A00001C: return mmioRegs[0x4A00001C]; // INTSUBMSK
+        case 0x4A000014: return getMmioReg(0x4A000014); // INTOFFSET
+        case 0x4A00001C: return getMmioReg(0x4A00001C); // INTSUBMSK
 
         // Clock & Power (0x4C000000)
-        case 0x4C000014: return mmioRegs[0x4C000014]; // CLKDIVN
+        case 0x4C000014: return getMmioReg(0x4C000014); // CLKDIVN
 
         // PWM Timers (0x51000000)
         case 0x51000008: return regTcon;
         case 0x51000040: return timer4.observe(); // Read-only countdown observation.
 
         // Watchdog Timer (0x53000000)
-        case 0x53000000: return mmioRegs[0x53000000]; // WTCON
+        case 0x53000000: return getMmioReg(0x53000000); // WTCON
 
         // I2C Controller (0x54000000)
-        case 0x54000000: return mmioRegs[0x54000000]; // IICCON
-        case 0x54000004: return mmioRegs[0x54000004]; // IICSTAT
-        case 0x54000008: return mmioRegs[0x54000008]; // IICADD
-        case 0x5400000C: return mmioRegs[0x5400000C]; // IICDS
+        case 0x54000000: return getMmioReg(0x54000000); // IICCON
+        case 0x54000004: return getMmioReg(0x54000004); // IICSTAT
+        case 0x54000008: return getMmioReg(0x54000008); // IICADD
+        case 0x5400000C: return getMmioReg(0x5400000C); // IICDS
 
         // ADC Controller (0x58000000)
-        case 0x58000000: return (mmioRegs[0x58000000] & ~0x1) | (1 << 15); // ADCCON: Bit 0 cleared, Bit 15 (ECFLG) conversion complete
-        case 0x58000004: return mmioRegs[0x58000004]; // ADCTSC
-        case 0x58000008: return mmioRegs[0x58000008]; // ADCDLY
+        case 0x58000000: return (getMmioReg(0x58000000) & ~0x1) | (1 << 15); // ADCCON: Bit 0 cleared, Bit 15 (ECFLG) conversion complete
+        case 0x58000004: return getMmioReg(0x58000004); // ADCTSC
+        case 0x58000008: return getMmioReg(0x58000008); // ADCDLY
         case 0x5800000C: return 750; // ADCDAT0: Normal battery voltage level (750 counts)
         case 0x58000010: return 750; // ADCDAT1
 
@@ -636,30 +644,21 @@ u32 Bus::readMmio(u32 addr, bool guestAccess) {
             return gpg;
         }
         case 0x56000074: { // GPHDAT: input pins read the external level, not the written latch
-            auto it = mmioRegs.find(0x56000074);
-            u32 value = (it != mmioRegs.end()) ? it->second : 0;
+            u32 value = getMmioReg(0x56000074);
             // GPH8 is the TV-out sense input. With no TV-out adapter attached the pull-up
             // enabled by s3c2410fb_probe holds it high, selecting the handheld 12-bpp LCD mode.
             // OCEANBLAST_GPH8=0 forces the low (TV-out) level for diagnostics.
             static const bool gph8High = [] { const char* v = std::getenv("OCEANBLAST_GPH8"); return !(v && v[0] == '0'); }();
-            if (gph8High && ((mmioRegs[0x56000070] >> 16) & 3) == 0) value |= 0x100;
+            if (gph8High && ((getMmioReg(0x56000070) >> 16) & 3) == 0) value |= 0x100;
             return value;
         }
-        case 0x560000A4: { // EINTMASK
-            auto it = mmioRegs.find(0x560000A4);
-            return (it != mmioRegs.end()) ? it->second : 0xFFFFFFF0;
-        }
-        case 0x560000A8: { // EINTPEND
-            auto it = mmioRegs.find(0x560000A8);
-            return (it != mmioRegs.end()) ? it->second : 0;
-        }
+        case 0x560000A4: return getMmioReg(0x560000A4); // EINTMASK
+        case 0x560000A8: return getMmioReg(0x560000A8); // EINTPEND
         case 0x560000B0: return 0x32410002; // GSTATUS1: S3C2410A Chip ID
         case 0x560000B4: return 0x00000001; // GSTATUS2: Power-on reset flag
 
-        default: {
-            auto it = mmioRegs.find(addr);
-            return (it != mmioRegs.end()) ? it->second : 0;
-        }
+        default:
+            return getMmioReg(addr);
     }
 }
 
@@ -672,21 +671,21 @@ void Bus::writeMmio(u32 addr, u32 val) {
     }
     if (i2cLogging && addr >= ADDR_IIC_BASE && addr <= ADDR_IIC_BASE + 0x0c)
         std::cout << "[I2C WRITE] register=0x" << std::hex << addr << " value=0x" << val
-                  << " control=0x" << mmioRegs[ADDR_IIC_BASE] << " status=0x" << mmioRegs[ADDR_IIC_BASE + 4]
-                  << " data=0x" << mmioRegs[ADDR_IIC_BASE + 12] << std::dec << '\n';
+                  << " control=0x" << getMmioReg(ADDR_IIC_BASE) << " status=0x" << getMmioReg(ADDR_IIC_BASE + 4)
+                  << " data=0x" << getMmioReg(ADDR_IIC_BASE + 12) << std::dec << '\n';
     switch (addr) {
         // S3C2410 Interrupt Controller (W1C registers)
         case 0x4A000000: // SRCPND: Write 1 to clear
             if (mmioProfiling) for (u32 bit = 0; bit < 32; ++bit)
                 if (val & regSrcpnd & (1u << bit)) ++irqDiagnostics.sourceClears[bit];
             regSrcpnd &= ~val;
-            mmioRegs[0x4A000000] = regSrcpnd;
+            mmioReg(0x4A000000) = regSrcpnd;
             updateExtInterrupts();
             if (uart0TxLevelActive && !(regSrcpnd & (1u << 28))) updateUart0TxInterrupt();
             return;
         case 0x4A000008: // INTMSK
             regIntmsk = val;
-            mmioRegs[0x4A000008] = val;
+            mmioReg(0x4A000008) = val;
             updateUart0TxInterrupt();
             selectPendingIrq();
             return;
@@ -695,20 +694,20 @@ void Bus::writeMmio(u32 addr, u32 val) {
                 if (val & regIntpnd & (1u << bit)) ++irqDiagnostics.selectedClears[bit];
             regIntpnd &= ~val;
             selectPendingIrq();
-            mmioRegs[0x4A000010] = regIntpnd;
+            mmioReg(0x4A000010) = regIntpnd;
             return;
         }
         case 0x4A000018: // SUBSRCPND: Write 1 to clear
-            mmioRegs[0x4A000018] &= ~val;
+            mmioReg(0x4A000018) &= ~val;
             updateUart0TxInterrupt();
             return;
         case 0x4A00001C: // INTSUBMSK
-            mmioRegs[addr] = val;
+            mmioReg(0x4A00001C) = val;
             updateUart0TxInterrupt();
             return;
         case 0x50000004: { // UCON0: transmit mode and interrupt trigger
-            const bool wasIrqMode = ((mmioRegs[addr] >> 2) & 3u) == 1u;
-            mmioRegs[addr] = val;
+            const bool wasIrqMode = ((getMmioReg(0x50000004) >> 2) & 3u) == 1u;
+            mmioReg(0x50000004) = val;
             updateUart0TxInterrupt(!wasIrqMode);
             return;
         }
@@ -716,29 +715,29 @@ void Bus::writeMmio(u32 addr, u32 val) {
         // PWM Timers
         case 0x51000000: // TCFG0: timer 2..4 prescaler.
         case 0x51000004: // TCFG1: timer 4 input divider.
-            mmioRegs[addr] = val;
-            timer4.configure(mmioRegs[0x51000000], mmioRegs[0x51000004]);
+            mmioReg(addr) = val;
+            timer4.configure(getMmioReg(0x51000000), getMmioReg(0x51000004));
             return;
         case 0x5100003C: // TCNTB4: applied on manual update or reload.
-            mmioRegs[addr] = val;
+            mmioReg(0x5100003C) = val;
             timer4.setBuffer(val);
             return;
         case 0x51000008: // TCON
             timer4.control(val);
             regTcon = val;
-            mmioRegs[0x51000008] = val;
+            mmioReg(0x51000008) = val;
             return;
 
         // I2C Controller (0x54000000)
         case 0x54000000: // IICCON
-            if ((mmioRegs[addr] & 0x10) && !(val & 0x10) && (mmioRegs[0x54000004] & 0x20)) {
+            if ((getMmioReg(0x54000000) & 0x10) && !(val & 0x10) && (getMmioReg(0x54000004) & 0x20)) {
                 i2cPending = true;
                 i2cTimer = 50;
             }
-            mmioRegs[0x54000000] = val;
+            mmioReg(0x54000000) = val;
             return;
         case 0x54000004: // IICSTAT
-            mmioRegs[0x54000004] = (val & ~1u) | (mmioRegs[0x54000004] & 1u);
+            mmioReg(0x54000004) = (val & ~1u) | (getMmioReg(0x54000004) & 1u);
             if ((val & 0x30) == 0x30) { // START or repeated START.
                 i2cAddressPhase = true;
                 i2cPending = true;
@@ -750,26 +749,26 @@ void Bus::writeMmio(u32 addr, u32 val) {
             }
             return;
         case 0x54000008: // IICADD
-            mmioRegs[0x54000008] = val;
+            mmioReg(0x54000008) = val;
             return;
         case 0x5400000C: // IICDS
-            mmioRegs[0x5400000C] = val;
+            mmioReg(0x5400000C) = val;
             return;
 
         case 0x4C000000: // LOCKTIME
         case 0x4C000008: // UPLLCON
         case 0x4C00000C: // CLKCON
-            mmioRegs[addr] = val;
+            mmioReg(addr) = val;
             return;
         case 0x4C000004: // MPLLCON
             flushAudioClockBoundary();
-            clocks.setMpll(val); mmioRegs[addr] = val; updateClockedDevices(); return;
+            clocks.setMpll(val); mmioReg(0x4C000004) = val; updateClockedDevices(); return;
         case 0x4C000010: // CLKSLOW
             flushAudioClockBoundary();
-            clocks.setSlow(val); mmioRegs[addr] = val; updateClockedDevices(); return;
+            clocks.setSlow(val); mmioReg(0x4C000010) = val; updateClockedDevices(); return;
         case 0x4C000014: // CLKDIVN
             flushAudioClockBoundary();
-            clocks.setDivider(val); mmioRegs[addr] = val; updateClockedDevices(); return;
+            clocks.setDivider(val); mmioReg(0x4C000014) = val; updateClockedDevices(); return;
 
         // IIS Audio Controller (0x55000000)
         case 0x55000000: // IISCON
@@ -778,13 +777,16 @@ void Bus::writeMmio(u32 addr, u32 val) {
         case 0x5500000C: // IISFCON
         case 0x55000010: // IISFIFO
             if (addr != 0x55000010 && addr != 0x5500000C) flushAudioClockBoundary();
-            mmioRegs[addr] = val;
+            if (addr == 0x55000000) iisConWritten = true;
+            else if (addr == 0x55000004) iisModWritten = true;
+            else if (addr == 0x55000008) iisPsrWritten = true;
+            mmioReg(addr) = val;
             if (addr != 0x55000010 && addr != 0x5500000C) updateClockedDevices();
             return;
 
         // S3C2410 DMA Channel 2 (IIS Audio)
         case 0x4B0000A0: { // DMASKTRIG2
-            mmioRegs[0x4B0000A0] = val;
+            mmioReg(0x4B0000A0) = val;
             if (val & (1 << 2)) { // STOP
                 if (audioCallback && dma2PcmPending.size() >= 2) {
                     audioCallback(dma2PcmPending.data(), dma2PcmPending.size() & ~size_t(1));
@@ -792,23 +794,23 @@ void Bus::writeMmio(u32 addr, u32 val) {
                 dma2Active = false;
                 dma2Timer = 0;
                 dma2PcmPending.clear();
-                mmioRegs[0x4B000094] = 0;
+                mmioReg(0x4B000094) = 0;
             } else if (val & (1 << 1)) { // ON
                 if (dma2Active) { ++dma2RedundantEnables; return; }
                 dma2Active = true;
-                dma2Src = mmioRegs[0x4B000080]; // DISRC2
-                u32 dcon = mmioRegs[0x4B000090]; // DCON2
+                dma2Src = getMmioReg(0x4B000080); // DISRC2
+                u32 dcon = getMmioReg(0x4B000090); // DCON2
                 u32 tc = dcon & 0x000FFFFF;      // Transfer Count
                 u32 dsz = (dcon >> 20) & 3;      // Data size (00=1B, 01=2B, 10=4B)
                 u32 itemSize = (dsz == 1) ? 2 : ((dsz == 2) ? 4 : 1);
                 dma2Count = tc * itemSize;       // Total bytes
                 dma2ItemSize = itemSize;
-                dma2Dst = mmioRegs[0x4B000088];
-                dma2SrcFixed = (mmioRegs[0x4B000084] & 1) != 0;
-                dma2DstFixed = (mmioRegs[0x4B00008C] & 1) != 0;
-                mmioRegs[0x4B000098] = dma2Src;
-                mmioRegs[0x4B00009C] = dma2Dst;
-                mmioRegs[0x4B000094] = tc;
+                dma2Dst = getMmioReg(0x4B000088);
+                dma2SrcFixed = (getMmioReg(0x4B000084) & 1) != 0;
+                dma2DstFixed = (getMmioReg(0x4B00008C) & 1) != 0;
+                mmioReg(0x4B000098) = dma2Src;
+                mmioReg(0x4B00009C) = dma2Dst;
+                mmioReg(0x4B000094) = tc;
                 // In S3C2410 IIS audio, DMA rate is paced by DAC consumption.
                 // Dynamic cycle calculation prevents ALSA from racing ahead or stalling.
                 u32 rate = getAudioSampleRate();
@@ -825,7 +827,7 @@ void Bus::writeMmio(u32 addr, u32 val) {
 
         // ADC Controller (0x58000000)
         case 0x58000000: { // ADCCON
-            mmioRegs[0x58000000] = val;
+            mmioReg(0x58000000) = val;
             if (val & 1) { // ENABLE_START
                 adcPending = true;
                 adcTimer = 20; // Complete conversion in 20 cycles
@@ -857,23 +859,23 @@ void Bus::writeMmio(u32 addr, u32 val) {
 
         // S3C2410 GPIO & External Interrupt Registers
         case 0x560000A4: // EINTMASK
-            mmioRegs[0x560000A4] = val;
+            mmioReg(0x560000A4) = val;
             updateExtInterrupts();
             return;
         case 0x560000A8: // EINTPEND (W1C: Write 1 to clear)
-            mmioRegs[0x560000A8] &= ~val;
+            mmioReg(0x560000A8) &= ~val;
             updateExtInterrupts();
             return;
 
         default:
-            mmioRegs[addr] = val;
+            mmioReg(addr) = val;
             if (addr >= 0x4d000000 && addr <= 0x4d00001c) refreshHostFrameCapture();
             break;
     }
 }
 
 void Bus::updateExtInterrupts() {
-    const u32 active = mmioRegs[0x560000A8] & ~mmioRegs[0x560000A4];
+    const u32 active = getMmioReg(0x560000A8) & ~getMmioReg(0x560000A4);
     if (active & 0x000000F0u) requestIrq(4);
     if (active & 0x00FFFF00u) requestIrq(5);
 }
@@ -881,15 +883,15 @@ void Bus::updateExtInterrupts() {
 void Bus::updateUart0TxInterrupt(bool emptyTransition) {
     // The existing UART sink consumes each byte immediately. Its transmit FIFO
     // remains empty, so IRQ mode must expose that condition to the guest driver.
-    const u32 control = mmioRegs[0x50000004];
+    const u32 control = getMmioReg(0x50000004);
     const bool irqMode = ((control >> 2) & 3u) == 1u;
     const bool levelMode = (control & (1u << 9)) != 0;
     const u32 txBit = 1u << 1; // SUBSRCPND TXD0 -> main INT_UART0 (28)
-    const bool subUnmasked = (mmioRegs[0x4A00001C] & txBit) == 0;
+    const bool subUnmasked = (getMmioReg(0x4A00001C) & txBit) == 0;
     uart0TxLevelActive = irqMode && levelMode && subUnmasked;
     if (irqMode && (levelMode || emptyTransition))
-        mmioRegs[0x4A000018] |= txBit;
-    if (subUnmasked && (mmioRegs[0x4A000018] & txBit))
+        mmioReg(0x4A000018) |= txBit;
+    if (subUnmasked && (getMmioReg(0x4A000018) & txBit))
         requestIrq(28);
 }
 
@@ -899,7 +901,7 @@ void Bus::requestIrq(u32 bit) {
         if (regSrcpnd & (1u << bit)) ++irqDiagnostics.alreadyPending[bit];
     }
     regSrcpnd |= (1 << bit);
-    mmioRegs[0x4A000000] = regSrcpnd;
+    mmioReg(0x4A000000) = regSrcpnd;
     selectPendingIrq();
 }
 
@@ -911,8 +913,8 @@ void Bus::selectPendingIrq() {
         while (!(pending & (1u << selected))) ++selected;
         regIntpnd = 1u << selected;
     }
-    mmioRegs[0x4A000010] = regIntpnd;
-    mmioRegs[0x4A000014] = selected;
+    mmioReg(0x4A000010) = regIntpnd;
+    mmioReg(0x4A000014) = selected;
 }
 
 void Bus::scheduleDma2Audio() {
@@ -964,7 +966,7 @@ void Bus::setButtonMask(u32 newMask) {
     // Interrupts follow physical pin transitions, including shared host aliases.
     for (u32 bit = 0; bit < 4; ++bit)
         if (changedF & (1u << bit)) requestIrq(bit);
-    mmioRegs[0x560000A8] |= (changedF & 0xf0u) | ((changedG & 0xffffu) << 8);
+    mmioReg(0x560000A8) |= (changedF & 0xf0u) | ((changedG & 0xffffu) << 8);
     updateExtInterrupts();
 }
 
@@ -972,17 +974,17 @@ void Bus::tickDma2() {
     streamDma2Audio(true);
     dma2Active = false;
     dma2Timer = 0;
-    mmioRegs[0x4B000094] = 0; // DSTAT2: CurTC = 0
-    mmioRegs[0x4B000098] = dma2Src + (dma2SrcFixed ? 0 : dma2Count);
-    mmioRegs[0x4B00009C] = dma2Dst + (dma2DstFixed ? 0 : dma2Count);
+    mmioReg(0x4B000094) = 0; // DSTAT2: CurTC = 0
+    mmioReg(0x4B000098) = dma2Src + (dma2SrcFixed ? 0 : dma2Count);
+    mmioReg(0x4B00009C) = dma2Dst + (dma2DstFixed ? 0 : dma2Count);
 
     // DCON/DISRC are reload registers. Linux queues a second buffer
     // while the first runs and expects it to load before the IRQ.
-    if (!(mmioRegs[0x4B000090] & (1u << 22)) &&
-        (mmioRegs[0x4B0000A0] & (1u << 1))) {
-        writeMmio(0x4B0000A0, mmioRegs[0x4B0000A0]);
+    if (!(getMmioReg(0x4B000090) & (1u << 22)) &&
+        (getMmioReg(0x4B0000A0) & (1u << 1))) {
+        writeMmio(0x4B0000A0, getMmioReg(0x4B0000A0));
     } else {
-        mmioRegs[0x4B0000A0] &= ~(1u << 1);
+        mmioReg(0x4B0000A0) &= ~(1u << 1);
     }
 
     // Assert INT_DMA2 (bit 19 of SRCPND)
@@ -995,18 +997,16 @@ void Bus::tickAdcI2c(size_t cycles) {
         if (cycles >= adcTimer) {
             adcPending = false;
             adcTimer = 0;
-            mmioRegs[0x58000000] &= ~1;            // Clear ENABLE_START
-            mmioRegs[0x58000000] |= (1 << 15);      // Set ECFLG (conversion complete)
-            mmioRegs[0x5800000C] = 750;            // ADCDAT0 = 750
-            mmioRegs[0x58000010] = 750;            // ADCDAT1 = 750
+            mmioReg(0x58000000) &= ~1;            // Clear ENABLE_START
+            mmioReg(0x58000000) |= (1 << 15);      // Set ECFLG (conversion complete)
+            mmioReg(0x5800000C) = 750;            // ADCDAT0 = 750
+            mmioReg(0x58000010) = 750;            // ADCDAT1 = 750
 
             // Trigger INT_ADC (SUBSRCPND bit 10)
-            mmioRegs[0x4A000018] |= (1 << 10);
+            mmioReg(0x4A000018) |= (1 << 10);
 
             // Propagate to main interrupt controller if not masked in INTSUBMSK
-            u32 submsk = 0xFFFFFFFF;
-            auto itSubMsk = mmioRegs.find(0x4A00001C);
-            if (itSubMsk != mmioRegs.end()) submsk = itSubMsk->second;
+            const u32 submsk = getMmioReg(0x4A00001C);
 
             if ((submsk & (1 << 10)) == 0) {
                 requestIrq(31);
@@ -1031,20 +1031,20 @@ void Bus::tickAdcI2c(size_t cycles) {
 void Bus::completeI2cByte() {
     bool ack = false;
     if (i2cAddressPhase) {
-        ack = eeprom.start(static_cast<u8>(mmioRegs[ADDR_IIC_BASE + 12]));
+        ack = eeprom.start(static_cast<u8>(getMmioReg(ADDR_IIC_BASE + 12)));
         i2cAddressPhase = false;
-    } else if ((mmioRegs[ADDR_IIC_BASE + 4] & 0xc0) == 0x80) {
-        mmioRegs[ADDR_IIC_BASE + 12] = eeprom.read();
-        ack = (mmioRegs[ADDR_IIC_BASE] & 0x80) != 0;
+    } else if ((getMmioReg(ADDR_IIC_BASE + 4) & 0xc0) == 0x80) {
+        mmioReg(ADDR_IIC_BASE + 12) = eeprom.read();
+        ack = (getMmioReg(ADDR_IIC_BASE) & 0x80) != 0;
     } else {
-        ack = eeprom.write(static_cast<u8>(mmioRegs[ADDR_IIC_BASE + 12]));
+        ack = eeprom.write(static_cast<u8>(getMmioReg(ADDR_IIC_BASE + 12)));
     }
-    mmioRegs[ADDR_IIC_BASE + 4] = (mmioRegs[ADDR_IIC_BASE + 4] & ~1u) | (ack ? 0u : 1u);
-    mmioRegs[ADDR_IIC_BASE] |= 0x10;
-    if (mmioRegs[ADDR_IIC_BASE] & 0x20) requestIrq(27);
+    mmioReg(ADDR_IIC_BASE + 4) = (getMmioReg(ADDR_IIC_BASE + 4) & ~1u) | (ack ? 0u : 1u);
+    mmioReg(ADDR_IIC_BASE) |= 0x10;
+    if (getMmioReg(ADDR_IIC_BASE) & 0x20) requestIrq(27);
     if (i2cLogging)
         std::cout << "[I2C COMPLETE] ack=" << ack << " data=0x" << std::hex
-                  << mmioRegs[ADDR_IIC_BASE + 12] << std::dec << '\n';
+                  << getMmioReg(ADDR_IIC_BASE + 12) << std::dec << '\n';
 }
 
 void Bus::flushTlb() const {
@@ -1054,16 +1054,13 @@ void Bus::flushTlb() const {
 }
 
 u32 Bus::getAudioSampleRate() const {
-    auto itPsr = mmioRegs.find(0x55000008); // S3C2410 IISPSR
-    if (itPsr == mmioRegs.end()) return 22050;
-    u32 psr = itPsr->second;
+    if (!iisPsrWritten) return 22050;
+    u32 psr = getMmioReg(0x55000008); // S3C2410 IISPSR
     u32 psrA = (psr >> 5) & 0x1F;
-    auto itMod = mmioRegs.find(0x55000004); // S3C2410 IISMOD
-    u32 mod = (itMod != mmioRegs.end()) ? itMod->second : 0x99;
+    u32 mod = iisModWritten ? getMmioReg(0x55000004) : 0x99; // S3C2410 IISMOD
     u32 fsMul = (mod & (1 << 2)) ? 384 : 256;
-    auto itCon = mmioRegs.find(0x55000000);
     // Unconfigured diagnostic fixtures retain their default prescaler behavior.
-    const bool prescaler = itCon == mmioRegs.end() || (itCon->second & 2);
+    const bool prescaler = !iisConWritten || (getMmioReg(0x55000000) & 2);
     u32 div = (prescaler ? psrA + 1 : 1) * fsMul;
     if (div == 0) return 22050;
     u32 rawRate = getPeripheralClock() / div;
@@ -1072,9 +1069,9 @@ u32 Bus::getAudioSampleRate() const {
 
 void Bus::updateClockedDevices() {
     timer4.setClock(getPeripheralClock());
-    const auto con = mmioRegs.find(0x55000000), mod = mmioRegs.find(0x55000004);
-    dma2Paused = (con != mmioRegs.end() && ((con->second & 0x21) != 0x21 || (con->second & 8))) ||
-                 (mod != mmioRegs.end() && !(mod->second & 0x80));
+    const u32 con = getMmioReg(0x55000000), mod = getMmioReg(0x55000004);
+    dma2Paused = (iisConWritten && ((con & 0x21) != 0x21 || (con & 8))) ||
+                 (iisModWritten && !(mod & 0x80));
     if (!dma2Active || !dma2Period) return;
     const uint64_t bytesPerSecond = uint64_t(getAudioSampleRate()) * 4;
     const size_t period = std::max<uint64_t>(1, uint64_t(dma2Count) * EmulatedTime::ticksPerSecond / bytesPerSecond);
@@ -1095,17 +1092,16 @@ void Bus::flushAudioClockBoundary() {
 }
 
 bool Bus::isLcd16Bpp() const {
-    auto it = mmioRegs.find(0x4D000000); // S3C2410 LCDCON1
-    if (it != mmioRegs.end()) {
-        u32 lcdcon1 = it->second;
+    const u32 lcdcon1 = getMmioReg(0x4D000000); // S3C2410 LCDCON1
+    if (lcdcon1 != 0) {
         u32 bppMode = (lcdcon1 >> 1) & 0x0F;
         if (bppMode == 12) return true; // TFT 16bpp (0b1100 = 64K color mode)
         if (bppMode == 4 || bppMode == 8) return false; // STN 12bpp / TFT 12bpp (0b0100)
     }
-    auto itS1 = mmioRegs.find(0x4D000014); // LCDSADDR1
-    auto itS2 = mmioRegs.find(0x4D000018); // LCDSADDR2
-    if (itS1 != mmioRegs.end() && itS2 != mmioRegs.end() && itS1->second != 0 && itS2->second != 0) {
-        u32 size = ((itS2->second & 0x1FFFFFFF) << 1) - ((itS1->second & 0x1FFFFFFF) << 1);
+    const u32 s1 = getMmioReg(0x4D000014); // LCDSADDR1
+    const u32 s2 = getMmioReg(0x4D000018); // LCDSADDR2
+    if (s1 != 0 && s2 != 0) {
+        u32 size = ((s2 & 0x1FFFFFFF) << 1) - ((s1 & 0x1FFFFFFF) << 1);
         if (size >= 76800) return true;
         if (size <= 57600) return false;
     }
@@ -1113,10 +1109,10 @@ bool Bus::isLcd16Bpp() const {
 }
 
 size_t Bus::getFramebufferStride() const {
-    const auto it = mmioRegs.find(0x4D00001C);
+    const u32 s3 = getMmioReg(0x4D00001C);
     const size_t minimum = isLcd16Bpp() ? 480 : 360;
-    if (it == mmioRegs.end()) return minimum;
-    const size_t stride = ((it->second & 0x7ff) + ((it->second >> 11) & 0x7ff)) * 2;
+    if (s3 == 0) return minimum;
+    const size_t stride = ((s3 & 0x7ff) + ((s3 >> 11) & 0x7ff)) * 2;
     return stride >= minimum ? stride : minimum;
 }
 
@@ -1135,9 +1131,9 @@ void Bus::refreshHostFrameCapture() {
 }
 
 unsigned Bus::getFramebufferHeight() const {
-    const auto it = mmioRegs.find(0x4D000004); // LCDCON2 LINEVAL
-    if (it == mmioRegs.end() || it->second == 0) return 160;
-    return ((it->second >> 14) & 0x3ff) + 1;
+    const u32 lcdcon2 = getMmioReg(0x4D000004); // LCDCON2 LINEVAL
+    if (lcdcon2 == 0) return 160;
+    return ((lcdcon2 >> 14) & 0x3ff) + 1;
 }
 
 u32 Bus::getFramebufferSize() const {

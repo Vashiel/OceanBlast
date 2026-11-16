@@ -2,6 +2,7 @@
 #include "translation_frontend.h"
 #include "arm920t_cycles.h"
 #include <asmjit/x86.h>
+#ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -9,6 +10,10 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#else
+#include <cstdio>
+#include <cstdlib>
+#endif
 #include <cstddef>
 #include <algorithm>
 #include <type_traits>
@@ -17,7 +22,6 @@
 #include <utility>
 #include <new>
 #include <list>
-#include <unordered_map>
 
 namespace oceanblast {
 using namespace translation;
@@ -40,6 +44,11 @@ struct NativeRun {
     uint32_t base=0;
     uint32_t retired=0,tickedSteps=0,memorySteps=0,inlineLoads=0,loopTrips=0;
     uint32_t cycles=0,lastCycles=1,tickedCycles=0,frequency=0;
+    void* exit=nullptr;
+    void* link=nullptr;
+    void* current=nullptr;
+    uintptr_t stack=0;
+    uint8_t linkWindow=0;
 };
 void advanceIntegerPrefix(Bus* bus,ExecutionTimeline* timeline,uint32_t count) {
     // Native windows contain at most 65,536 steps; the scheduler bounds ratios
@@ -138,23 +147,68 @@ uint32_t checkedMultiple(Bus* bus,ARM920T* cpu,NativeRun* run,uint32_t encoding)
         state.r[baseRegister]=up?base+count*4:base-count*4;
     return status;
 }
-bool executableReadOnly(const void* address) {
+bool queryExecutableRegion(const void* address,size_t bytes,uintptr_t& regionBase,size_t& regionSize) {
+#ifdef _WIN32
     MEMORY_BASIC_INFORMATION information{};
-    return VirtualQuery(address,&information,sizeof(information)) &&
-        information.State==MEM_COMMIT && (information.Protect&0xffu)==PAGE_EXECUTE_READ;
+    if(!VirtualQuery(address,&information,sizeof(information)) ||
+        information.State!=MEM_COMMIT || (information.Protect&0xffu)!=PAGE_EXECUTE_READ) return false;
+    const auto base=reinterpret_cast<uintptr_t>(information.BaseAddress);
+    const auto start=reinterpret_cast<uintptr_t>(address);
+    if(start<base || bytes>information.RegionSize || start-base>information.RegionSize-bytes) return false;
+    regionBase=base;
+    regionSize=information.RegionSize;
+    return true;
+#else
+    FILE* maps=std::fopen("/proc/self/maps","r");
+    if(!maps) return false;
+    const auto target=reinterpret_cast<uintptr_t>(address);
+    char line[512];
+    bool ok=false;
+    while(std::fgets(line,sizeof(line),maps)) {
+        char* cursor=nullptr;
+        const uintptr_t start=static_cast<uintptr_t>(std::strtoull(line,&cursor,16));
+        if(!cursor || *cursor!='-') continue;
+        const uintptr_t end=static_cast<uintptr_t>(std::strtoull(cursor+1,&cursor,16));
+        if(!cursor || *cursor!=' ') continue;
+        const char* perms=cursor+1;
+        if(target>=start && bytes<=end-start && target-start<=end-start-bytes) {
+            // Accept dual-mapped r-xp; keep strict non-zero execute bit check.
+            ok=(perms[0]=='r' && perms[1]=='-' && perms[2]=='x');
+            if(ok) {
+                regionBase=start;
+                regionSize=end-start;
+            }
+            break;
+        }
+    }
+    std::fclose(maps);
+    return ok;
+#endif
+}
+bool executableReadOnly(const void* address) {
+    uintptr_t base=0;
+    size_t size=0;
+    return queryExecutableRegion(address,1,base,size);
 }
 }
 struct X64ExecutionEngine::Impl {
     using Function=uint32_t(*)(ARM920TState*,NativeRun*);
+    using EntryBridge=uint32_t(*)(ARM920TState*,NativeRun*,void*);
     ARM920TState& architecturalState;
     ARM920T& cpu;
     Bus& bus;
     InterpreterEngine reference;
     asmjit::JitAllocator::CreateParams allocation=allocationParameters();
     asmjit::JitRuntime runtime{&allocation};
+    EntryBridge enterBridge=nullptr;
     NativeExecutionStats counters;
     struct CacheEntry;
     using Cache=std::list<CacheEntry>;
+    struct SuccessorSlot {
+        CacheEntry* entry=nullptr;
+        uint64_t lifetime=0;
+        size_t limit=0;
+    };
     struct CacheEntry {
         std::array<uint32_t,6> context;
         std::vector<std::pair<uint32_t,uint32_t>> source;
@@ -162,26 +216,29 @@ struct X64ExecutionEngine::Impl {
         size_t bytes;
         uint64_t used;
         uint64_t mapping=0,epoch=0;
+        uint32_t physical=0;
         uint32_t version=0;
         bool nativeEligible=false;
         size_t visits=0;
-        CacheEntry* successor=nullptr;
-        Cache::iterator successorIterator{};
-        uint64_t successorLifetime=0;
-        size_t successorLimit=0;
+        CacheEntry* nextByPc=nullptr;
+        std::array<SuccessorSlot,2> successors{};
     };
     Cache cache;
-    struct HotEntry { CacheEntry* entry=nullptr; Cache::iterator iterator; size_t limit=0; };
+    struct HotEntry { CacheEntry* entry=nullptr; size_t limit=0; };
     static constexpr size_t hotCount=1024;
+    static constexpr size_t pcBucketCount=4096;
     std::array<HotEntry,hotCount> hot{};
     struct CompilationSample { std::array<uint32_t,5> context{}; size_t visits=0; };
     std::array<CompilationSample,hotCount> samples{};
     static size_t hotIndex(uint32_t pc) { return ((pc>>1)^(pc>>12))&(hotCount-1); }
-    std::unordered_multimap<uint32_t,Cache::iterator> cacheByPc;
+    static size_t pcBucketIndex(uint32_t pc) { return ((pc>>1)^(pc>>13))&(pcBucketCount-1); }
+    std::array<CacheEntry*,pcBucketCount> cacheByPc{};
     NativeCacheLimits limits;
     uint64_t useCounter=0;
     uint64_t cacheLifetime=1;
     size_t cacheBytes=0;
+    uintptr_t verifiedRegionBase=0;
+    size_t verifiedRegionSize=0;
     bool eventWindowDirty=true;
     bool cycleMode=false;
     void selectCycleMode(bool clocks) {
@@ -209,29 +266,123 @@ struct X64ExecutionEngine::Impl {
         block.stopPc=stop->pc; block.stopEncoding=stop->encoding; block.stop=BlockStop::Unsupported;
         block.instructions.erase(stop,block.instructions.end());
     }
+    bool buildEntryBridge() {
+        using namespace asmjit;
+        EmitErrors errors;
+        CodeHolder bridge;
+        if(bridge.init(runtime.environment())!=Error::kOk) return false;
+        bridge.set_error_handler(&errors);
+        x86::Assembler a(&bridge);
+        const auto linkLabel=a.new_label(),zeroExitLabel=a.new_label(),exitLabel=a.new_label();
+        // Outer ABI:
+        // - Windows x64: RCX state, RDX run, R8 first block, 32-byte shadow space (+ 8 align = 40).
+        // - System-V AMD64: RDI state, RSI run, RDX first block, 16-byte stack align (+ 16 spill = 24).
+        // Shared internal ABI: R12 state, R13 run, R14d base, R15d cycles, EBX lastCycles, EBP CPSR.
+#ifdef _WIN32
+        constexpr int32_t kBridgeStackReserve=40;
+        const x86::Gp abiArg0=x86::rcx;
+        const x86::Gp abiArg1=x86::rdx;
+        const x86::Gp abiArg2=x86::r8;
+#else
+        constexpr int32_t kBridgeStackReserve=24;
+        const x86::Gp abiArg0=x86::rdi;
+        const x86::Gp abiArg1=x86::rsi;
+        const x86::Gp abiArg2=x86::rdx;
+#endif
+        a.push(x86::rbx);
+        a.push(x86::rbp);
+        a.push(x86::rsi);
+        a.push(x86::rdi);
+        a.push(x86::r12);
+        a.push(x86::r13);
+        a.push(x86::r14);
+        a.push(x86::r15);
+        a.sub(x86::rsp,kBridgeStackReserve);
+        a.mov(x86::r12,abiArg0);
+        a.mov(x86::r13,abiArg1);
+        a.mov(x86::qword_ptr(x86::r13,int32_t(offsetof(NativeRun,stack))),x86::rsp);
+        a.lea(x86::rax,x86::ptr(exitLabel));
+        a.mov(x86::qword_ptr(x86::r13,int32_t(offsetof(NativeRun,exit))),x86::rax);
+        a.lea(x86::rax,x86::ptr(linkLabel));
+        a.mov(x86::qword_ptr(x86::r13,int32_t(offsetof(NativeRun,link))),x86::rax);
+        a.cmp(x86::dword_ptr(x86::r13,int32_t(offsetof(NativeRun,limit))),0);
+        a.je(zeroExitLabel);
+        a.jmp(abiArg2);
+
+        a.bind(linkLabel);
+        a.mov(x86::eax,x86::dword_ptr(x86::r13,int32_t(offsetof(NativeRun,retired))));
+        a.cmp(x86::eax,x86::dword_ptr(x86::r13,int32_t(offsetof(NativeRun,limit))));
+        a.jae(zeroExitLabel);
+        a.cmp(x86::byte_ptr(x86::r13,int32_t(offsetof(NativeRun,linkWindow))),0);
+        a.je(zeroExitLabel);
+        a.mov(abiArg0,uintptr_t(this));
+        a.mov(abiArg1,x86::r13);
+        a.mov(x86::rax,uintptr_t(&Impl::stepWindow));
+        a.call(x86::rax);
+        a.test(x86::rax,x86::rax);
+        a.jz(zeroExitLabel);
+        a.jmp(x86::rax);
+
+        a.bind(zeroExitLabel);
+        a.xor_(x86::eax,x86::eax);
+        a.bind(exitLabel);
+        a.add(x86::rsp,kBridgeStackReserve);
+        a.pop(x86::r15);
+        a.pop(x86::r14);
+        a.pop(x86::r13);
+        a.pop(x86::r12);
+        a.pop(x86::rdi);
+        a.pop(x86::rsi);
+        a.pop(x86::rbp);
+        a.pop(x86::rbx);
+        a.ret();
+        if(errors.error!=Error::kOk || runtime.add(&enterBridge,&bridge)!=Error::kOk) return false;
+        if(!executableReadOnly(reinterpret_cast<const void*>(enterBridge))) {
+            runtime.release(enterBridge); enterBridge=nullptr; return false;
+        }
+        return true;
+    }
     Impl(ARM920TState& state,ARM920T& cpu,Bus& bus,NativeCacheLimits limits) : architecturalState(state),cpu(cpu),bus(bus),reference(cpu,bus),limits(limits) {
         if (&state!=&cpu.getState()) throw std::invalid_argument("Native and reference CPU state must match");
         if (!limits.blocks || !limits.bytes || !limits.compileThreshold) throw std::invalid_argument("Native cache limits must be positive");
-        cacheByPc.reserve(std::min<size_t>(limits.blocks,4096));
+        if (!buildEntryBridge()) throw std::runtime_error("Cannot initialize shared native entry bridge");
     }
-    ~Impl() { clearCache(); }
+    ~Impl() { clearCache(); if(enterBridge) runtime.release(enterBridge); }
     void refreshDependency(CacheEntry& entry) {
-        entry.mapping=bus.getMappingGeneration(); entry.epoch=bus.getCodeEpoch();
-        entry.version=bus.markCodePage(entry.source.front().first);
+        entry.physical=entry.source.front().first;
+        entry.mapping=bus.getMappingGeneration(entry.context[0]); entry.epoch=bus.getCodeEpoch();
+        entry.version=bus.markCodePage(entry.physical);
     }
     void clearCache() {
         ++cacheLifetime;
         hot.fill({});
         samples.fill({});
         for (const auto& entry : cache) if(entry.function) runtime.release(entry.function);
-        cacheByPc.clear(); cache.clear(); cacheBytes=0;
+        cacheByPc.fill(nullptr); cache.clear(); cacheBytes=0;
+        verifiedRegionBase=0; verifiedRegionSize=0;
+    }
+    bool verifyExecutableSpan(const void* address,size_t bytes) {
+        const auto start=reinterpret_cast<uintptr_t>(address);
+        if(verifiedRegionSize && start>=verifiedRegionBase && bytes<=verifiedRegionSize &&
+            start-verifiedRegionBase<=verifiedRegionSize-bytes) return true;
+        return queryExecutableRegion(address,bytes,verifiedRegionBase,verifiedRegionSize);
     }
     bool sampledHotEntry() {
         const auto& state=architecturalState;
         const std::array<uint32_t,5> context={state.r[15],(state.cpsr&0x3fu)|(bus.isUserMode()?0x100u:0u),
             state.cp15_control,state.cp15_ttb,state.cp15_dacr};
         auto& sample=samples[hotIndex(context[0])];
-        if(!sample.visits || sample.context!=context) { sample.context=context; sample.visits=1; }
+        if(!sample.visits || sample.context!=context) {
+            for(auto* candidate=cacheByPc[pcBucketIndex(context[0])];candidate;candidate=candidate->nextByPc) {
+                const auto& key=candidate->context;
+                if(candidate->function && key[0]==context[0] && key[1]==context[1] &&
+                    key[2]==context[2] && key[3]==context[3] && key[4]==context[4]) {
+                    sample={context,limits.compileThreshold};
+                    return true;
+                }
+            }
+            sample.context=context; sample.visits=1;
+        }
         else if(sample.visits<limits.compileThreshold) ++sample.visits;
         return sample.visits>=limits.compileThreshold;
     }
@@ -241,103 +392,127 @@ struct X64ExecutionEngine::Impl {
         if (!bytes || bytes>64*1024) return nullptr;
         Function result=nullptr;
         if (runtime.add(&result,&code)!=asmjit::Error::kOk) return nullptr;
-        if (!executableReadOnly(reinterpret_cast<const void*>(result))) { runtime.release(result); return nullptr; }
+        if (!verifyExecutableSpan(reinterpret_cast<const void*>(result),bytes)) { runtime.release(result); return nullptr; }
         ++counters.compilations;
         return result;
     }
-    asmjit::x86::Gp emitMemory(asmjit::x86::Compiler& cc,asmjit::x86::Gp pointer,asmjit::x86::Gp run,const Instruction& instruction) {
+    void emitMemory(asmjit::x86::Assembler& a,const Instruction& instruction) {
         using namespace asmjit;
         const auto& memory=*instruction.memory;
         const unsigned width=memory.byte?1:(memory.halfword?2:4);
-        auto reg=[&](unsigned index) { return x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+index*4)); };
-        cc.mov(reg(15),instruction.pc+4);
-        auto base=cc.new_gp32(),updated=cc.new_gp32(),address=cc.new_gp32();
-        if(memory.base==15) cc.mov(base,instruction.pc+8);
-        else cc.mov(base,reg(memory.base));
-        cc.mov(updated,base);
+        auto reg=[&](unsigned index) { return x86::dword_ptr(x86::r12,int32_t(offsetof(ARM920TState,r)+index*4)); };
+        a.mov(reg(15),instruction.pc+4);
+        if(memory.base==15) a.mov(x86::eax,instruction.pc+8);
+        else a.mov(x86::eax,reg(memory.base));
+        a.mov(x86::esi,x86::eax);
         if(memory.offsetRegister) {
-            auto offset=cc.new_gp32(); cc.mov(offset,reg(*memory.offsetRegister));
+            a.mov(x86::ecx,reg(*memory.offsetRegister));
             switch(memory.offsetShift) {
-                case Shift::Lsl:if(memory.offsetShiftAmount) cc.shl(offset,memory.offsetShiftAmount);break;
-                case Shift::Lsr:if(memory.offsetShiftAmount==32) cc.mov(offset,0);else cc.shr(offset,memory.offsetShiftAmount);break;
-                case Shift::Asr:cc.sar(offset,std::min<unsigned>(memory.offsetShiftAmount,31));break;
-                case Shift::Ror:cc.ror(offset,memory.offsetShiftAmount);break;
-                case Shift::Rrx: {
-                    auto flags=cc.new_gp32(); cc.mov(flags,x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,cpsr))));
-                    cc.bt(flags,29); cc.rcr(offset,1); break;
-                }
+                case Shift::Lsl:if(memory.offsetShiftAmount) a.shl(x86::ecx,memory.offsetShiftAmount);break;
+                case Shift::Lsr:if(memory.offsetShiftAmount==32) a.xor_(x86::ecx,x86::ecx);else a.shr(x86::ecx,memory.offsetShiftAmount);break;
+                case Shift::Asr:a.sar(x86::ecx,std::min<unsigned>(memory.offsetShiftAmount,31));break;
+                case Shift::Ror:a.ror(x86::ecx,memory.offsetShiftAmount);break;
+                case Shift::Rrx:
+                    a.mov(x86::edx,x86::dword_ptr(x86::r12,int32_t(offsetof(ARM920TState,cpsr))));
+                    a.bt(x86::edx,29); a.rcr(x86::ecx,1); break;
             }
-            if(memory.up) cc.add(updated,offset); else cc.sub(updated,offset);
-        } else if (memory.up) cc.add(updated,memory.offset); else cc.sub(updated,memory.offset);
-        cc.mov(address,memory.pre?updated:base);
-        auto busPointer=cc.new_gp_ptr();
-        cc.mov(busPointer,uintptr_t(&bus));
-        auto error=cc.new_gp32(),status=cc.new_gp32();
-        InvokeNode* invoke=nullptr;
-        x86::Gp data;
+            if(memory.up) a.add(x86::esi,x86::ecx); else a.sub(x86::esi,x86::ecx);
+        } else if(memory.offset) {
+            if(memory.up) a.add(x86::esi,memory.offset); else a.sub(x86::esi,memory.offset);
+        }
+        a.mov(x86::r8d,memory.pre?x86::esi:x86::eax);
         if (memory.load) {
-            auto result=cc.new_gp64();
-            const auto slow=cc.new_label(),translated=cc.new_label(),sram=cc.new_label(),loaded=cc.new_label(),complete=cc.new_label();
+            const auto slow=a.new_label(),translated=a.new_label(),sram=a.new_label(),loaded=a.new_label(),complete=a.new_label();
             const auto view=bus.nativeReadView();
-            auto physical=cc.new_gp32(),vpn=cc.new_gp32(),index=cc.new_gp64(),tag=cc.new_gp32(),token=cc.new_gp_ptr();
-            cc.mov(physical,address); if(width==4) cc.and_(physical,~3u);
-            cc.mov(token,uintptr_t(view.enabled)); cc.cmp(x86::byte_ptr(token),0); cc.je(translated);
-            cc.mov(vpn,physical); cc.shr(vpn,12); cc.mov(index.r32(),vpn); cc.and_(index.r32(),uint32_t(view.size-1));
-            cc.mov(token,uintptr_t(view.entries)); cc.lea(token,x86::ptr(token,index,3));
-            cc.mov(tag,x86::dword_ptr(token,int32_t(offsetof(Arm920TMmu::TlbEntry,tag))));
-            auto key=cc.new_gp32(); cc.mov(key,tag); cc.and_(key,view.keyMask); cc.or_(vpn,view.valid);
-            cc.cmp(key,vpn); cc.jne(slow);
-            const auto permitted=cc.new_label();
-            auto privilege=cc.new_gp_ptr(); cc.mov(privilege,uintptr_t(view.user));
-            cc.cmp(x86::byte_ptr(privilege),0); cc.je(permitted);
-            auto shift=cc.new_gp32(); cc.mov(shift,physical); cc.shr(shift,10); cc.and_(shift,3);
-            cc.shl(shift,1); cc.add(shift,view.apShift); cc.shr(tag,shift.r8()); cc.and_(tag,3);
-            cc.cmp(tag,1); cc.jbe(slow);
-            cc.bind(permitted); cc.and_(physical,4095);
-            cc.or_(physical,x86::dword_ptr(token,int32_t(offsetof(Arm920TMmu::TlbEntry,paBase))));
-            cc.bind(translated);
-            auto offset=cc.new_gp64(),host=cc.new_gp_ptr();
-            cc.mov(offset.r32(),physical); cc.sub(offset.r32(),ADDR_SDRAM_BASE);
-            cc.cmp(offset.r32(),ADDR_SDRAM_SIZE-(width-1)); cc.jae(sram);
-            cc.mov(host,uintptr_t(bus.getSdramPtr())); cc.jmp(loaded);
-            cc.bind(sram); cc.cmp(physical,ADDR_STEPPINGSTONE_SIZE-(width-1)); cc.jae(slow);
-            cc.mov(offset.r32(),physical); cc.mov(host,uintptr_t(bus.getSteppingstonePtr()));
-            cc.bind(loaded);
-            if(width==1) cc.movzx(result.r32(),x86::byte_ptr(host,offset));
-            else if(width==2) cc.movzx(result.r32(),x86::word_ptr(host,offset));
+            a.mov(x86::edx,x86::r8d); if(width==4) a.and_(x86::edx,~3u);
+            a.mov(x86::rax,uintptr_t(view.enabled)); a.cmp(x86::byte_ptr(x86::rax),0); a.je(translated);
+            a.mov(x86::ecx,x86::edx); a.shr(x86::ecx,12); a.mov(x86::r9d,x86::ecx); a.and_(x86::r9d,uint32_t(view.size-1));
+            a.mov(x86::rax,uintptr_t(view.entries)); a.lea(x86::rax,x86::ptr(x86::rax,x86::r9,3));
+            a.mov(x86::r10d,x86::dword_ptr(x86::rax,int32_t(offsetof(Arm920TMmu::TlbEntry,tag))));
+            a.mov(x86::r11d,x86::r10d); a.and_(x86::r11d,view.keyMask); a.or_(x86::ecx,view.valid);
+            a.cmp(x86::r11d,x86::ecx); a.jne(slow);
+            const auto permitted=a.new_label();
+            a.mov(x86::rcx,uintptr_t(view.user));
+            a.cmp(x86::byte_ptr(x86::rcx),0); a.je(permitted);
+            a.mov(x86::ecx,x86::edx); a.shr(x86::ecx,10); a.and_(x86::ecx,3);
+            a.shl(x86::ecx,1); a.add(x86::ecx,view.apShift); a.shr(x86::r10d,x86::cl); a.and_(x86::r10d,3);
+            a.cmp(x86::r10d,1); a.jbe(slow);
+            a.bind(permitted); a.and_(x86::edx,4095);
+            a.or_(x86::edx,x86::dword_ptr(x86::rax,int32_t(offsetof(Arm920TMmu::TlbEntry,paBase))));
+            a.bind(translated);
+            a.mov(x86::r9d,x86::edx); a.sub(x86::r9d,ADDR_SDRAM_BASE);
+            a.cmp(x86::r9d,ADDR_SDRAM_SIZE-(width-1)); a.jae(sram);
+            a.mov(x86::rax,uintptr_t(bus.getSdramPtr())); a.jmp(loaded);
+            a.bind(sram); a.cmp(x86::edx,ADDR_STEPPINGSTONE_SIZE-(width-1)); a.jae(slow);
+            a.mov(x86::r9d,x86::edx); a.mov(x86::rax,uintptr_t(bus.getSteppingstonePtr()));
+            a.bind(loaded);
+            if(width==1) a.movzx(x86::eax,x86::byte_ptr(x86::rax,x86::r9));
+            else if(width==2) a.movzx(x86::eax,x86::word_ptr(x86::rax,x86::r9));
             else {
-                cc.mov(result.r32(),x86::dword_ptr(host,offset));
-                auto rotate=cc.new_gp32(); cc.mov(rotate,address); cc.and_(rotate,3); cc.shl(rotate,3);
-                cc.ror(result.r32(),rotate.r8());
+                a.mov(x86::eax,x86::dword_ptr(x86::rax,x86::r9));
+                a.mov(x86::ecx,x86::r8d); a.and_(x86::ecx,3); a.shl(x86::ecx,3);
+                a.ror(x86::eax,x86::cl);
             }
-            cc.mov(error,0);
-            cc.inc(x86::dword_ptr(run,int32_t(offsetof(NativeRun,memorySteps))));
-            cc.inc(x86::dword_ptr(run,int32_t(offsetof(NativeRun,inlineLoads))));
-            cc.jmp(complete); cc.bind(slow);
-            cc.invoke(Out(invoke),imm(width==1?(void*)checkedLoad<1>:(width==2?(void*)checkedLoad<2>:(void*)checkedLoad<4>)),FuncSignature::build<uint64_t,Bus*,NativeRun*,uint32_t>());
-            invoke->set_arg(0,busPointer); invoke->set_arg(1,run); invoke->set_arg(2,address); invoke->set_ret(0,result);
-            auto high=cc.new_gp64(); cc.mov(high,result); cc.shr(high,32); cc.mov(error,high.r32());
-            cc.bind(complete);
-            data=result.r32();
+            a.xor_(x86::edx,x86::edx);
+            a.inc(x86::dword_ptr(x86::r13,int32_t(offsetof(NativeRun,memorySteps))));
+            a.inc(x86::dword_ptr(x86::r13,int32_t(offsetof(NativeRun,inlineLoads))));
+            a.jmp(complete); a.bind(slow);
+#ifdef _WIN32
+            a.mov(x86::rcx,uintptr_t(&bus));
+            a.mov(x86::rdx,x86::r13);
+#else
+            if(memory.writeback) a.mov(x86::dword_ptr(x86::rsp),x86::esi);
+            a.mov(x86::rdi,uintptr_t(&bus));
+            a.mov(x86::rsi,x86::r13);
+            a.mov(x86::edx,x86::r8d);
+#endif
+            a.mov(x86::rax,uintptr_t(width==1?(void*)checkedLoad<1>:(width==2?(void*)checkedLoad<2>:(void*)checkedLoad<4>)));
+            a.call(x86::rax);
+#ifndef _WIN32
+            if(memory.writeback) a.mov(x86::esi,x86::dword_ptr(x86::rsp));
+#endif
+            a.mov(x86::rdx,x86::rax); a.shr(x86::rdx,32);
+            a.bind(complete);
             if(memory.signExtend) {
-                if(width==1) cc.movsx(data,data.r8()); else cc.movsx(data,data.r16());
+                if(width==1) a.movsx(x86::eax,x86::al); else a.movsx(x86::eax,x86::ax);
             }
         } else {
-            auto value=cc.new_gp32(); cc.mov(value,reg(memory.destination));
-            cc.invoke(Out(invoke),imm(width==1?(void*)checkedStore<1>:(width==2?(void*)checkedStore<2>:(void*)checkedStore<4>)),FuncSignature::build<uint32_t,Bus*,NativeRun*,uint32_t,uint32_t>());
-            invoke->set_arg(0,busPointer); invoke->set_arg(1,run); invoke->set_arg(2,address); invoke->set_arg(3,value); invoke->set_ret(0,error);
+#ifdef _WIN32
+            a.mov(x86::rcx,uintptr_t(&bus));
+            a.mov(x86::rdx,x86::r13);
+            a.mov(x86::r9d,reg(memory.destination));
+#else
+            if(memory.writeback) a.mov(x86::dword_ptr(x86::rsp),x86::esi);
+            a.mov(x86::rdi,uintptr_t(&bus));
+            a.mov(x86::rsi,x86::r13);
+            a.mov(x86::edx,x86::r8d);
+            a.mov(x86::ecx,reg(memory.destination));
+#endif
+            a.mov(x86::rax,uintptr_t(width==1?(void*)checkedStore<1>:(width==2?(void*)checkedStore<2>:(void*)checkedStore<4>)));
+            a.call(x86::rax);
+#ifndef _WIN32
+            if(memory.writeback) a.mov(x86::esi,x86::dword_ptr(x86::rsp));
+#endif
+            a.mov(x86::edx,x86::eax);
         }
-        Label abort=cc.new_label(),done=cc.new_label();
-        cc.test(error,1); cc.jnz(abort);
-        if (memory.load) cc.mov(reg(memory.destination),data);
-        if (memory.writeback) cc.mov(reg(memory.base),updated);
-        cc.mov(status,error); cc.jmp(done);
-        cc.bind(abort);
-        auto cpuPointer=cc.new_gp_ptr(); cc.mov(cpuPointer,uintptr_t(&cpu));
-        cc.invoke(Out(invoke),imm((void*)checkedAbort),FuncSignature::build<void,ARM920T*>());
-        invoke->set_arg(0,cpuPointer);
-        cc.mov(status,1);
-        cc.bind(done); return status;
+        const auto abort=a.new_label(),done=a.new_label();
+        a.test(x86::edx,1); a.jnz(abort);
+        if (memory.load) a.mov(reg(memory.destination),x86::eax);
+        if (memory.writeback) a.mov(reg(memory.base),x86::esi);
+        a.test(x86::edx,x86::edx); a.je(done);
+        a.mov(x86::eax,x86::edx);
+        a.jmp(x86::qword_ptr(x86::r13,int32_t(offsetof(NativeRun,exit))));
+        a.bind(abort);
+#ifdef _WIN32
+        a.mov(x86::rcx,uintptr_t(&cpu));
+#else
+        a.mov(x86::rdi,uintptr_t(&cpu));
+#endif
+        a.mov(x86::rax,uintptr_t(&checkedAbort));
+        a.call(x86::rax);
+        a.mov(x86::eax,1);
+        a.jmp(x86::qword_ptr(x86::r13,int32_t(offsetof(NativeRun,exit))));
+        a.bind(done);
     }
     Function compile(const Block& block,size_t count,size_t& bytes) {
         using namespace asmjit;
@@ -346,49 +521,63 @@ struct X64ExecutionEngine::Impl {
         CodeHolder code;
         if (code.init(runtime.environment())!=Error::kOk) return nullptr;
         code.set_error_handler(&errors);
-        x86::Compiler compiler(&code);
-        auto pointer=compiler.new_gp_ptr("state");
-        auto run=compiler.new_gp_ptr("run");
-        auto* function=compiler.add_func(FuncSignature::build<uint32_t,ARM920TState*,NativeRun*>());
-        if (!function) return nullptr;
-        function->set_arg(0,pointer);
-        function->set_arg(1,run);
-        std::array<x86::Gp,15> registers{};
-        std::array<bool,15> dirty{};
-        x86::Gp cachedFlags;
-        bool flagsDirty=false;
+        x86::Assembler a(&code);
+        static constexpr std::array<x86::Gp,4> slotRegs={x86::esi,x86::edi,x86::r10d,x86::r11d};
+        struct RegSlot { uint8_t guest=0xff; bool dirty=false; uint32_t used=0; };
+        std::array<RegSlot,4> slots{};
+        uint32_t slotTick=0;
+        uint8_t pinnedMask=0;
+        bool flagsValid=false,flagsDirty=false;
         auto readFlags=[&]() {
-            if(!cachedFlags.is_valid()) {
-                cachedFlags=compiler.new_gp32();
-                compiler.mov(cachedFlags,x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,cpsr))));
+            if(!flagsValid) {
+                a.mov(x86::ebp,x86::dword_ptr(x86::r12,int32_t(offsetof(ARM920TState,cpsr))));
+                flagsValid=true;
             }
-            return cachedFlags;
+            return x86::ebp;
+        };
+        auto ensureSlot=[&](unsigned index,bool loadExisting) {
+            for(unsigned s=0;s<slots.size();++s) {
+                if(slots[s].guest==index) {
+                    pinnedMask|=uint8_t(1u<<s);
+                    slots[s].used=++slotTick;
+                    return s;
+                }
+            }
+            unsigned chosen=0;
+            bool haveChosen=false;
+            for(unsigned s=0;s<slots.size();++s) {
+                if(pinnedMask&(1u<<s)) continue;
+                if(!haveChosen || slots[s].used<slots[chosen].used) { chosen=s; haveChosen=true; }
+            }
+            if(slots[chosen].guest!=0xff && slots[chosen].dirty)
+                a.mov(x86::dword_ptr(x86::r12,int32_t(offsetof(ARM920TState,r)+slots[chosen].guest*4)),slotRegs[chosen]);
+            if(loadExisting)
+                a.mov(slotRegs[chosen],x86::dword_ptr(x86::r12,int32_t(offsetof(ARM920TState,r)+index*4)));
+            slots[chosen]={uint8_t(index),false,++slotTick};
+            pinnedMask|=uint8_t(1u<<chosen);
+            return chosen;
         };
         auto readRegister=[&](unsigned index) {
-            if(!registers[index].is_valid()) {
-                registers[index]=compiler.new_gp32();
-                compiler.mov(registers[index],x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+index*4)));
-            }
-            return registers[index];
+            for(unsigned s=0;s<slots.size();++s)
+                if(slots[s].guest==index) return slotRegs[s];
+            return slotRegs[ensureSlot(index,true)];
         };
         auto flushRegisters=[&]() {
-            for(unsigned index=0;index<15;++index) {
-                if(dirty[index]) compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+index*4)),registers[index]);
-                registers[index]=x86::Gp{}; dirty[index]=false;
+            for(unsigned s=0;s<slots.size();++s) {
+                if(slots[s].guest!=0xff && slots[s].dirty)
+                    a.mov(x86::dword_ptr(x86::r12,int32_t(offsetof(ARM920TState,r)+slots[s].guest*4)),slotRegs[s]);
+                slots[s]={};
             }
-            if(flagsDirty) compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,cpsr))),cachedFlags);
-            cachedFlags=x86::Gp{}; flagsDirty=false;
+            if(flagsDirty) a.mov(x86::dword_ptr(x86::r12,int32_t(offsetof(ARM920TState,cpsr))),x86::ebp);
+            flagsValid=false; flagsDirty=false; pinnedMask=0;
         };
-        auto load=[&](Value value) {
-            auto target=compiler.new_gp32();
+        auto loadInto=[&](x86::Gp target,Value value) {
             if (value.kind==ValueKind::Register)
-                compiler.mov(target,readRegister(value.value));
-            else compiler.mov(target,value.value);
-            return target;
+                a.mov(target,readRegister(value.value));
+            else if(value.value==0) a.xor_(target,target);
+            else a.mov(target,value.value);
         };
-        auto booleanNot=[&](x86::Gp value) { compiler.xor_(value,1); return value; };
-        auto capture=[&](x86::Gp value) { compiler.movzx(value,value.r8()); };
-        Label blockExit=compiler.new_label(),blockStart=compiler.new_label();
+        Label blockExit=a.new_label(),blockStart=a.new_label();
         const auto& terminal=block.instructions[count-1];
         size_t loopEntry=count;
         if(terminal.branch && !terminal.branch->link && !terminal.branch->targetRegister) {
@@ -397,47 +586,46 @@ struct X64ExecutionEngine::Impl {
         }
         const bool repeatable=loopEntry<count;
         const uint32_t loopLength=uint32_t(count-loopEntry);
-        auto cycleCount=compiler.new_gp32(),lastCycleCount=compiler.new_gp32();
-        if(cycleMode) compiler.mov(cycleCount,x86::dword_ptr(run,int32_t(offsetof(NativeRun,cycles))));
-        auto loopBase=compiler.new_gp32();
-        compiler.mov(loopBase,x86::dword_ptr(run,int32_t(offsetof(NativeRun,base))));
+        if(cycleMode) a.mov(x86::r15d,x86::dword_ptr(x86::r13,int32_t(offsetof(NativeRun,cycles))));
+        a.mov(x86::r14d,x86::dword_ptr(x86::r13,int32_t(offsetof(NativeRun,base))));
         for (size_t index=0;index<count;++index) {
             if(index==(repeatable?loopEntry:0)) {
                 if(index) flushRegisters();
-                compiler.bind(blockStart);
+                a.bind(blockStart);
             }
             const auto& instruction=block.instructions[index];
             const auto& op=instruction.operation;
+            pinnedMask=0;
+            unsigned destSlot=0;
             // Helpers and control-flow exits observe authoritative registers.
             // Predicated destinations start with their old value so a skipped
             // operation can share the same cached register at the merge point.
             if(instruction.memory || instruction.multiple || instruction.branch) flushRegisters();
             else {
-                if(op.left.kind==ValueKind::Register) readRegister(op.left.value);
-                if(op.right.kind==ValueKind::Register) readRegister(op.right.value);
-                if(op.addend) readRegister(*op.addend);
-                if(op.shiftRegister) readRegister(*op.shiftRegister);
-                if(instruction.condition!=Condition::Always && op.destination) readRegister(*op.destination);
+                if(op.left.kind==ValueKind::Register) ensureSlot(op.left.value,true);
+                if(op.right.kind==ValueKind::Register) ensureSlot(op.right.value,true);
+                if(op.addend) ensureSlot(*op.addend,true);
+                if(op.shiftRegister) ensureSlot(*op.shiftRegister,true);
+                if(op.destination) destSlot=ensureSlot(*op.destination,instruction.condition!=Condition::Always);
             }
-            auto flags=compiler.new_gp32();
             const bool logicalFlags=op.flags==FlagWrite::Logical;
             const bool usesCarry=op.opcode==IntegerOpcode::AddCarry || op.opcode==IntegerOpcode::SubtractCarry ||
                 op.opcode==IntegerOpcode::ReverseSubtractCarry || op.shift==Shift::Rrx;
             if(instruction.condition!=Condition::Always || op.flags!=FlagWrite::Preserve || usesCarry)
-                compiler.mov(flags,readFlags());
+                readFlags();
             if(cycleMode) {
-                compiler.inc(cycleCount);
-                compiler.mov(lastCycleCount,ARM920TCycles::failedCondition);
+                a.inc(x86::r15d);
+                a.mov(x86::ebx,ARM920TCycles::failedCondition);
             }
-            Label skipped=compiler.new_label();
+            Label skipped=a.new_label();
             if (instruction.condition!=Condition::Always) {
                 auto skipBit=[&](uint32_t mask,bool whenSet) {
-                    compiler.test(flags,mask);
-                    if(whenSet) compiler.jnz(skipped); else compiler.jz(skipped);
+                    a.test(x86::ebp,mask);
+                    if(whenSet) a.jnz(skipped); else a.jz(skipped);
                 };
                 auto testNvDifference=[&]() {
-                    auto difference=compiler.new_gp32(); compiler.mov(difference,flags);
-                    compiler.shl(difference,3); compiler.xor_(difference,flags); compiler.test(difference,FLAG_N);
+                    a.mov(x86::eax,x86::ebp);
+                    a.shl(x86::eax,3); a.xor_(x86::eax,x86::ebp); a.test(x86::eax,FLAG_N);
                 };
                 switch(instruction.condition) {
                     case Condition::Eq:skipBit(FLAG_Z,false);break;
@@ -448,18 +636,17 @@ struct X64ExecutionEngine::Impl {
                     case Condition::Pl:skipBit(FLAG_N,true);break;
                     case Condition::Vs:skipBit(FLAG_V,false);break;
                     case Condition::Vc:skipBit(FLAG_V,true);break;
-                    case Condition::Hi:case Condition::Ls: {
-                        auto pair=compiler.new_gp32(); compiler.mov(pair,flags); compiler.and_(pair,FLAG_C|FLAG_Z);
-                        compiler.cmp(pair,FLAG_C);
-                        if(instruction.condition==Condition::Hi) compiler.jne(skipped); else compiler.je(skipped);
+                    case Condition::Hi:case Condition::Ls:
+                        a.mov(x86::eax,x86::ebp); a.and_(x86::eax,FLAG_C|FLAG_Z);
+                        a.cmp(x86::eax,FLAG_C);
+                        if(instruction.condition==Condition::Hi) a.jne(skipped); else a.je(skipped);
                         break;
-                    }
-                    case Condition::Ge:testNvDifference();compiler.jnz(skipped);break;
-                    case Condition::Lt:testNvDifference();compiler.jz(skipped);break;
-                    case Condition::Gt:skipBit(FLAG_Z,true);testNvDifference();compiler.jnz(skipped);break;
+                    case Condition::Ge:testNvDifference();a.jnz(skipped);break;
+                    case Condition::Lt:testNvDifference();a.jz(skipped);break;
+                    case Condition::Gt:skipBit(FLAG_Z,true);testNvDifference();a.jnz(skipped);break;
                     case Condition::Le: {
-                        const auto passed=compiler.new_label(); compiler.test(flags,FLAG_Z); compiler.jnz(passed);
-                        testNvDifference(); compiler.jz(skipped); compiler.bind(passed); break;
+                        const auto passed=a.new_label(); a.test(x86::ebp,FLAG_Z); a.jnz(passed);
+                        testNvDifference(); a.jz(skipped); a.bind(passed); break;
                     }
                     case Condition::Always:break;
                 }
@@ -467,192 +654,194 @@ struct X64ExecutionEngine::Impl {
             if(cycleMode) {
                 const uint32_t cycles=instruction.memory?ARM920TCycles::singleMemory:
                     (instruction.branch?ARM920TCycles::branch:ARM920TCycles::integer(bool(op.shiftRegister)));
-                if(cycles>1) compiler.add(cycleCount,cycles-1);
-                compiler.mov(lastCycleCount,cycles);
+                if(cycles>1) a.add(x86::r15d,cycles-1);
+                a.mov(x86::ebx,cycles);
             }
             if(instruction.memory || instruction.multiple) {
-                auto completed=compiler.new_gp32(); compiler.mov(completed,loopBase); compiler.add(completed,uint32_t(index+1));
-                compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,retired))),completed);
+                a.lea(x86::eax,x86::ptr(x86::r14,int32_t(index+1)));
+                a.mov(x86::dword_ptr(x86::r13,int32_t(offsetof(NativeRun,retired))),x86::eax);
                 if(cycleMode) {
-                    compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,cycles))),cycleCount);
-                    compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,lastCycles))),lastCycleCount);
+                    a.mov(x86::dword_ptr(x86::r13,int32_t(offsetof(NativeRun,cycles))),x86::r15d);
+                    a.mov(x86::dword_ptr(x86::r13,int32_t(offsetof(NativeRun,lastCycles))),x86::ebx);
                 }
-                auto status=compiler.new_gp32();
                 if(instruction.multiple) {
-                    compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+15*4)),instruction.pc+4);
-                    auto busPointer=compiler.new_gp_ptr(),cpuPointer=compiler.new_gp_ptr();
-                    compiler.mov(busPointer,uintptr_t(&bus));compiler.mov(cpuPointer,uintptr_t(&cpu));
-                    InvokeNode* invoke=nullptr;
-                    compiler.invoke(Out(invoke),imm((void*)checkedMultiple),FuncSignature::build<uint32_t,Bus*,ARM920T*,NativeRun*,uint32_t>());
-                    invoke->set_arg(0,busPointer);invoke->set_arg(1,cpuPointer);invoke->set_arg(2,run);invoke->set_arg(3,imm(instruction.encoding));invoke->set_ret(0,status);
-                } else compiler.mov(status,emitMemory(compiler,pointer,run,instruction));
-                auto next=compiler.new_label(); compiler.test(status,status); compiler.je(next);
-                compiler.ret(status); compiler.bind(next);
-                if(instruction.multiple && instruction.multiple->load && (instruction.multiple->registers&0x8000u)) compiler.jmp(blockExit);
-                compiler.bind(skipped); continue;
+                    a.mov(x86::dword_ptr(x86::r12,int32_t(offsetof(ARM920TState,r)+15*4)),instruction.pc+4);
+#ifdef _WIN32
+                    a.mov(x86::rcx,uintptr_t(&bus));
+                    a.mov(x86::rdx,uintptr_t(&cpu));
+                    a.mov(x86::r8,x86::r13);
+                    a.mov(x86::r9d,instruction.encoding);
+#else
+                    a.mov(x86::rdi,uintptr_t(&bus));
+                    a.mov(x86::rsi,uintptr_t(&cpu));
+                    a.mov(x86::rdx,x86::r13);
+                    a.mov(x86::ecx,instruction.encoding);
+#endif
+                    a.mov(x86::rax,uintptr_t(&checkedMultiple));
+                    a.call(x86::rax);
+                    const auto next=a.new_label(); a.test(x86::eax,x86::eax); a.je(next);
+                    a.jmp(x86::qword_ptr(x86::r13,int32_t(offsetof(NativeRun,exit))));
+                    a.bind(next);
+                    if(instruction.multiple->load && (instruction.multiple->registers&0x8000u)) a.jmp(blockExit);
+                } else emitMemory(a,instruction);
+                a.bind(skipped); continue;
             }
             if(instruction.branch) {
                 if(instruction.branch->targetRegister) {
-                    auto target=compiler.new_gp32();
-                    compiler.mov(target,x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+*instruction.branch->targetRegister*4)));
-                    compiler.and_(target,~3u);
-                    compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+15*4)),target);
-                    compiler.jmp(blockExit);compiler.bind(skipped);continue;
+                    a.mov(x86::eax,x86::dword_ptr(x86::r12,int32_t(offsetof(ARM920TState,r)+*instruction.branch->targetRegister*4)));
+                    a.and_(x86::eax,~3u);
+                    a.mov(x86::dword_ptr(x86::r12,int32_t(offsetof(ARM920TState,r)+15*4)),x86::eax);
+                    a.jmp(blockExit);a.bind(skipped);continue;
                 }
                 if(instruction.branch->link)
-                    compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+14*4)),instruction.pc+instruction.bytes);
-                compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+15*4)),instruction.branch->target);
+                    a.mov(x86::dword_ptr(x86::r12,int32_t(offsetof(ARM920TState,r)+14*4)),instruction.pc+instruction.bytes);
+                a.mov(x86::dword_ptr(x86::r12,int32_t(offsetof(ARM920TState,r)+15*4)),instruction.branch->target);
                 // The frontend follows only unconditional, same-page edges.
                 // Their guest instruction and optional LR write still retire.
                 if(index+1<count && instruction.condition==Condition::Always &&
                     block.instructions[index+1].pc==instruction.branch->target) {
-                    compiler.bind(skipped); continue;
+                    a.bind(skipped); continue;
                 }
                 if(repeatable) {
-                    auto completed=compiler.new_gp32(); compiler.mov(completed,loopBase); compiler.add(completed,uint32_t(count));
-                    auto next=compiler.new_gp32(); compiler.mov(next,completed); compiler.add(next,loopLength);
-                    const auto finished=compiler.new_label();
-                    compiler.cmp(next,x86::dword_ptr(run,int32_t(offsetof(NativeRun,limit)))); compiler.ja(finished);
-                    compiler.add(loopBase,loopLength);
-                    compiler.inc(x86::dword_ptr(run,int32_t(offsetof(NativeRun,loopTrips))));
-                    compiler.jmp(blockStart); compiler.bind(finished); compiler.mov(loopBase,completed);
+                    a.lea(x86::eax,x86::ptr(x86::r14,int32_t(count)));
+                    a.lea(x86::ecx,x86::ptr(x86::rax,int32_t(loopLength)));
+                    const auto finished=a.new_label();
+                    a.cmp(x86::ecx,x86::dword_ptr(x86::r13,int32_t(offsetof(NativeRun,limit)))); a.ja(finished);
+                    a.add(x86::r14d,loopLength);
+                    a.inc(x86::dword_ptr(x86::r13,int32_t(offsetof(NativeRun,loopTrips))));
+                    a.jmp(blockStart); a.bind(finished); a.mov(x86::r14d,x86::eax);
                 }
-                compiler.jmp(blockExit); compiler.bind(skipped); continue;
+                a.jmp(blockExit); a.bind(skipped); continue;
             }
-            auto right=load(op.right);
+            loadInto(x86::edx,op.right);
             const bool unary=op.opcode==IntegerOpcode::Move || op.opcode==IntegerOpcode::Not;
-            auto left=unary?right:load(op.left);
-            auto carry=compiler.new_gp32();
             if(op.shiftRegister) {
-                auto amount=compiler.new_gp32(); compiler.mov(amount,readRegister(*op.shiftRegister));
-                compiler.and_(amount,255);
-                const auto done=compiler.new_label();
-                if(logicalFlags) { compiler.mov(carry,flags); compiler.shr(carry,29); compiler.and_(carry,1); }
-                compiler.test(amount,amount); compiler.jz(done);
+                a.mov(x86::ecx,readRegister(*op.shiftRegister));
+                a.and_(x86::ecx,255);
+                const auto done=a.new_label();
+                if(logicalFlags) { a.mov(x86::r9d,x86::ebp); a.shr(x86::r9d,29); a.and_(x86::r9d,1); }
+                a.test(x86::ecx,x86::ecx); a.jz(done);
                 if(op.shift==Shift::Ror) {
-                    compiler.ror(right,amount.r8());
-                    if(logicalFlags) { compiler.mov(carry,right); compiler.shr(carry,31); }
+                    a.ror(x86::edx,x86::cl);
+                    if(logicalFlags) { a.mov(x86::r9d,x86::edx); a.shr(x86::r9d,31); }
                 } else {
-                    const auto large=compiler.new_label(); compiler.cmp(amount,32); compiler.jae(large);
-                    if(op.shift==Shift::Lsl) compiler.shl(right,amount.r8());
-                    else if(op.shift==Shift::Lsr) compiler.shr(right,amount.r8());
-                    else compiler.sar(right,amount.r8());
-                    if(logicalFlags) { compiler.setb(carry.r8()); capture(carry); }
-                    compiler.jmp(done); compiler.bind(large);
+                    const auto large=a.new_label(); a.cmp(x86::ecx,32); a.jae(large);
+                    if(op.shift==Shift::Lsl) a.shl(x86::edx,x86::cl);
+                    else if(op.shift==Shift::Lsr) a.shr(x86::edx,x86::cl);
+                    else a.sar(x86::edx,x86::cl);
+                    if(logicalFlags) { a.setb(x86::r9b); a.movzx(x86::r9d,x86::r9b); }
+                    a.jmp(done); a.bind(large);
                     if(op.shift==Shift::Asr) {
-                        if(logicalFlags) { compiler.mov(carry,right); compiler.shr(carry,31); }
-                        compiler.sar(right,31);
+                        if(logicalFlags) { a.mov(x86::r9d,x86::edx); a.shr(x86::r9d,31); }
+                        a.sar(x86::edx,31);
                     } else {
                         if(logicalFlags) {
-                            const auto clearCarry=compiler.new_label(); compiler.mov(carry,0);
-                            compiler.cmp(amount,32); compiler.jne(clearCarry);
-                            compiler.mov(carry,right);
-                            if(op.shift==Shift::Lsl) compiler.and_(carry,1); else compiler.shr(carry,31);
-                            compiler.bind(clearCarry);
+                            const auto clearCarry=a.new_label(); a.xor_(x86::r9d,x86::r9d);
+                            a.cmp(x86::ecx,32); a.jne(clearCarry);
+                            a.mov(x86::r9d,x86::edx);
+                            if(op.shift==Shift::Lsl) a.and_(x86::r9d,1); else a.shr(x86::r9d,31);
+                            a.bind(clearCarry);
                         }
-                        compiler.mov(right,0);
+                        a.xor_(x86::edx,x86::edx);
                     }
                 }
-                compiler.bind(done);
-            } else if (op.shifterCarry==CarrySource::Zero) { if(logicalFlags) compiler.mov(carry,0); }
-            else if (op.shifterCarry==CarrySource::One) { if(logicalFlags) compiler.mov(carry,1); }
+                a.bind(done);
+            } else if (op.shifterCarry==CarrySource::Zero) { if(logicalFlags) a.xor_(x86::r9d,x86::r9d); }
+            else if (op.shifterCarry==CarrySource::One) { if(logicalFlags) a.mov(x86::r9d,1); }
             else if (op.shifterCarry==CarrySource::Shifter) {
                 const unsigned amount=op.shiftAmount;
                 if ((op.shift==Shift::Lsr || op.shift==Shift::Asr) && amount==32) {
-                    if(logicalFlags) { compiler.mov(carry,right); compiler.shr(carry,31); }
-                    if (op.shift==Shift::Lsr) compiler.mov(right,0); else compiler.sar(right,31);
+                    if(logicalFlags) { a.mov(x86::r9d,x86::edx); a.shr(x86::r9d,31); }
+                    if (op.shift==Shift::Lsr) a.xor_(x86::edx,x86::edx); else a.sar(x86::edx,31);
                 } else {
                     switch(op.shift) {
-                        case Shift::Lsl:compiler.shl(right,amount);break;
-                        case Shift::Lsr:compiler.shr(right,amount);break;
-                        case Shift::Asr:compiler.sar(right,amount);break;
-                        case Shift::Ror:compiler.ror(right,amount);break;
-                        case Shift::Rrx:compiler.bt(flags,29);compiler.rcr(right,1);break;
+                        case Shift::Lsl:a.shl(x86::edx,amount);break;
+                        case Shift::Lsr:a.shr(x86::edx,amount);break;
+                        case Shift::Asr:a.sar(x86::edx,amount);break;
+                        case Shift::Ror:a.ror(x86::edx,amount);break;
+                        case Shift::Rrx:a.bt(x86::ebp,29);a.rcr(x86::edx,1);break;
                     }
-                    if(logicalFlags) { compiler.setb(carry.r8()); capture(carry); }
+                    if(logicalFlags) { a.setb(x86::r9b); a.movzx(x86::r9d,x86::r9b); }
                 }
-            } else if(logicalFlags) { compiler.mov(carry,flags); compiler.shr(carry,29); compiler.and_(carry,1); }
+            } else if(logicalFlags) { a.mov(x86::r9d,x86::ebp); a.shr(x86::r9d,29); a.and_(x86::r9d,1); }
             const bool subtraction=op.opcode==IntegerOpcode::Subtract || op.opcode==IntegerOpcode::ReverseSubtract ||
                 op.opcode==IntegerOpcode::SubtractCarry || op.opcode==IntegerOpcode::ReverseSubtractCarry;
-            if (op.opcode==IntegerOpcode::ReverseSubtract || op.opcode==IntegerOpcode::ReverseSubtractCarry)
-                std::swap(left,right);
+            if(unary) a.mov(x86::eax,x86::edx);
+            else if(op.opcode==IntegerOpcode::ReverseSubtract || op.opcode==IntegerOpcode::ReverseSubtractCarry) {
+                a.mov(x86::eax,x86::edx);
+                loadInto(x86::edx,op.left);
+            } else loadInto(x86::eax,op.left);
             switch(op.opcode) {
-                case IntegerOpcode::And:compiler.and_(left,right);break;
-                case IntegerOpcode::Xor:compiler.xor_(left,right);break;
-                case IntegerOpcode::Subtract:case IntegerOpcode::ReverseSubtract:compiler.sub(left,right);break;
-                case IntegerOpcode::Add:compiler.add(left,right);break;
-                case IntegerOpcode::AddCarry:compiler.bt(flags,29);compiler.adc(left,right);break;
+                case IntegerOpcode::And:a.and_(x86::eax,x86::edx);break;
+                case IntegerOpcode::Xor:a.xor_(x86::eax,x86::edx);break;
+                case IntegerOpcode::Subtract:case IntegerOpcode::ReverseSubtract:a.sub(x86::eax,x86::edx);break;
+                case IntegerOpcode::Add:a.add(x86::eax,x86::edx);break;
+                case IntegerOpcode::AddCarry:a.bt(x86::ebp,29);a.adc(x86::eax,x86::edx);break;
                 case IntegerOpcode::SubtractCarry:case IntegerOpcode::ReverseSubtractCarry:
-                    compiler.bt(flags,29);compiler.cmc();compiler.sbb(left,right);break;
-                case IntegerOpcode::Or:compiler.or_(left,right);break;
+                    a.bt(x86::ebp,29);a.cmc();a.sbb(x86::eax,x86::edx);break;
+                case IntegerOpcode::Or:a.or_(x86::eax,x86::edx);break;
                 case IntegerOpcode::Move:break;
-                case IntegerOpcode::BitClear:compiler.not_(right);compiler.and_(left,right);break;
-                case IntegerOpcode::Not:compiler.not_(left);break;
+                case IntegerOpcode::BitClear:a.not_(x86::edx);a.and_(x86::eax,x86::edx);break;
+                case IntegerOpcode::Not:a.not_(x86::eax);break;
                 case IntegerOpcode::Multiply:
-                    compiler.imul(left,right);
-                    if(op.addend) compiler.add(left,readRegister(*op.addend));
+                    a.imul(x86::eax,x86::edx);
+                    if(op.addend) a.add(x86::eax,readRegister(*op.addend));
                     break;
             }
             if (op.flags!=FlagWrite::Preserve) {
-                auto negative=compiler.new_gp32(),zero=compiler.new_gp32(),overflow=compiler.new_gp32();
-                if (op.flags==FlagWrite::Logical) compiler.test(left,left);
-                compiler.sets(negative.r8()); compiler.sete(zero.r8());
+                if (op.flags==FlagWrite::Logical) a.test(x86::eax,x86::eax);
+                a.sets(x86::cl); a.sete(x86::dl);
                 if (op.flags==FlagWrite::Arithmetic) {
-                    compiler.setb(carry.r8()); compiler.seto(overflow.r8());
+                    a.setb(x86::r9b); a.seto(x86::r8b);
                 }
-                capture(negative); capture(zero); capture(carry);
+                a.movzx(x86::ecx,x86::cl); a.movzx(x86::edx,x86::dl); a.movzx(x86::r9d,x86::r9b);
                 if (op.flags==FlagWrite::Arithmetic) {
-                    capture(overflow);
-                    if (subtraction) booleanNot(carry);
-                    compiler.and_(flags,0x0fffffffu);
-                    compiler.shl(overflow,28); compiler.or_(flags,overflow);
-                } else compiler.and_(flags,0x1fffffffu);
-                compiler.shl(negative,31); compiler.shl(zero,30); compiler.shl(carry,29);
-                compiler.or_(flags,negative); compiler.or_(flags,zero); compiler.or_(flags,carry);
-                compiler.mov(cachedFlags,flags); flagsDirty=true;
+                    a.movzx(x86::r8d,x86::r8b);
+                    if (subtraction) a.xor_(x86::r9d,1);
+                    a.and_(x86::ebp,0x0fffffffu);
+                    a.shl(x86::r8d,28); a.or_(x86::ebp,x86::r8d);
+                } else a.and_(x86::ebp,0x1fffffffu);
+                a.shl(x86::ecx,31); a.shl(x86::edx,30); a.shl(x86::r9d,29);
+                a.or_(x86::ebp,x86::ecx); a.or_(x86::ebp,x86::edx); a.or_(x86::ebp,x86::r9d);
+                flagsDirty=true;
             }
             if (op.destination) {
-                const unsigned destination=*op.destination;
-                if(!registers[destination].is_valid()) registers[destination]=compiler.new_gp32();
-                compiler.mov(registers[destination],left); dirty[destination]=true;
+                a.mov(slotRegs[destSlot],x86::eax); slots[destSlot].dirty=true;
             }
-            compiler.bind(skipped);
+            a.bind(skipped);
         }
         flushRegisters();
         const auto& last=block.instructions[count-1];
-        compiler.mov(x86::dword_ptr(pointer,int32_t(offsetof(ARM920TState,r)+15*4)),last.pc+last.bytes);
-        if(repeatable) compiler.add(loopBase,uint32_t(count));
-        compiler.bind(blockExit);
-        if(repeatable) compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,retired))),loopBase);
-        else {
-            compiler.add(loopBase,uint32_t(count));
-            compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,retired))),loopBase);
-        }
+        a.mov(x86::dword_ptr(x86::r12,int32_t(offsetof(ARM920TState,r)+15*4)),last.pc+last.bytes);
+        if(repeatable) a.add(x86::r14d,uint32_t(count));
+        a.bind(blockExit);
+        if(!repeatable) a.add(x86::r14d,uint32_t(count));
+        a.mov(x86::dword_ptr(x86::r13,int32_t(offsetof(NativeRun,retired))),x86::r14d);
         if(cycleMode) {
-            compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,cycles))),cycleCount);
-            compiler.mov(x86::dword_ptr(run,int32_t(offsetof(NativeRun,lastCycles))),lastCycleCount);
+            a.mov(x86::dword_ptr(x86::r13,int32_t(offsetof(NativeRun,cycles))),x86::r15d);
+            a.mov(x86::dword_ptr(x86::r13,int32_t(offsetof(NativeRun,lastCycles))),x86::ebx);
         }
-        auto status=compiler.new_gp32(); compiler.mov(status,0); compiler.ret(status); compiler.end_func();
-        if (compiler.finalize()!=Error::kOk || errors.error!=Error::kOk) return nullptr;
+        a.jmp(x86::qword_ptr(x86::r13,int32_t(offsetof(NativeRun,link))));
+        if (errors.error!=Error::kOk) return nullptr;
         return publish(code,bytes);
     }
     void evictOldest() {
         // Invalidate every borrowed successor before releasing any entry.
         ++cacheLifetime;
-        auto oldest=cache.begin();
+        auto oldest=std::min_element(cache.begin(),cache.end(),
+            [](const CacheEntry& left,const CacheEntry& right) { return left.used<right.used; });
         auto& slot=hot[hotIndex(oldest->context[0])];
         if(slot.entry==&*oldest) slot={};
-        const auto range=cacheByPc.equal_range(oldest->context[0]);
-        for(auto candidate=range.first;candidate!=range.second;++candidate)
-            if(candidate->second==oldest) { cacheByPc.erase(candidate); break; }
+        for(auto** link=&cacheByPc[pcBucketIndex(oldest->context[0])];*link;link=&(*link)->nextByPc)
+            if(*link==&*oldest) { *link=oldest->nextByPc; break; }
         cacheBytes-=oldest->bytes;
-        if(oldest->function) runtime.release(oldest->function);
+        if(oldest->function) { runtime.release(oldest->function); verifiedRegionBase=0; verifiedRegionSize=0; }
         cache.erase(oldest); ++counters.cacheEvictions;
     }
     void promote(CacheEntry& entry) {
         const auto set=(entry.context[1]&FLAG_T)?InstructionSet::Thumb:InstructionSet::Arm;
         auto fetch=[&](uint32_t address,InstructionSet) {
-            const uint32_t physical=entry.source.front().first+(address-entry.context[0]);
+            const uint32_t physical=entry.physical+(address-entry.context[0]);
             const auto word=std::find_if(entry.source.begin(),entry.source.end(),
                 [&](const auto& source) { return source.first==physical; });
             return word!=entry.source.end()?FetchResult{true,word->second}:FetchResult{false,0};
@@ -679,13 +868,13 @@ struct X64ExecutionEngine::Impl {
             state.cp15_ttb,state.cp15_dacr,uint32_t(source.size())};
         // Fetch every source word with current permissions before cache lookup.
         // Exact physical-address/encoding checks also cover writes through aliases.
-        const auto candidates=cacheByPc.equal_range(context[0]);
-        for (auto candidate=candidates.first;candidate!=candidates.second;++candidate) {
-            auto iterator=candidate->second;
-            auto& entry=*iterator;
+        bool samePcExists=false;
+        auto& bucket=cacheByPc[pcBucketIndex(context[0])];
+        for (auto* candidate=bucket;candidate;candidate=candidate->nextByPc) {
+            auto& entry=*candidate;
+            if (entry.context[0]==context[0]) samePcExists=true;
             if (entry.context==context && entry.source==source) {
                 refreshDependency(entry);
-                cache.splice(cache.end(),cache,iterator);
                 entry.used=++useCounter;
                 if(entry.function) ++counters.cacheHits;
                 else if(entry.nativeEligible) ++counters.coldCacheHits; else ++counters.fallbackCacheHits;
@@ -701,57 +890,68 @@ struct X64ExecutionEngine::Impl {
         while (cache.size()>=limits.blocks || cacheBytes+bytes>limits.bytes) evictOldest();
         try {
             cache.push_back({context,source,function,bytes,++useCounter});
-            cache.back().nativeEligible=!scalar;
-            refreshDependency(cache.back());
-            try { cacheByPc.emplace(context[0],std::prev(cache.end())); }
-            catch (...) { cache.pop_back(); throw; }
+            auto& inserted=cache.back();
+            inserted.nativeEligible=!scalar;
+            refreshDependency(inserted);
+            inserted.nextByPc=bucket;
+            bucket=&inserted;
         } catch (...) { if(function) runtime.release(function); throw; }
         cacheBytes+=bytes;
         counters.peakCacheEntries=std::max<uint64_t>(counters.peakCacheEntries,cache.size());
         counters.peakCacheBytes=std::max<uint64_t>(counters.peakCacheBytes,cacheBytes);
         hot[hotIndex(context[0])]={};
+        if(samePcExists) ++cacheLifetime;
         if(scalar) ++counters.fallbackEntries;
         return &cache.back();
     }
-    CacheEntry* reusable(size_t limit) {
+    CacheEntry* reusable(size_t limit,size_t* resolvedLimit=nullptr) {
         const auto& state=cpu.getState();
         const uint32_t pc=state.r[15],width=(state.cpsr&FLAG_T)?2:4;
+        const uint32_t mode=(state.cpsr&0x3fu)|(bus.isUserMode()?0x100u:0u);
         Bus::MmuFault fault=Bus::MmuFault::NONE;
         if (cache.empty()) return nullptr;
-        auto eligible=[&](const CacheEntry& entry) {
+        auto sameContext=[&](const CacheEntry& entry) {
             const auto& key=entry.context;
-            return key[0]==pc && key[1]==((state.cpsr&0x3fu)|(bus.isUserMode()?0x100u:0u)) && key[2]==state.cp15_control &&
-                key[3]==state.cp15_ttb && key[4]==state.cp15_dacr && key[5]<=limit;
+            return key[0]==pc && key[1]==mode && key[2]==state.cp15_control &&
+                key[3]==state.cp15_ttb && key[4]==state.cp15_dacr;
         };
+        auto eligible=[&](const CacheEntry& entry) {
+            return sameContext(entry) && entry.context[5]<=limit;
+        };
+        const uint64_t currentMapping=bus.getMappingGeneration(pc);
         auto unchanged=[&](const CacheEntry& entry) {
-            return entry.mapping==bus.getMappingGeneration() && entry.epoch==bus.getCodeEpoch() &&
-                entry.version==bus.getCodePageVersion(entry.source.front().first);
+            return entry.mapping==currentMapping && entry.epoch==bus.getCodeEpoch() &&
+                entry.version==bus.getCodePageVersion(entry.physical);
         };
-        auto touch=[&](Cache::iterator iterator,bool fast) {
-            cache.splice(cache.end(),cache,iterator); iterator->used=++useCounter;
-            if(iterator->function) { ++counters.cacheHits; if(fast) ++counters.fastCacheHits; }
-            else if(iterator->nativeEligible) ++counters.coldCacheHits;
+        auto touch=[&](CacheEntry& entry,bool fast) {
+            entry.used=++useCounter;
+            if(entry.function) { ++counters.cacheHits; if(fast) ++counters.fastCacheHits; }
+            else if(entry.nativeEligible) ++counters.coldCacheHits;
             else ++counters.fallbackCacheHits;
-            return &*iterator;
+            return &entry;
         };
         auto& slot=hot[hotIndex(pc)];
         // Match the lookup budget as well: a previously selected short entry
         // must not hide a longer eligible translation on a larger lookup.
-        if(slot.entry && slot.limit==limit && eligible(*slot.entry) && unchanged(*slot.entry)) {
-            ++counters.directCacheHits; return touch(slot.iterator,true);
+        if(slot.entry && limit<=slot.limit && eligible(*slot.entry) && unchanged(*slot.entry)) {
+            if(resolvedLimit) *resolvedLimit=slot.limit;
+            ++counters.directCacheHits; return touch(*slot.entry,true);
         }
         uint32_t physical=0;
         bool translated=false,bestFast=false;
-        auto best=cache.end();
-        const auto range=cacheByPc.equal_range(pc);
-        for (auto candidate=range.first;candidate!=range.second;++candidate) {
-            auto iterator=candidate->second;
-            auto& entry=*iterator;
+        size_t maxLimit=32;
+        CacheEntry* best=nullptr;
+        for (auto* candidate=cacheByPc[pcBucketIndex(pc)];candidate;candidate=candidate->nextByPc) {
+            auto& entry=*candidate;
             const auto& key=entry.context;
-            if (!eligible(entry) ||
-                (best!=cache.end() && key[5]<=best->context[5])) continue;
+            if (!sameContext(entry)) continue;
+            if (key[5]>limit) {
+                maxLimit=std::min<size_t>(maxLimit,key[5]-1);
+                continue;
+            }
+            if (best && key[5]<=best->context[5]) continue;
             if(unchanged(entry)) {
-                best=iterator; bestFast=true; continue;
+                best=&entry; bestFast=true; continue;
             }
             if(!translated) {
                 physical=bus.translate(pc,&fault); translated=true;
@@ -765,10 +965,10 @@ struct X64ExecutionEngine::Impl {
             if (!ram) continue;
             // A permission-checked translation to the same physical source
             // does not require rereading bytes when RAM/DMA versions agree.
-            if(entry.source.front().first==physical && entry.epoch==bus.getCodeEpoch() &&
+            if(entry.physical==physical && entry.epoch==bus.getCodeEpoch() &&
                 entry.version==bus.getCodePageVersion(physical)) {
-                entry.mapping=bus.getMappingGeneration(); ++counters.mappingRevalidations;
-                best=iterator; bestFast=false; continue;
+                entry.mapping=currentMapping; ++counters.mappingRevalidations;
+                best=&entry; bestFast=false; continue;
             }
             ++counters.sourceValidations;
             bool valid=true;
@@ -777,11 +977,14 @@ struct X64ExecutionEngine::Impl {
                 if (entry.source[index].first!=address || entry.source[index].second!=
                     (width==4?bus.read32Phys(address):uint32_t(bus.read16Phys(address)))) { valid=false; break; }
             }
-            if (valid) { refreshDependency(entry); best=iterator; bestFast=false; }
+            if (valid) { refreshDependency(entry); best=&entry; bestFast=false; }
         }
-        if (best==cache.end()) return nullptr;
-        slot={&*best,best,limit};
-        return touch(best,bestFast);
+        if (!best) return nullptr;
+        maxLimit=std::max(limit,maxLimit);
+        const size_t newLimit=slot.entry==best?std::max(slot.limit,maxLimit):maxLimit;
+        slot={best,newLimit};
+        if(resolvedLimit) *resolvedLimit=newLimit;
+        return touch(*best,bestFast);
     }
     ExecutionExit fallback(ExecutionTimeline& timeline,size_t budget,uint64_t deadline) {
         eventWindowDirty=true;
@@ -808,43 +1011,61 @@ struct X64ExecutionEngine::Impl {
             (state.waitingForInterrupt&&!bus.hasPendingIrq()?ExecutionExitReason::Waiting:ExecutionExitReason::Budget));
         return {reason,1,ticks,std::nullopt};
     }
-    uint32_t executeWindow(CacheEntry& entry,NativeRun& run,bool linkWindow) {
-        uint32_t status=0;
-        auto* current=&entry;
-        for(;;) {
-            run.base=run.retired;
-            run.physical=current->source.front().first;
-            status=current->function(&architecturalState,&run);
-            if(status || !linkWindow || run.retired>=run.limit) break;
-            const size_t lookupLimit=std::min<uint32_t>(32,run.limit-run.retired);
-            CacheEntry* next=nullptr;
-            // Supported native instructions preserve mode, privilege and CP15.
-            // A device access, fault or active-code write returns a status.
-            // No compilation/eviction occurs inside this window. The lifetime
-            // guard must precede every dereference of a borrowed successor.
-            if(current->successorLifetime==cacheLifetime && current->successorLimit==lookupLimit) {
-                auto* candidate=current->successor;
-                if(candidate && candidate->context[0]==architecturalState.r[15] &&
-                    candidate->context[5]<=lookupLimit && candidate->mapping==bus.getMappingGeneration() &&
-                    candidate->epoch==bus.getCodeEpoch() && candidate->version==bus.getCodePageVersion(candidate->source.front().first)) {
+    static void* stepWindow(Impl* self,NativeRun* run) {
+        auto* current=static_cast<CacheEntry*>(run->current);
+        const size_t lookupLimit=std::min<uint32_t>(32,run->limit-run->retired);
+        CacheEntry* next=nullptr;
+        // Supported native instructions preserve mode, privilege and CP15.
+        // A device access, fault or active-code write returns a status.
+        // No compilation/eviction occurs inside this window. The lifetime
+        // guard must precede every dereference of a borrowed successor.
+        const uint32_t targetPc=self->architecturalState.r[15];
+        const uint64_t mapping=self->bus.getMappingGeneration(targetPc);
+        const uint64_t epoch=self->bus.getCodeEpoch();
+        for(auto& slot : current->successors) {
+            if(slot.lifetime==self->cacheLifetime) {
+                auto* candidate=slot.entry;
+                if(candidate && candidate->context[0]==targetPc &&
+                    candidate->context[5]<=lookupLimit && lookupLimit<=slot.limit &&
+                    candidate->mapping==mapping && candidate->epoch==epoch &&
+                    candidate->version==self->bus.getCodePageVersion(candidate->physical)) {
                     next=candidate;
-                    cache.splice(cache.end(),cache,current->successorIterator);
-                    next->used=++useCounter;
-                    ++counters.cacheHits; ++counters.fastCacheHits; ++counters.fastWindowLinks;
+                    next->used=++self->useCounter;
+                    ++self->counters.cacheHits; ++self->counters.fastCacheHits; ++self->counters.fastWindowLinks;
+                    break;
                 }
             }
-            if(!next) {
-                next=reusable(lookupLimit);
-                if(!next || !next->function) break;
-                current->successor=next;
-                current->successorIterator=std::prev(cache.end());
-                current->successorLifetime=cacheLifetime;
-                current->successorLimit=lookupLimit;
-            }
-            ++counters.windowLinks;
-            current=next;
         }
-        return status;
+        if(!next) {
+            size_t resolvedLimit=lookupLimit;
+            next=self->reusable(lookupLimit,&resolvedLimit);
+            if(!next || !next->function) return nullptr;
+            bool updated=false;
+            for(auto& slot : current->successors) {
+                if(slot.lifetime==self->cacheLifetime && slot.entry==next) {
+                    slot.limit=std::max(slot.limit,resolvedLimit);
+                    updated=true;
+                    break;
+                }
+            }
+            if(!updated) {
+                if(current->successors[0].lifetime==self->cacheLifetime && current->successors[0].entry)
+                    current->successors[1]=current->successors[0];
+                current->successors[0]={next,self->cacheLifetime,resolvedLimit};
+            }
+        }
+        ++self->counters.windowLinks;
+        run->current=next;
+        run->base=run->retired;
+        run->physical=next->physical;
+        return reinterpret_cast<void*>(next->function);
+    }
+    uint32_t executeWindow(CacheEntry& entry,NativeRun& run,bool linkWindow) {
+        run.current=&entry;
+        run.base=run.retired;
+        run.physical=entry.physical;
+        run.linkWindow=linkWindow?1:0;
+        return enterBridge(&architecturalState,&run,reinterpret_cast<void*>(entry.function));
     }
     ExecutionExit executeNative(CacheEntry& entry,ExecutionTimeline& timeline,size_t budget,uint64_t remaining,bool linkWindow=false) {
         const auto startTicks=timeline.elapsed.ticks;
@@ -854,7 +1075,7 @@ struct X64ExecutionEngine::Impl {
             // first event. The scalar path handles the final crossing instruction.
             const uint32_t frequency=cpu.getExecutionClock();
             const auto limit=clockedLimit(timeline,budget,remaining,frequency);
-            NativeRun run{&timeline,&architecturalState,entry.source.front().first,uint32_t(limit)};
+            NativeRun run{&timeline,&architecturalState,entry.physical,uint32_t(limit)};
             run.frequency=frequency;
             ++counters.nativeWindows;
             const auto status=executeWindow(entry,run,linkWindow);
@@ -879,7 +1100,7 @@ struct X64ExecutionEngine::Impl {
         if(bus.needsLevelInterruptRefresh()) executionLimit=1;
         if(remaining<=executionLimit) executionLimit=std::min<uint64_t>(executionLimit,
             legacyStepsUntilTickLimit(remaining,timeline.ratio,timeline.phase));
-        NativeRun run{&timeline,&architecturalState,entry.source.front().first,uint32_t(executionLimit)};
+        NativeRun run{&timeline,&architecturalState,entry.physical,uint32_t(executionLimit)};
         ++counters.nativeWindows;
         const uint32_t status=executeWindow(entry,run,linkWindow);
         if(status) eventWindowDirty=true;
@@ -939,13 +1160,13 @@ size_t X64ExecutionEngine::run(ExecutionTimeline& timeline,size_t budget,uint64_
                 legacyStepsUntilTickLimit(remaining,timeline.ratio,timeline.phase));
             auto& slot=engine.hot[Impl::hotIndex(current.r[15])];
             auto* entry=slot.entry;
-            if(entry && slot.limit==count && (entry->function || !entry->nativeEligible)) {
+            if(entry && count<=slot.limit && (entry->function || !entry->nativeEligible)) {
                 const auto& key=entry->context;
                 if(key[0]==current.r[15] && key[1]==((current.cpsr&0x3fu)|(engine.bus.isUserMode()?0x100u:0u)) &&
                     key[2]==current.cp15_control && key[3]==current.cp15_ttb && key[4]==current.cp15_dacr && key[5]<=count &&
-                    entry->mapping==engine.bus.getMappingGeneration() && entry->epoch==engine.bus.getCodeEpoch() &&
-                    entry->version==engine.bus.getCodePageVersion(entry->source.front().first)) {
-                    engine.cache.splice(engine.cache.end(),engine.cache,slot.iterator); entry->used=++engine.useCounter;
+                    entry->mapping==engine.bus.getMappingGeneration(current.r[15]) && entry->epoch==engine.bus.getCodeEpoch() &&
+                    entry->version==engine.bus.getCodePageVersion(entry->physical)) {
+                    entry->used=++engine.useCounter;
                     ++engine.counters.directCacheHits;
                     ExecutionExit exit;
                     if(entry->function) {

@@ -21,7 +21,7 @@
     "rows": [
       {
         "game": "Chefs",
-        "rom": "C:\\Users\\Serdar\\Documents\\GitHub\\OceanBlast\\roms\\games\\Superstar Chefs [G] (EN).bin",
+        "rom": "<workspace>\\Documents\\GitHub\\OceanBlast\\roms\\games\\Superstar Chefs [G] (EN).bin",
         "rom_sha256": "465ddcd7f9722d73b4fd748d3b8d822bc99c06ea91c301bd768f583a1d52b2ff",
         "crc32": "93209877",
         "ratio": 3,
@@ -796,7 +796,7 @@
       },
       {
         "game": "Pitfall",
-        "rom": "C:\\Users\\Serdar\\Documents\\GitHub\\OceanBlast\\roms\\games\\Pitfall The Lost Expedition [G] (EN).bin",
+        "rom": "<workspace>\\Documents\\GitHub\\OceanBlast\\roms\\games\\Pitfall The Lost Expedition [G] (EN).bin",
         "rom_sha256": "f089a98d7daa6edb86f2b92f244a33f463942fe683f26592a1c96618093b9ac4",
         "crc32": "d1d6118f",
         "ratio": 3,

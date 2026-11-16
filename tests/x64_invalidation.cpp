@@ -151,5 +151,28 @@ int main() {
         machine.execution().run(1);
         check("Whole-memory reset cannot execute retained pre-reset code",machine.cpu().getReg(0)==77);
     }
+    {
+        Machine machine;
+        machine.bus().write32(0x30004000,0x30005011); // Coarse page table at 0x30005000
+        machine.bus().write32(0x30005000,0x30010ff2); // VA 0x00000000 -> PA 0x30010000
+        machine.bus().write32(0x30005004,0x30020ff2); // VA 0x00001000 -> PA 0x30020000
+        machine.bus().write32(0x30010000,0xe2800001);
+        machine.bus().write32(0x30020000,0xe2811002);
+        machine.bus().write32(0x30030000,0xe2811009);
+        machine.state().cp15_control|=1; machine.state().cp15_ttb=0x30004000; machine.state().cp15_dacr=1;
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+        machine.state().r[15]=0x00000000; machine.execution().run(1);
+        machine.state().r[15]=0x00001000; machine.execution().run(1);
+        // Single-entry TLB flush on page 0x1000 must not force page 0x0000 to revalidate.
+        machine.bus().flushTlbEntry(0x00001000);
+        machine.state().r[15]=0x00000000; machine.execution().run(1);
+        const bool untouchedFast=native.stats().mappingRevalidations==0 && machine.cpu().getReg(0)==2;
+        // Remapping page 0x1000 and flushing its single TLB entry must observe the new physical page.
+        machine.bus().write32PhysSlow(0x30005004,0x30030ff2);
+        machine.bus().flushTlbEntry(0x00001000);
+        machine.state().r[15]=0x00001000; machine.execution().run(1);
+        check("Single-entry TLB flush preserves unrelated cached pages and revalidates the flushed virtual page",
+            untouchedFast && machine.cpu().getReg(1)==11 && native.stats().compilations==3);
+    }
     std::cout<<failures<<" failure(s)\n"; return failures?1:0;
 }

@@ -1,8 +1,33 @@
 # Changelog
 
-This changelog records development, hardware reverse-engineering milestones and empirical validation reports for **OceanBlast**.
+This changelog records releases, architectural milestones, and empirical validation reports for **OceanBlast**. For a structured subsystem index, see [docs/README.md](docs/README.md).
 
 ---
+
+## v0.4.0 — 2026-11-16 — Cross-Platform x86-64 JIT, Shared Entry ABI, Per-Page TLB Generation, Flat MMIO & Linux/ARM64 Support
+
+* **[Linux x86-64 JIT, ARM64 Linux & SDL2 Frontend](docs/117_linux_x64_jit_and_arm64_sdl2.md):**
+  * Ported `X64ExecutionEngine` (`src/cpu/x64_execution_engine.cpp`), `jit/CMakeLists.txt`, and `tests/x64_entry_abi.cpp` to the POSIX / System-V AMD64 ABI (`RDI`/`RSI`/`RDX`/`RCX` helper marshalling, stack-spilled post-index writeback on slow/store paths, `/proc/self/maps` `r-x` verification alongside Windows `VirtualQuery`), and fixed LP64 integer literal deduction in `tests/x64_clocked_timing.cpp`.
+  * Implemented portable SDL2 display, keyboard/GameController input, and audio backends (`src/display/display_sdl.cpp`, `src/audio/audio_sdl.cpp`) and added top-level `CMakeLists.txt` + `cmake/aarch64-linux-gnu.cmake` for ARM64 Linux (`aarch64`) interpreter builds and non-Windows CTest execution.
+  * Updated Windows JIT release configuration in `jit/CMakeLists.txt` to target Windows 7–11 (`_WIN32_WINNT=0x0601`) with dynamic DXGI loading and conservative baseline `x86-64` codegen.
+  * Verified Linux x86-64 JIT across all 13 CTest suites (`65.83 s` in WSL 1 Ubuntu 22.04) plus Wade 2.4B (`21.748 s`, `89.87%` native coverage), Chefs 600M (`5.420 s`), and Ubuntu 24.04 (`GLIBC 2.39`) compatibility, matching Windows canonical CPU/SDRAM SHA-256 hashes bit-for-bit. Verified ARM64 Linux across 19/19 portable CTests and Chefs 10M (`33e7097e...` / `a29f3c57...`) under `qemu-aarch64-static`.
+
+* **[Per-Page TLB Mapping Generation, Compiled-Block Retention & Flat MMIO Table](docs/116_page_tlb_generation_and_flat_mmio.md):**
+  * Replaced global `mappingGeneration` invalidation on single-page TLB flushes (`Bus::flushTlbEntry`) with a 2,048-entry per-4 KB page generation table (`pageMappingGeneration`) and filtered `setDacr` updates, cutting MMU mapping revalidations by **99.46%** on *Wade Hixton* (`6.90M -> 37.3k`) and **99.20%** on *Superstar Chefs* (`3.74M -> 30.0k`).
+  * Retained already-compiled native blocks across sampling collisions in `sampledHotEntry()`, raising native JIT instruction coverage on *Wade Hixton* (2.4B steps) from **66.01% to 89.87%** (`sampled_fallback_steps` **-74.86%**) and reducing process CPU time by a further **17.83%** (**-25.39%** vs pre-115 `HEAD`).
+  * Replaced `std::unordered_map<u32, u32> mmioRegs` in `Bus` with a `constexpr`-indexed flat `O(1)` S3C2410 MMIO register array (`22 × 256` words) and cached `VirtualQuery` verification per executable slab.
+* **[Shared Native Entry ABI & Intrusive Dispatch Streamlining](docs/115_shared_native_entry_and_dispatch.md):**
+  * Integrated the shared Windows x64 entry/exit bridge (`enterBridge`, `R12 = ARM920TState*`, `R13 = NativeRun*`, fixed 16-byte aligned 40-byte stack frame) and converted block codegen to single-pass `asmjit::x86::Assembler` with a 4-slot physical register cache, reducing peak code-cache memory by **9.8–11.7%**.
+  * Replaced `std::unordered_multimap` code-cache indexing with a 4,096-bucket intrusive hash table (`cacheByPc`), eliminated per-hit `std::list::splice` pointer writes, and added 2-way guarded successor slots (`successors[2]`) with upper-bound `maxLimit` tracking, cutting slow window lookups by **67–77%**.
+* **[Common Timing Model & Clocked Native Execution](docs/110_common_timing_model_and_calibration.md), [docs/113](docs/113_clocked_native_timeline.md):**
+  * Unified CPU, Timer 4, and DMA Channel 2 scheduling under a shared 20-MHz peripheral time unit (`EmulatedTime`) and added opt-in cycle-accounted native JIT execution (`--engine jit --timing auto --jit-clocked`), verified across 13 CTest suites.
+* **[Shared Native Execution Windows & Extended ARM Coverage](docs/103_native_coverage_and_sampled_compilation.md)–[docs/109](docs/109_manual_jit_package_and_cross_game_checks.md):**
+  * Added native lowering for ARM register shifts, halfword/signed loads (`LDRH`/`LDRSH`/`LDRSB`/`STRH`), ordinary ARM register returns (`MOV pc, lr` / `BX`), `LDM`/`STM` multiple transfers, and shared native execution windows (`linkNativeWindows`), reducing JIT process CPU time by **31.4%** in matched 2.4B-step comparisons ([docs/107](docs/107_shared_native_windows.md)).
+
+---
+
+<details>
+<summary><strong>Historical Development Log (2026-10-07 to 2026-10-18, Reports 00–100)</strong></summary>
 
 ## 2026-10-18 — Checked Memory and Developer Player
 
@@ -201,3 +226,5 @@ This changelog records development, hardware reverse-engineering milestones and 
   * Built the native Win32 launcher UI and implemented ARM920T MMU Access Permission (`AP`) fault generation (`FSR = 0xF`) required for Linux Copy-On-Write (`do_wp_page()`).
 * **CPU Review ([docs/04](docs/04_cpu_review.md)), Boot Progress ([docs/03](docs/03_boot_progress.md)), Validation ([docs/02](docs/02_sources_and_validation.md)), Memory Map ([docs/01](docs/01_memory_map.md)) & Hardware Specs ([docs/00](docs/00_hardware_specs.md)):**
   * Initial S3C2410 Steppingstone 4-KB boot SRAM, NAND Flash controller with Toshiba Read ID (`0x98, 0x73/0x75/0x76`) and Hamming ECC synthesis for U-Boot `nidc`, ADC battery check (`checkbattery`), U-Boot 1.1.2 execution, Linux 2.6.11 kernel decompression, SquashFS 2.2 rootfs mount, and `greykbd` GPIO keypad mapping.
+
+</details>

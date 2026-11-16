@@ -40,6 +40,7 @@ public:
     void setTtb(u32 value) { ttb = value; flushTlb(); }
     u32 getTtb() const { return ttb; }
     void setDacr(u32 value) { dacr = value; }
+    u32 getDacr() const { return dacr; }
     void flushTlbEntry(u32 va) const { tlb[(va >> 12) & (TLB_SIZE - 1)].tag = 0; }
     void flushTlb() const {
         if (tlbEmpty) return;

@@ -34,7 +34,7 @@ int main() {
     {
         bool equal=true;size_t cases=0;uint64_t generated=0;
         for(bool fast:{false,true}) for(size_t budget:{0u,1u,2u,3u,7u,32u,65u,129u})
-        for(uint64_t span:{1ull,2ull,3ull,8ull,20ull,UINT64_MAX}) {
+        for(uint64_t span:{uint64_t{1},uint64_t{2},uint64_t{3},uint64_t{8},uint64_t{20},UINT64_MAX}) {
             Machine a,b;setup(a,fast);setup(b,fast);
             X64ExecutionEngine native(b.state(),b.cpu(),b.bus(),clockedLimits());b.execution().selectEngine(native);
             const auto stop=span;

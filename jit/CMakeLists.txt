@@ -3,8 +3,8 @@ project(OceanBlastJit LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
-  message(FATAL_ERROR "The initial native backend requires 64-bit Windows")
+if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8 OR NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$")
+  message(FATAL_ERROR "The native x86-64 backend requires a 64-bit x86-64 host")
 endif()
 include(FetchContent)
 set(ASMJIT_STATIC ON CACHE BOOL "" FORCE)
@@ -67,18 +67,37 @@ if(Python3_Interpreter_FOUND)
   add_test(NAME timing_landmarks COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/../tests/test_timing_landmarks.py")
 endif()
 
-enable_language(RC)
-# Resource paths are relative to this generated file, independent of build cwd.
-file(TO_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../assets" OCEANBLAST_ASSETS)
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/oceanblast.rc"
-  "101 RCDATA \"${OCEANBLAST_ASSETS}/oceanblast-logo.png\"\n102 RCDATA \"${OCEANBLAST_ASSETS}/oceanblast-symbol.png\"\n")
-add_executable(oceanblast_jit_player
-  "${CMAKE_CURRENT_BINARY_DIR}/oceanblast.rc"
-  ../src/main.cpp ../src/cartridge/cart_parser.cpp
-  ../src/display/display_win32.cpp ../src/audio/audio_win32.cpp)
-target_compile_definitions(oceanblast_jit_player PRIVATE OCEANBLAST_WITH_JIT=1)
-target_link_libraries(oceanblast_jit_player PRIVATE oceanblast_jit_core
-  gdi32 user32 winmm comdlg32 comctl32 shell32 ole32 dinput8 dxguid d3d11 dxgi d3dcompiler gdiplus)
+if(WIN32)
+  enable_language(RC)
+  # Resource paths are relative to this generated file, independent of build cwd.
+  file(TO_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../assets" OCEANBLAST_ASSETS)
+  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/oceanblast.rc"
+    "101 RCDATA \"${OCEANBLAST_ASSETS}/oceanblast-logo.png\"\n102 RCDATA \"${OCEANBLAST_ASSETS}/oceanblast-symbol.png\"\n")
+  add_executable(oceanblast_jit_player
+    "${CMAKE_CURRENT_BINARY_DIR}/oceanblast.rc"
+    ../src/main.cpp ../src/cartridge/cart_parser.cpp
+    ../src/display/display_win32.cpp ../src/audio/audio_win32.cpp)
+  target_compile_definitions(oceanblast_jit_player PRIVATE OCEANBLAST_WITH_JIT=1 OCEANBLAST_LEGACY_WINDOWS=1 _WIN32_WINNT=0x0601 WINVER=0x0601)
+  target_link_libraries(oceanblast_jit_player PRIVATE oceanblast_jit_core
+    gdi32 user32 winmm comdlg32 comctl32 shell32 ole32 dinput8 dxguid gdiplus)
+else()
+  find_package(SDL2 REQUIRED)
+  find_package(Threads REQUIRED)
+  add_executable(oceanblast_jit_player
+    ../src/main.cpp ../src/cartridge/cart_parser.cpp
+    ../src/display/display_sdl.cpp ../src/audio/audio_sdl.cpp)
+  target_compile_definitions(oceanblast_jit_player PRIVATE OCEANBLAST_WITH_JIT=1)
+  if(TARGET SDL2::SDL2)
+    target_link_libraries(oceanblast_jit_player PRIVATE oceanblast_jit_core SDL2::SDL2 Threads::Threads ${CMAKE_DL_LIBS})
+  else()
+    target_include_directories(oceanblast_jit_player PRIVATE ${SDL2_INCLUDE_DIRS})
+    target_link_libraries(oceanblast_jit_player PRIVATE oceanblast_jit_core ${SDL2_LIBRARIES} Threads::Threads ${CMAKE_DL_LIBS})
+  endif()
+  option(OCEANBLAST_STATIC_STDLIB "Link libgcc and libstdc++ statically on GNU/Linux" ON)
+  if(OCEANBLAST_STATIC_STDLIB AND UNIX AND NOT APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_link_options(oceanblast_jit_player PRIVATE -static-libgcc -static-libstdc++)
+  endif()
+endif()
 
 set(OCEANBLAST_PGO_MODE "OFF" CACHE STRING "GCC profile mode: OFF, GENERATE or USE")
 set_property(CACHE OCEANBLAST_PGO_MODE PROPERTY STRINGS OFF GENERATE USE)

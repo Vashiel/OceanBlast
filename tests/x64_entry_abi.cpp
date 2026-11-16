@@ -25,16 +25,29 @@ int main() {
     if(bridge.init(runtime.environment())!=Error::kOk)return 1;
     x86::Assembler a(&bridge);
     const auto exit=a.new_label(),done=a.new_label();
-    // Windows x64 outer ABI: RCX state, RDX frame, R8 first block.
+    // Outer ABI:
+    // - Windows x64: RCX state, RDX frame, R8 first block (32-byte shadow space + alignment -> sub rsp, 40).
+    // - System-V AMD64: RDI state, RSI frame, RDX first block (16-byte alignment -> sub rsp, 8).
     // Internal ABI: R12 state, R13 frame. RSP stays fixed across all edges.
-    a.push(x86::r12);a.push(x86::r13);a.sub(x86::rsp,40);
-    a.mov(x86::r12,x86::rcx);a.mov(x86::r13,x86::rdx);
+#ifdef _WIN32
+    constexpr int32_t kFrameReserve = 40;
+    const x86::Gp arg0 = x86::rcx;
+    const x86::Gp arg1 = x86::rdx;
+    const x86::Gp arg2 = x86::r8;
+#else
+    constexpr int32_t kFrameReserve = 8;
+    const x86::Gp arg0 = x86::rdi;
+    const x86::Gp arg1 = x86::rsi;
+    const x86::Gp arg2 = x86::rdx;
+#endif
+    a.push(x86::r12);a.push(x86::r13);a.sub(x86::rsp,kFrameReserve);
+    a.mov(x86::r12,arg0);a.mov(x86::r13,arg1);
     a.mov(x86::qword_ptr(x86::r13,offsetof(Frame,stack)),x86::rsp);
     a.lea(x86::rax,x86::ptr(exit));a.mov(x86::qword_ptr(x86::r13,offsetof(Frame,exit)),x86::rax);
     a.cmp(x86::qword_ptr(x86::r13,offsetof(Frame,limit)),0);a.je(done);
-    a.jmp(x86::r8);
+    a.jmp(arg2);
     a.bind(done);a.xor_(x86::eax,x86::eax);
-    a.bind(exit);a.add(x86::rsp,40);a.pop(x86::r13);a.pop(x86::r12);a.ret();
+    a.bind(exit);a.add(x86::rsp,kFrameReserve);a.pop(x86::r13);a.pop(x86::r12);a.ret();
     using Entry=uint32_t(*)(ARM920TState*,Frame*,void*);
     Entry enter=nullptr;
     if(runtime.add(&enter,&bridge)!=Error::kOk)return 1;
@@ -48,7 +61,7 @@ int main() {
         b.add(x86::dword_ptr(x86::r12,offsetof(ARM920TState,r)),index+1);
         b.inc(x86::qword_ptr(x86::r13,offsetof(Frame,retired)));
         if(index) {
-            b.mov(x86::rcx,x86::r12);b.mov(x86::rdx,x86::r13);
+            b.mov(arg0,x86::r12);b.mov(arg1,x86::r13);
             b.mov(x86::rax,uintptr_t(&helper));b.call(x86::rax);
         }
         b.mov(x86::rax,x86::qword_ptr(x86::r13,offsetof(Frame,retired)));
@@ -69,6 +82,6 @@ int main() {
     }
     for(auto block:blocks)runtime.release(block);
     runtime.release(enter);
-    std::cout<<(ok?"PASS ":"FAIL ")<<"Shared Windows x64 entry preserves fixed stack, direct cross-allocation jumps, helper calls and exact budgets\n";
+    std::cout<<(ok?"PASS ":"FAIL ")<<"Shared x64 entry preserves fixed stack, direct cross-allocation jumps, helper calls and exact budgets\n";
     return ok?0:1;
 }

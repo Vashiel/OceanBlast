@@ -10,8 +10,8 @@
     "tests/x64_memory.cpp": "54862c38cbe1f76ae30051847d2c37db373d111819642f778aee0cb3ce5e962d",
     "tests/translation_frontend.cpp": "0af7efcfb0bc1fb42ef6e2813becf9ee3f790574ad8c8228d4f2fbbc91c07b4e"
   },
-  "normal_checks": "Test project C:/Users/Serdar/Documents/New project/OceanBlast-jit-work/build\n    Start 1: x64_execution\n1/6 Test #1: x64_execution ....................   Passed    3.17 sec\n    Start 2: native_semantics\n2/6 Test #2: native_semantics .................   Passed    0.55 sec\n    Start 3: x64_memory\n3/6 Test #3: x64_memory .......................   Passed    4.85 sec\n    Start 4: x64_invalidation\n4/6 Test #4: x64_invalidation .................   Passed    0.57 sec\n    Start 5: jit_cpu_regression\n5/6 Test #5: jit_cpu_regression ...............   Passed    0.80 sec\n    Start 6: jit_emulation_timing\n6/6 Test #6: jit_emulation_timing .............   Passed    0.73 sec\n\n100% tests passed out of 6\n\nTotal Test time (real) =  10.68 sec\n",
-  "boundary_checks": "Test project C:/Users/Serdar/Documents/New project/OceanBlast-jit-work/build\n    Start 2: native_semantics\n1/2 Test #2: native_semantics .................   Passed    0.57 sec\n    Start 3: x64_memory\n2/2 Test #3: x64_memory .......................   Passed    4.88 sec\n\n100% tests passed out of 2\n\nTotal Test time (real) =   5.45 sec\n",
+  "normal_checks": "Test project <workspace>/Documents/New project/OceanBlast-jit-work/build\n    Start 1: x64_execution\n1/6 Test #1: x64_execution ....................   Passed    3.17 sec\n    Start 2: native_semantics\n2/6 Test #2: native_semantics .................   Passed    0.55 sec\n    Start 3: x64_memory\n3/6 Test #3: x64_memory .......................   Passed    4.85 sec\n    Start 4: x64_invalidation\n4/6 Test #4: x64_invalidation .................   Passed    0.57 sec\n    Start 5: jit_cpu_regression\n5/6 Test #5: jit_cpu_regression ...............   Passed    0.80 sec\n    Start 6: jit_emulation_timing\n6/6 Test #6: jit_emulation_timing .............   Passed    0.73 sec\n\n100% tests passed out of 6\n\nTotal Test time (real) =  10.68 sec\n",
+  "boundary_checks": "Test project <workspace>/Documents/New project/OceanBlast-jit-work/build\n    Start 2: native_semantics\n1/2 Test #2: native_semantics .................   Passed    0.57 sec\n    Start 3: x64_memory\n2/2 Test #3: x64_memory .......................   Passed    4.88 sec\n\n100% tests passed out of 2\n\nTotal Test time (real) =   5.45 sec\n",
   "normal_pair": {
     "ac_before": 1,
     "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
@@ -94,12 +94,12 @@
     "volume": 0,
     "pacing": false,
     "executable_sha256": "0d28d9b513a206fb0cdcf2bde8f19b12574aa1b3b6fbaf801c75adefc31837e9",
-    "profile_directory": "C:\\Users\\Serdar\\Documents\\New project\\ob-pgo",
+    "profile_directory": "<workspace>\\Documents\\New project\\ob-pgo",
     "profiles": 6,
     "state.cpu.bin": "5015052e5a277083a44048aff08ff00d05a7f58f521449b87de672037404ce42",
     "state.ram.bin": "fd67140930f4925e6de853db54516c3af1a458e5f0ba93d4a6a67ad3b68b1c37"
   },
-  "pgo_checks": "Test project C:/Users/Serdar/Documents/New project/OceanBlast-jit-work/build\n    Start 1: x64_execution\n1/6 Test #1: x64_execution ....................   Passed    3.43 sec\n    Start 2: native_semantics\n2/6 Test #2: native_semantics .................   Passed    0.57 sec\n    Start 3: x64_memory\n3/6 Test #3: x64_memory .......................   Passed    5.15 sec\n    Start 4: x64_invalidation\n4/6 Test #4: x64_invalidation .................   Passed    0.60 sec\n    Start 5: jit_cpu_regression\n5/6 Test #5: jit_cpu_regression ...............   Passed    0.82 sec\n    Start 6: jit_emulation_timing\n6/6 Test #6: jit_emulation_timing .............   Passed    0.74 sec\n\n100% tests passed out of 6\n\nTotal Test time (real) =  11.32 sec\n",
+  "pgo_checks": "Test project <workspace>/Documents/New project/OceanBlast-jit-work/build\n    Start 1: x64_execution\n1/6 Test #1: x64_execution ....................   Passed    3.43 sec\n    Start 2: native_semantics\n2/6 Test #2: native_semantics .................   Passed    0.57 sec\n    Start 3: x64_memory\n3/6 Test #3: x64_memory .......................   Passed    5.15 sec\n    Start 4: x64_invalidation\n4/6 Test #4: x64_invalidation .................   Passed    0.60 sec\n    Start 5: jit_cpu_regression\n5/6 Test #5: jit_cpu_regression ...............   Passed    0.82 sec\n    Start 6: jit_emulation_timing\n6/6 Test #6: jit_emulation_timing .............   Passed    0.74 sec\n\n100% tests passed out of 6\n\nTotal Test time (real) =  11.32 sec\n",
   "pgo_live": {
     "executable_sha256": "6d2d182c4a320c7aa372eb501e207d2936d0d1cad90fa0432efaf4b1a696d3d2",
     "reason": "sustained low speed and recurring empty audio queues",

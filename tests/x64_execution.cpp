@@ -95,6 +95,50 @@ int main() {
             warmed&&equivalent(machine,reference)&&native.stats().compilations==2);
     }
     {
+        Machine machine,reference;
+        for(Machine* target:{&machine,&reference}) {
+            target->configureExecution(false,6);
+            // PC 0 toggles bit 0 of r0 and conditionally branches to 0x400 (Z=0) or 0x800 (Z=1).
+            // Both targets occupy distinct permission pages and jump back to 0.
+            target->bus().write32(0,0xe2300001u);      // EORS r0, r0, #1
+            target->bus().write32(4,0x1a0000fdu);      // BNE 0x400
+            target->bus().write32(8,0xea0001fcu);      // B 0x800
+            target->bus().write32(0x400,0xe2811003u);  // ADD r1, r1, #3
+            target->bus().write32(0x404,0xeafffefdu);  // B 0
+            target->bus().write32(0x800,0xe2822005u);  // ADD r2, r2, #5
+            target->bus().write32(0x804,0xeafffdfdu);  // B 0
+        }
+        X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+        machine.execution().run(36);reference.execution().run(36);
+        const auto warmLinks=native.stats().windowLinks,warmFast=native.stats().fastWindowLinks;
+        machine.execution().run(270);reference.execution().run(270);
+        const auto deltaLinks=native.stats().windowLinks-warmLinks,deltaFast=native.stats().fastWindowLinks-warmFast;
+        check("Two-way successor slots retain both taken and fallthrough cross-page targets in one shared window",
+            equivalent(machine,reference)&&deltaLinks>40&&deltaFast==deltaLinks);
+    }
+    {
+        bool same=true;
+        for(uint32_t flags=0;flags<16;++flags) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->state().cpsr=0xd3|(flags<<28);
+                target->state().r[0]=5;
+                target->state().r[1]=0x30001000u;
+                target->state().r[2]=0xdeadbeefu;
+                target->state().r[3]=0x30001000u;
+                target->bus().write32(0,0x15a12004u); // STRNE r2, [r1, #4]!
+                target->bus().write32(4,0x05934004u); // LDREQ r4, [r3, #4]
+                target->bus().write32(8,0xe2500001u); // SUBS r0, r0, #1
+            }
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus());machine.execution().selectEngine(native);
+            machine.execution().run(3);reference.execution().run(3);
+            same=same&&equivalent(machine,reference)&&((machine.state().cpsr&0x0fffffffu)==0xd3u)&&
+                machine.bus().read32(0x30001004u)==reference.bus().read32(0x30001004u)&&
+                native.stats().generatedSteps==3&&native.stats().fallbackSteps==0;
+        }
+        check("Conditional memory accesses followed by flag-setting ALU preserve CPSR mode and mask bits",same);
+    }
+    {
         bool same=true;
         for(size_t ratio:{1u,3u,6u,16u}) for(size_t phase=0;phase<ratio;++phase) {
             Machine machine,reference;

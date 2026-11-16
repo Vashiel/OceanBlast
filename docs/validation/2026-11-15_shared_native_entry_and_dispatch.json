@@ -1,0 +1,154 @@
+{
+  "date": "2026-11-15",
+  "base_commit": "4d89d264aaf11eb9b504a23f746d198980410320",
+  "status": "Shared native entry ABI and intrusive dispatch streamlining passed all 13 CTest suites and both controlled headless state/performance checks; installed binaries unchanged",
+  "compiler": "GCC 16.2; -O3 -DNDEBUG -march=x86-64; PGO OFF; same build tree; pinned AsmJit 0464e1c8f1f43c861a0c73d4e59437fff255cdd9",
+  "source_sha256": {
+    "src/cpu/x64_execution_engine.cpp": "bd5c3cfbf660942d0571b17f925450094040450a4709f360e83cb95082260bf1",
+    "src/cpu/x64_execution_engine.h": "a4f91e6efeab46b96eea6052265016036c1f484531eb2186d814df626edb6b81",
+    "tests/x64_execution.cpp": "15cdf40397ca469927fde2d53595dfa7c85ffa357ddf92112090d73819efe8d1",
+    "tests/x64_entry_abi.cpp": "df8df6fa61c6fea4afc64dc3d4c789df4cf8af17578e15d23b35fce26544dfdc"
+  },
+  "executables_sha256": {
+    "reference": "59e754c0321bbc535565cd46fd378e6d4e9eccb984df820c38858c5f556949a3",
+    "candidate": "b1af3fafe515402467ff6d59eaef1b308ca9b59099277d8316cff3b413bf1684"
+  },
+  "ctest": {
+    "suites_total": 13,
+    "suites_passed": 13,
+    "suites_failed": 0,
+    "total_seconds": 20.66,
+    "suites": [
+      { "name": "x64_clocked_timing", "seconds": 1.88, "passed": true },
+      { "name": "x64_execution", "seconds": 8.15, "passed": true },
+      { "name": "x64_entry_abi", "seconds": 0.11, "passed": true },
+      { "name": "native_semantics", "seconds": 0.53, "passed": true },
+      { "name": "x64_memory", "seconds": 5.64, "passed": true },
+      { "name": "x64_invalidation", "seconds": 0.57, "passed": true },
+      { "name": "jit_cpu_regression", "seconds": 0.78, "passed": true },
+      { "name": "jit_emulation_timing", "seconds": 0.75, "passed": true },
+      { "name": "timing_contract", "seconds": 0.54, "passed": true },
+      { "name": "timing_audio_clock", "seconds": 0.50, "passed": true },
+      { "name": "timing_timer4", "seconds": 0.51, "passed": true },
+      { "name": "timing_dma_audio_stream", "seconds": 0.56, "passed": true },
+      { "name": "timing_landmarks", "seconds": 0.11, "passed": true }
+    ]
+  },
+  "chefs_600m_headless_pair": {
+    "rom_sha256": "465ddcd7f9722d73b4fd748d3b8d822bc99c06ea91c301bd768f583a1d52b2ff",
+    "input_sha256": "7f5e369bdf97a453cd2307e2dda63a4d7b7b5f7dce5877917d29335de28c246d",
+    "steps": 600000000,
+    "ratio": 3,
+    "affinity_mask": 4,
+    "gui": false,
+    "sound": false,
+    "pacing": false,
+    "power_before": {
+      "ac_line_status": 1,
+      "percent": 100,
+      "battery_flags": 1,
+      "energy_saver_flag": 0
+    },
+    "same_state": true,
+    "cpu_change_percent": -7.83,
+    "wall_change_percent": -4.72,
+    "rows": [
+      {
+        "variant": "reference",
+        "executable_sha256": "59e754c0321bbc535565cd46fd378e6d4e9eccb984df820c38858c5f556949a3",
+        "exit": 0,
+        "cpu_seconds": 6.78125,
+        "wall_seconds": 6.976748,
+        "power_after": {
+          "ac_line_status": 1,
+          "percent": 100,
+          "battery_flags": 1,
+          "energy_saver_flag": 0
+        },
+        "artifacts": {
+          "state.cpu.bin": "137783ecc64f2fdb7f440ae1a4fc0b923fcf944ad1704d739b05b6651ea3aa9a",
+          "state.ram.bin": "29c365d657fd742f343c523922a4398756e75f71b1eb3197a084b23e6d4b2d44"
+        },
+        "engine_stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads,sampled_fallback_steps,sampled_fallback_batches,native_windows,window_links,fast_window_links,generated_cycles\n600000000,411811593,130124940,188188407,5813,83312892,0,0,81709193,9,7956527,455,41628421,8094,4204845,3743606,73967,19862,5813,25421517,64940697,183552877,49277,32161194,51157511,46617262,0"
+      },
+      {
+        "variant": "candidate",
+        "executable_sha256": "b1af3fafe515402467ff6d59eaef1b308ca9b59099277d8316cff3b413bf1684",
+        "exit": 0,
+        "cpu_seconds": 6.25,
+        "wall_seconds": 6.647501,
+        "power_after": {
+          "ac_line_status": 1,
+          "percent": 100,
+          "battery_flags": 1,
+          "energy_saver_flag": 0
+        },
+        "artifacts": {
+          "state.cpu.bin": "137783ecc64f2fdb7f440ae1a4fc0b923fcf944ad1704d739b05b6651ea3aa9a",
+          "state.ram.bin": "29c365d657fd742f343c523922a4398756e75f71b1eb3197a084b23e6d4b2d44"
+        },
+        "engine_stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads,sampled_fallback_steps,sampled_fallback_batches,native_windows,window_links,fast_window_links,generated_cycles\n600000000,412221857,130234341,187778143,5813,83381619,0,0,81777742,9,7957661,457,39490435,8101,3712640,3743567,73915,19962,5813,25440494,65022106,183144609,49183,32167745,51219687,49712380,0"
+      }
+    ]
+  },
+  "wade_2400m_headless_pair": {
+    "rom_sha256": "2d100b17fe7da2bc316f6fc5a7814aafde4e08749862a3a5d27e5b639634e19a",
+    "steps": 2400000000,
+    "ratio": 6,
+    "affinity_mask": 4,
+    "gui": false,
+    "sound": false,
+    "pacing": false,
+    "power_before": {
+      "ac_line_status": 1,
+      "percent": 100,
+      "battery_flags": 1,
+      "energy_saver_flag": 0
+    },
+    "same_state": true,
+    "cpu_change_percent": -3.77,
+    "wall_change_percent": -4.57,
+    "rows": [
+      {
+        "variant": "reference",
+        "executable_sha256": "59e754c0321bbc535565cd46fd378e6d4e9eccb984df820c38858c5f556949a3",
+        "exit": 0,
+        "cpu_seconds": 29.046875,
+        "wall_seconds": 29.736063,
+        "power_after": {
+          "ac_line_status": 1,
+          "percent": 100,
+          "battery_flags": 1,
+          "energy_saver_flag": 0
+        },
+        "artifacts": {
+          "state.cpu.bin": "da648c0e15cb3c9c64c24886aaa559153b202e4ee35d0c79d08871cd58fd8a0a",
+          "state.ram.bin": "5fe4a1db3c2ce359f42d646dceeb946ff57632e7b7997671d7b292ea3e3bb1fa"
+        },
+        "engine_stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads,sampled_fallback_steps,sampled_fallback_batches,native_windows,window_links,fast_window_links,generated_cycles\n2400000000,1585593126,668741854,814406874,6836,452926184,0,0,449440197,9,35896244,341,235700717,8865,6430382,6904690,94976,24055,6836,28462249,338667793,796173887,203247,195436986,257496034,243545362,0"
+      },
+      {
+        "variant": "candidate",
+        "executable_sha256": "b1af3fafe515402467ff6d59eaef1b308ca9b59099277d8316cff3b413bf1684",
+        "exit": 0,
+        "cpu_seconds": 27.953125,
+        "wall_seconds": 28.376676,
+        "power_after": {
+          "ac_line_status": 1,
+          "percent": 100,
+          "battery_flags": 1,
+          "energy_saver_flag": 0
+        },
+        "artifacts": {
+          "state.cpu.bin": "da648c0e15cb3c9c64c24886aaa559153b202e4ee35d0c79d08871cd58fd8a0a",
+          "state.ram.bin": "5fe4a1db3c2ce359f42d646dceeb946ff57632e7b7997671d7b292ea3e3bb1fa"
+        },
+        "engine_stats": "steps,generated,memory,fallback,compilations,cache_hits,evictions,failures,fast_cache_hits,source_validations,fallback_cache_hits,fallback_entries,direct_cache_hits,peak_cache_entries,peak_cache_bytes,mapping_revalidations,cold_block_steps,cold_cache_hits,promotions,internal_backedges,inline_loads,sampled_fallback_steps,sampled_fallback_batches,native_windows,window_links,fast_window_links,generated_cycles\n2400000000,1584265812,667775819,815734188,6874,452784897,0,0,449300047,9,35855004,349,229584901,8911,5801962,6904254,95621,24277,6874,28510417,337945975,797522097,203471,195415090,257376681,254165913,0"
+      }
+    ]
+  },
+  "rejected_sub_candidate": {
+    "description": "Breaking sampled fallback batches on every branch and bypassing deferred promotion when sampledCompilation is active",
+    "reason": "Triggered 81,005 compilations (versus 5,813) and 73,742 code-cache evictions on Superstar Chefs 600M steps, increasing CPU time to 18.578125 s. Reverted before final acceptance."
+  }
+}

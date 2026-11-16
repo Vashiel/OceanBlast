@@ -30,6 +30,8 @@ dumps/
 *.sqsh
 *.bmp
 run_*.txt
+snapshot_*.txt
+all_code.txt
 
 # IDE & OS files
 .vscode/

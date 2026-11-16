@@ -8,7 +8,6 @@
 #include "../display/frame_latch.h"
 #include <vector>
 #include <string>
-#include <unordered_map>
 #include <functional>
 #include <array>
 #include <cstring>
@@ -58,12 +57,23 @@ public:
     bool isUserMode() const { return mmu.isUserMode(); }
 
     void flushTlb() const;
-    void flushTlbEntry(u32 va) const { instructionPage = UINT32_MAX; ++mappingGeneration; mmu.flushTlbEntry(va); }
-    void setMmuEnabled(bool en) { instructionPage = UINT32_MAX; ++mappingGeneration; mmu.setEnabled(en); }
+    void flushTlbEntry(u32 va) const {
+        instructionPage = UINT32_MAX;
+        if (++pageMappingGeneration[(va >> 12) & 2047] == 0) ++mappingGeneration;
+        mmu.flushTlbEntry(va);
+    }
+    void setMmuEnabled(bool en) {
+        if (mmu.isEnabled() != en) { instructionPage = UINT32_MAX; ++mappingGeneration; mmu.setEnabled(en); }
+    }
     void setTtb(u32 val) { instructionPage = UINT32_MAX; ++mappingGeneration; mmu.setTtb(val); }
     u32 getTtb() const { return mmu.getTtb(); }
-    void setDacr(u32 val) { instructionPage = UINT32_MAX; ++mappingGeneration; mmu.setDacr(val); }
+    void setDacr(u32 val) {
+        if (mmu.getDacr() != val) { instructionPage = UINT32_MAX; mmu.setDacr(val); }
+    }
     uint64_t getMappingGeneration() const { return mappingGeneration; }
+    uint64_t getMappingGeneration(u32 va) const {
+        return (mappingGeneration << 32) | pageMappingGeneration[(va >> 12) & 2047];
+    }
     uint64_t getCodeEpoch() const { return codeEpoch; }
     uint32_t markCodePage(u32 physical) {
         const auto index=codePageIndex(physical);
@@ -357,6 +367,7 @@ private:
     bool hasTrackedCode=false;
     uint64_t codeEpoch=1;
     mutable uint64_t mappingGeneration=1;
+    mutable std::array<uint32_t,2048> pageMappingGeneration{};
     static uint32_t codePageIndex(u32 physical) {
         if(physical<ADDR_STEPPINGSTONE_SIZE) return physical/1024;
         if(physical-ADDR_SDRAM_BASE<ADDR_SDRAM_SIZE) return ADDR_STEPPINGSTONE_SIZE/1024+(physical-ADDR_SDRAM_BASE)/1024;
@@ -450,7 +461,27 @@ private:
     AudioCallback audioCallback = nullptr;
 
     // S3C2410 MMIO Register Storage
-    std::unordered_map<u32, u32> mmioRegs;
+    static constexpr size_t mmioBlockCount = 22;
+    static constexpr size_t mmioWordsPerBlock = 256;
+    std::array<u32, mmioBlockCount * mmioWordsPerBlock> mmioRegs{};
+    u32 unmappedMmioReg = 0;
+    bool iisConWritten = false, iisModWritten = false, iisPsrWritten = false;
+    static constexpr size_t mmioIndex(u32 addr) {
+        const u32 sub = addr & 0x00fffffcu;
+        if (sub < 0x400u && addr >= ADDR_MEMCON_BASE && addr < 0x5c000000u)
+            return (size_t((addr - ADDR_MEMCON_BASE) >> 24) << 8) | (sub >> 2);
+        if ((addr & 0xfffffc00u) == 0x50004000u) return (20u << 8) | ((addr & 0x3fcu) >> 2);
+        if ((addr & 0xfffffc00u) == 0x50008000u) return (21u << 8) | ((addr & 0x3fcu) >> 2);
+        return SIZE_MAX;
+    }
+    u32 getMmioReg(u32 addr) const {
+        const size_t idx = mmioIndex(addr);
+        return idx != SIZE_MAX ? mmioRegs[idx] : 0;
+    }
+    u32& mmioReg(u32 addr) {
+        const size_t idx = mmioIndex(addr);
+        return idx != SIZE_MAX ? mmioRegs[idx] : unmappedMmioReg;
+    }
 
     u32  readMmio(u32 addr, bool guestAccess = true);
     void writeMmio(u32 addr, u32 val);
