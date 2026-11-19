@@ -4,6 +4,21 @@ This changelog records releases, architectural milestones, and empirical validat
 
 ---
 
+## v0.4.1 — 2026-11-19 — Async Win32 Audio Thread, Diagnostic Log Export, JIT Single-Step Fix & Clearer Title Bar
+
+* **Asynchronous Win32 `waveOut` Audio Worker (`src/audio/audio_win32.cpp`, `src/audio/audio.h`, `src/audio/resampler.h`):**
+  * Decoupled all WinMM calls (`waveOutWrite`, `waveOutRestart`, `waveOutGetPosition`) from the ARM emulation thread onto a dedicated event-driven worker thread (`CALLBACK_EVENT` + ring buffer) with one-time pre-prepared `WAVEHDR` buffers instead of per-chunk `waveOutPrepareHeader` / `waveOutUnprepareHeader` churn.
+  * Added allocation-free in-place streaming resampling (`PcmResampler::processInto`, shared with `src/audio/audio_sdl.cpp`), reducing emulation-thread `writeSamples` time by **~7.9×** (`30.72 ms -> 3.87 ms` over 3 s, p95 `368.3 µs -> 19.6 µs`) and `getPlayedFrames` max latency from `321 µs` to `0.3 µs`.
+* **Built-In Diagnostic Export (`src/display/diagnostics_win32.h`, `src/display/launcher.h`):**
+  * Added **Export Diagnostic Log (`.zip`)** (dependency-free RFC 1951 Deflate ZIP writer), **Export Diagnostic Log (`.txt`)**, and **Upload Log to `paste.rs`** (via dynamically loaded `winhttp.dll`, with a large copyable result dialog and automatic clipboard copy) in both the **File** menu and **Settings → Timing & Diagnostics**.
+  * Reports include OceanBlast build/arch, Windows version (`RtlGetVersion`), CPU/RAM, active audio device (`waveOutGetDevCapsW`), anonymized `session.log` (stripping `USERPROFILE` paths and sanitizing raw non-UTF-8 bytes), and summarized `performance.csv` metrics, readable live while a game is running.
+* **JIT Single-Step / `--debug` Fix (`src/cpu/x64_execution_engine.h`, `src/cpu/x64_execution_engine.cpp`):**
+  * Routed `X64ExecutionEngine::step()` directly to the reference interpreter instead of compiling 1-instruction JIT blocks via `runToBoundary(..., 1, ...)`, preventing code-cache memory blowup (~680 MB) and `<0.03 MIPS` stalls when `--debug` or single-step mode is enabled.
+* **Clearer Window Title Bar (`src/main.cpp`):**
+  * Replaced the internal `JIT-Test` string and confusing draw-FPS readout with a concise `OceanBlast v0.4.1 (x64|x86|arm64) | Speed 100% | LCD 60 Hz | Audio 22.0 kHz / Audio Off | VSync` bar while keeping full frame/audio metrics in `performance.csv` and diagnostic exports.
+
+---
+
 ## v0.4.0 — 2026-11-16 — Cross-Platform x86-64 JIT, Shared Entry ABI, Per-Page TLB Generation, Flat MMIO & Linux/ARM64 Support
 
 * **[Linux x86-64 JIT, ARM64 Linux & SDL2 Frontend](docs/117_linux_x64_jit_and_arm64_sdl2.md):**

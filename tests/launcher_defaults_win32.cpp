@@ -215,7 +215,7 @@ static void CALLBACK inspect(HWND, UINT, UINT_PTR timer, DWORD) {
     check("Embedded OceanBlast logo and symbol loaded", bool(logo) && bool(symbol) && logo->GetWidth() > logo->GetHeight());
     check("Main menu bar has File, Playback, and Settings menus",
           GetMenu(window) != nullptr &&
-          GetMenuItemCount(GetSubMenu(GetMenu(window), 0)) == 5 &&
+          GetMenuItemCount(GetSubMenu(GetMenu(window), 0)) == 9 &&
           GetMenuItemCount(GetSubMenu(GetMenu(window), 1)) == 9 &&
           GetMenuItemCount(GetSubMenu(GetMenu(window), 2)) == 8 &&
           GetMenuState(GetSubMenu(GetMenu(window), 2), ManageMp3Storage, MF_BYCOMMAND) != UINT(-1));

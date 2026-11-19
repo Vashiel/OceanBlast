@@ -743,14 +743,23 @@ int main(int argc, char* argv[]) {
             if (seconds >= 1.0) {
                 const double mips = (executedSteps - statsSteps) / seconds / 1000000.0;
                 const double speed = (guestTicks - statsTicks) * 100.0 / EmulationClock::ticksPerSecond / seconds;
+                const double lcdHz = display.paused ? 0.0 : (speed * 0.6);
+#if defined(_WIN64) || defined(__x86_64__)
+                const char* archLabel = "x64";
+#elif defined(__aarch64__)
+                const char* archLabel = "arm64";
+#else
+                const char* archLabel = "x86";
+#endif
                 std::ostringstream title;
-                title << "OceanBlast" << (useJit?(autoTiming?(clockedNative?" Clocked JIT-Test":" Clocked Reference"):" JIT-Test"):" Interpreter") << " | Display " << std::fixed << std::setprecision(1) << presented / seconds
-                      << " FPS | Changes " << changed / seconds << "/s | " << mips << " MIPS"
-                      << " | CPU " << cpuStepsPerTick << "x"
-                      << " | Model " << speed << "%" << (autoTiming ? " Auto" : "")
-                      << " | PC " << std::hex << cpu.getPC() << " | FB " << getActiveFbPhys()
-                      << " | Audio " << std::dec << bus.getAudioSampleRate() << " Hz | Queue " << audio.getQueuedFrames() << "f | Empty " << audio.getEmptyQueueEvents() << " | Drop " << audio.getDroppedSamples()
-                      << (display.usesSyncedPresentation() ? " | VSync" : " | GDI")
+                title << "OceanBlast v0.4.1 (" << archLabel << ") | Speed " << std::fixed << std::setprecision(0) << speed << "%"
+                      << " | LCD " << std::setprecision(0) << lcdHz << " Hz";
+                if (sound && audio.isInitialized()) {
+                    title << " | Audio " << std::setprecision(1) << (bus.getAudioSampleRate() / 1000.0) << " kHz";
+                } else {
+                    title << " | Audio Off";
+                }
+                title << (display.usesSyncedPresentation() ? " | VSync" : " | GDI")
                       << (display.paused ? " | PAUSE" : "");
                 display.setTitle(title.str());
 #ifdef OCEANBLAST_WITH_JIT

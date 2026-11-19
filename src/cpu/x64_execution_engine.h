@@ -40,6 +40,7 @@ public:
     void enter(bool registerClocks) override;
     ExecutionExit runToBoundary(ExecutionTimeline&,size_t,uint64_t) override;
     size_t run(ExecutionTimeline&,size_t,uint64_t) override;
+    void step(ExecutionTimeline&) override;
     const NativeExecutionStats& stats() const;
     // Call only while this machine is not executing a batch.
     void resetCodeCache();

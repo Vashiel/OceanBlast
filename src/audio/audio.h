@@ -1,6 +1,7 @@
 #ifndef OCEANBLAST_AUDIO_H
 #define OCEANBLAST_AUDIO_H
 
+#include <atomic>
 #include <cstdint>
 #include <cstddef>
 #include <vector>
@@ -17,24 +18,24 @@ public:
     void writeSamples(const int16_t* samples, size_t sampleCount, int inputSampleRate = 0);
     void close();
 
-    bool isInitialized() const { return m_initialized; }
-    void setVolume(unsigned volumePercent) { m_volume = volumePercent > 100 ? 100 : volumePercent; }
-    unsigned getVolume() const { return m_volume; }
+    bool isInitialized() const { return m_initialized.load(std::memory_order_acquire); }
+    void setVolume(unsigned volumePercent) { m_volume.store(volumePercent > 100 ? 100 : volumePercent, std::memory_order_relaxed); }
+    unsigned getVolume() const { return m_volume.load(std::memory_order_relaxed); }
     int getSampleRate() const { return m_sampleRate; }
     int getChannels() const { return m_channels; }
-    uint64_t getDroppedSamples() const { return m_droppedSamples; }
+    uint64_t getDroppedSamples() const { return m_droppedSamples.load(std::memory_order_relaxed); }
     uint64_t getQueuedFrames() const;
     bool getPlayedFrames(uint64_t& frames) const;
-    size_t getPendingFrames() const { return m_pendingSamples.size() / m_channels; }
-    uint64_t getSubmittedFrames() const { return m_submittedFrames; }
-    uint64_t getEmptyQueueEvents() const { return m_emptyQueueEvents; }
+    size_t getPendingFrames() const;
+    uint64_t getSubmittedFrames() const { return m_submittedFrames.load(std::memory_order_relaxed); }
+    uint64_t getEmptyQueueEvents() const { return m_emptyQueueEvents.load(std::memory_order_relaxed); }
 
 private:
-    bool m_initialized;
+    std::atomic<bool> m_initialized{false};
     void* m_hWaveOut;
     int m_sampleRate;
     int m_channels;
-    unsigned m_volume = 100;
+    std::atomic<unsigned> m_volume{100};
 
     static constexpr size_t NUM_BUFFERS = 16;
     static constexpr size_t BUFFER_BYTES = 4096;
@@ -49,8 +50,9 @@ private:
     std::vector<int16_t> m_resampleBuffer;
     std::vector<int16_t> m_pendingSamples;
     PcmResampler m_resampler;
-    uint64_t m_droppedSamples = 0;
-    uint64_t m_submittedFrames = 0, m_emptyQueueEvents = 0;
+    std::atomic<uint64_t> m_droppedSamples{0};
+    std::atomic<uint64_t> m_submittedFrames{0};
+    std::atomic<uint64_t> m_emptyQueueEvents{0};
     bool m_queueEmptyReported = false;
     bool m_preroll = false;
     mutable uint32_t m_positionType = 0, m_lastPosition = 0;

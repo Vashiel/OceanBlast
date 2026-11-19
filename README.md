@@ -13,6 +13,28 @@
 
 ---
 
+## I Need YOUR Help!
+
+OceanBlast was built from very little public documentation — mostly from cartridge dumps, scattered notes shared by a handful of people online, and even **photos of opened cartridges on Reddit** used to identify the chips on the board. I own neither a real digiBLAST console nor any cartridges to test against — a huge thank you to all the dumpers out there who made this project possible!
+
+I recently received some early feedback, which led to two updates in **`v0.4.1`**:
+
+1. **Clearer title bar (`Speed 100% | LCD 60 Hz`):**
+   The digiBLAST has **no dedicated 2D/3D GPU** — its 180 MHz ARM9 CPU renders every background, sprite, and transparency in software alongside embedded Linux and audio mixing. Games therefore run at **variable frame rates** depending on scene complexity (lighter games/menus up to 50–60 FPS, heavier titles often ~15–35 FPS), while the LCD refreshes at 60 Hz. The old `Display XX FPS` counter made full-speed emulation look slow, so `v0.4.1` now displays **`Speed 100% | LCD 60 Hz`**.
+
+2. **Windows audio slowdowns (a shot in the dark — I need logs!):**
+   While OceanBlast runs at full speed with clean audio on my 5-year-old laptop, users with **faster AMD CPUs** reported severe slowdowns with sound enabled. Because I cannot reproduce this locally, **without logs I am just guessing** — so `v0.4.1` takes a shot in the dark by moving Windows `waveOut` audio onto a dedicated async worker thread, and adds a built-in log export so you can send me real data from your system.
+
+### How You Can Help (Starting with `v0.4.1`)
+1. Open **Settings → Timing & Diagnostics** and make sure **Log FPS & audio metrics (`performance.csv`)** is **enabled** *(leave **Extended debug logging** **off** for normal speed)*.
+2. Play a game briefly (ideally testing both with sound **on** and **off** if you experience slowdowns).
+3. Export your log using **File → Export Diagnostic Log (`.zip` / `.txt`)** or **File → Upload Log to `paste.rs`** (your Windows user path is stripped automatically, and the `paste.rs` link is copied to your clipboard).
+4. Open a new **[GitHub Issue](https://github.com/Vashiel/OceanBlast/issues/new)** and either **attach / paste the exported `.zip` or `.txt` file** manually, or simply **paste the `paste.rs` link** into the issue.
+
+Every log from a different PC, CPU, or audio setup helps move OceanBlast forward!
+
+---
+
 ## Highlights & Current Status
 
 * **Full Autonomous Boot & Commercial Game Library (11 / 11 Titles):** Autonomously boots the 4-KB S3C2410 Steppingstone SRAM, U-Boot 1.1.2 (`nidc` NAND ID & `checkbattery` ADC checks), and embedded Linux 2.6.11 (`squashfs`, `devfs`, `s3c2410fb`, `cs43l43` ALSA sound, `greykbd` GPIO keypad) across all 11 tested commercial game cartridges.

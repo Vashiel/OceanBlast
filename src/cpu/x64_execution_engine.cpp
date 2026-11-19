@@ -1122,6 +1122,12 @@ bool X64ExecutionEngine::canHandoff() const { return impl->cpu.canHandoff(); }
 void X64ExecutionEngine::enter(bool clocks) { impl->selectCycleMode(clocks); impl->cpu.enterExecution(clocks); }
 const NativeExecutionStats& X64ExecutionEngine::stats() const { return impl->counters; }
 void X64ExecutionEngine::resetCodeCache() { impl->clearCache(); ++impl->counters.cacheResets; }
+void X64ExecutionEngine::step(ExecutionTimeline& timeline) {
+    impl->selectCycleMode(timeline.registerClocks);
+    impl->eventWindowDirty=true;
+    impl->reference.step(timeline);
+    ++impl->counters.fallbackSteps;
+}
 size_t X64ExecutionEngine::run(ExecutionTimeline& timeline,size_t budget,uint64_t stopTicks) {
     impl->selectCycleMode(timeline.registerClocks);
     if(timeline.registerClocks && !impl->limits.clockedNative) {

@@ -14,6 +14,7 @@
 #include <objidl.h>
 #include <gdiplus.h>
 #include "windows_input.h"
+#include "diagnostics_win32.h"
 #include "../core/mp3_storage.h"
 #include "../core/cartridge_nvram.h"
 #include <algorithm>
@@ -64,7 +65,10 @@ enum {
     MediaSeekBack = 214,
     MediaSeekFwd = 215,
     CartLangBase = 220,
-    ManageMp3Storage = 240
+    ManageMp3Storage = 240,
+    ExportDiagZip = 241,
+    ExportDiagTxt = 242,
+    UploadDiagPaste = 243
 };
 
 struct UiText {
@@ -1045,6 +1049,44 @@ static void chooseRomFolder() {
     }
 }
 
+static void doExportDiagZip(HWND owner) {
+    std::wstring savedPath;
+    if (!win::diag::exportDiagnosticsZip(owner, folder, settings, activeRomPath, savedPath)) return;
+    const std::wstring msg = L"Compressed diagnostic log saved to:\n" + savedPath;
+    MessageBoxW(owner, msg.c_str(), L"OceanBlast Diagnostics", MB_OK | MB_ICONINFORMATION);
+}
+
+static void doExportDiagTxt(HWND owner) {
+    std::wstring savedPath;
+    if (!win::diag::exportDiagnosticsTxt(owner, folder, settings, activeRomPath, savedPath)) return;
+    const std::wstring msg = L"Diagnostic log saved to:\n" + savedPath;
+    MessageBoxW(owner, msg.c_str(), L"OceanBlast Diagnostics", MB_OK | MB_ICONINFORMATION);
+}
+
+static void doUploadDiagPaste(HWND owner) {
+    const wchar_t* confirm =
+        L"Upload anonymized diagnostic summary, session.log, and performance.csv to https://paste.rs/ ?\n\n"
+        L"Your Windows user profile path is stripped, and the resulting public paste.rs URL will be copied to your clipboard.";
+    if (MessageBoxW(owner, confirm, L"Upload Log to paste.rs", MB_YESNO | MB_ICONQUESTION) != IDYES) return;
+
+    const auto bundle = win::diag::collectDiagnostics(folder, settings, activeRomPath);
+    std::string pasteUrl, err;
+    HCURSOR oldCursor = SetCursor(LoadCursorA(nullptr, IDC_WAIT));
+    const bool ok = win::diag::uploadToPasteRs(bundle.fullSummary, pasteUrl, err);
+    SetCursor(oldCursor);
+
+    if (!ok) {
+        const std::wstring errW = L"Upload to paste.rs failed:\n" + win::diag::utf8ToWide(err) +
+                                  L"\n\nYou can still use \"Export Log (.zip)...\" or \"Export Log (.txt)...\" to save logs locally.";
+        MessageBoxW(owner, errW.c_str(), L"OceanBlast Diagnostics", MB_OK | MB_ICONWARNING);
+        return;
+    }
+
+    const std::wstring urlW = win::diag::utf8ToWide(pasteUrl);
+    win::diag::copyTextToClipboard(owner, urlW);
+    win::diag::showPasteResultDialog(owner, urlW);
+}
+
 static HMENU makeMenu() {
     const auto& t = tr();
     HMENU menu = CreateMenu();
@@ -1055,6 +1097,10 @@ static HMENU makeMenu() {
     AppendMenuW(file, MF_STRING, OpenRom, t.menuOpenRom);
     AppendMenuW(file, MF_STRING, RestartRom, t.menuRestartRom);
     AppendMenuW(file, MF_STRING, StopRom, t.menuStopRom);
+    AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(file, MF_STRING, ExportDiagZip, L"Export Diagnostic Log (.zip)...");
+    AppendMenuW(file, MF_STRING, ExportDiagTxt, L"Export Diagnostic Log (.txt)...");
+    AppendMenuW(file, MF_STRING, UploadDiagPaste, L"Upload Log to paste.rs...");
     AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(file, MF_STRING, ExitApp, t.menuExit);
 
@@ -1288,6 +1334,9 @@ static void rebuildSettings() {
         SendMessageW(dbg, BM_SETCHECK, settings.debugLog ? BST_CHECKED : BST_UNCHECKED, 0);
 
         settingsLabel(t.timingNote, 210, 185, 620, 48);
+        settingsControl(L"BUTTON", L"Export Log (.zip)...", 966, 210, 248, 185, 34, BS_PUSHBUTTON | WS_TABSTOP);
+        settingsControl(L"BUTTON", L"Export Log (.txt)...", 967, 405, 248, 185, 34, BS_PUSHBUTTON | WS_TABSTOP);
+        settingsControl(L"BUTTON", L"Upload to paste.rs", 968, 600, 248, 175, 34, BS_PUSHBUTTON | WS_TABSTOP);
     } else {
         settingsLabel(t.hotkeysHeader, 210, 20);
         settingsLabel(t.hotkeysBody, 210, 56, 620, 280);
@@ -1610,6 +1659,9 @@ static LRESULT CALLBACK settingsProc(HWND h, UINT message, WPARAM w, LPARAM l) {
             rebuildSettings();
             return 0;
         }
+        if (id == 966) { doExportDiagZip(h); return 0; }
+        if (id == 967) { doExportDiagTxt(h); return 0; }
+        if (id == 968) { doUploadDiagPaste(h); return 0; }
         if (id >= 980 && id < 992) {
             learnAction = id - 980;
             learnKeyboard = false;
@@ -1758,6 +1810,12 @@ static LRESULT CALLBACK procedure(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
             else if (!settings.lastRom.empty()) launchRom(settings.lastRom);
         } else if (id == ManageMp3Storage) {
             showMusicManager();
+        } else if (id == ExportDiagZip) {
+            doExportDiagZip(w);
+        } else if (id == ExportDiagTxt) {
+            doExportDiagTxt(w);
+        } else if (id == UploadDiagPaste) {
+            doUploadDiagPaste(w);
         } else if (id == StopRom || id == 12) {
             stop();
         } else if (id == ToggleFullscreenCmd) {

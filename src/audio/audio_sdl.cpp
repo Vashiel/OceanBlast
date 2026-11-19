@@ -101,7 +101,7 @@ void Audio::writeSamples(const int16_t* samples, size_t sampleCount, int inputSa
     const int16_t* playSamples = samples;
     size_t playSampleCount = sampleCount;
     if (inputSampleRate != m_sampleRate) {
-        m_resampleBuffer = m_resampler.process(samples, sampleCount, inputSampleRate, m_sampleRate, m_channels);
+        m_resampler.processInto(samples, sampleCount, inputSampleRate, m_sampleRate, m_channels, m_resampleBuffer);
         playSamples = m_resampleBuffer.data();
         playSampleCount = m_resampleBuffer.size();
     } else {
@@ -142,8 +142,12 @@ void Audio::writeSamples(const int16_t* samples, size_t sampleCount, int inputSa
 
 uint64_t Audio::getQueuedFrames() const {
     auto* state = static_cast<SdlAudioState*>(m_hWaveOut);
-    if (!m_initialized || !state || !state->deviceId) return 0;
+    if (!m_initialized.load(std::memory_order_acquire) || !state || !state->deviceId) return 0;
     return SDL_GetQueuedAudioSize(state->deviceId) / (static_cast<size_t>(m_channels) * sizeof(int16_t));
+}
+
+size_t Audio::getPendingFrames() const {
+    return m_pendingSamples.size() / static_cast<size_t>(m_channels);
 }
 
 bool Audio::getPlayedFrames(uint64_t& playedFrames) const {
