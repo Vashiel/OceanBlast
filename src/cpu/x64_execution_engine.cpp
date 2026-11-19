@@ -92,11 +92,13 @@ template<unsigned Width> uint64_t checkedLoad(Bus* bus,NativeRun* run,uint32_t a
     if(!bus->translateDataAddress(Width==4?address&~3u:address,false,physical)) {
         materializeBeforeMemory(bus,run); return uint64_t(1)<<32;
     }
-    const bool ram=ordinaryRam(physical);
-    if(!ram) materializeBeforeMemory(bus,run);
+    // CLKCON readback is a stored value with no read side effects. The
+    // kernel's idle loop can read it within the existing device deadline.
+    const bool deviceBoundary=!ordinaryRam(physical) && (Width!=4 || physical!=ADDR_CLKCON_BASE+0x0c);
+    if(deviceBoundary) materializeBeforeMemory(bus,run);
     uint32_t value=Width==1?bus->read8Phys(physical):(Width==2?bus->read16Phys(physical):bus->read32Phys(physical));
     if (Width==4 && (address&3u)) { const unsigned shift=(address&3u)*8; value=(value>>shift)|(value<<(32-shift)); }
-    return (uint64_t(ram?0:2)<<32)|value;
+    return (uint64_t(deviceBoundary?2:0)<<32)|value;
 }
 template<unsigned Width> uint32_t checkedStore(Bus* bus,NativeRun* run,uint32_t address,uint32_t value) {
     ++run->memorySteps;

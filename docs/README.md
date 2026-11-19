@@ -13,18 +13,20 @@ For user instructions and cartridge compatibility, see the main [Project README]
 | **Hardware & Memory Map** | Samsung OCEAN-L-20 (S3C2410A, ARM920T), 4 KB Steppingstone SRAM, 32 MB SDRAM, NAND Flash (512+16 OOB & ECC), 2-KB I2C EEPROM | [00 Hardware Specs](00_hardware_specs.md), [01 Memory Map](01_memory_map.md), [39 Cartridge Hardware](39_photographed_cartridge_hardware.md) |
 | **x86-64 JIT Execution Engine** | Shared ARM/Thumb IR, single-pass AsmJit emitter, Windows x64 & Linux System-V entry bridge (`R12`/`R13`), 4,096-bucket intrusive code cache, 2-way guarded window links, inline TLB reads, per-4 KB TLB mapping generations | [92 JIT Architecture](92_jit_architecture_decision.md), [107 Shared Native Windows](107_shared_native_windows.md), [115 Shared Entry ABI & Dispatch](115_shared_native_entry_and_dispatch.md), [116 Per-Page TLB & Flat MMIO](116_page_tlb_generation_and_flat_mmio.md), [117 Linux x64 JIT & ARM64 SDL2](117_linux_x64_jit_and_arm64_sdl2.md) |
 | **ARM920T Interpreter, FPA11 & MMU** | Reference/fallback interpreter (also ARM64 Linux primary engine), direct FPA11 (`cp1`/`cp2`) hardware float execution, compact 8-byte 2,048-entry TLB, $O(1)$ MVA invalidation, flat `O(1)` S3C2410 MMIO register table | [44 FPA11 & Chefs Analysis](44_superstar_chefs_analysis_and_fix.md), [45 Presets, GPIO & TLB](45_cartridge_presets_gpio_keys_and_tlb_invalidation.md), [82 Compact TLB](82_compact_tlb_entries.md), [116 Flat MMIO](116_page_tlb_generation_and_flat_mmio.md), [117 Linux/ARM64 Build](117_linux_x64_jit_and_arm64_sdl2.md) |
-| **Timing, Clocks & Audio** | Shared 20-MHz peripheral time unit, PLL-derived FCLK/HCLK/PCLK, 200-Hz Timer 4 (`TCNTO4` interpolation), consumed-sample DMA2 IIS capture, clocked-native opt-in (`--jit-clocked`) | [20 PCM Capture & DMA2](20_pcm_capture_and_dma_sample_lifetime.md), [23 Register Clocks & IIS](23_register_clocks_and_iis_pause.md), [110 Common Timing Model](110_common_timing_model_and_calibration.md), [113 Clocked Native Timeline](113_clocked_native_timeline.md) |
+| **Timing, Clocks & Audio** | Shared 20-MHz peripheral time unit, PLL-derived FCLK/HCLK/PCLK, 200-Hz Timer 4 (`TCNTO4` interpolation), consumed-sample DMA2 IIS capture, clocked-native opt-in (`--jit-clocked`) | [20 PCM Capture & DMA2](20_pcm_capture_and_dma_sample_lifetime.md), [23 Register Clocks & IIS](23_register_clocks_and_iis_pause.md), [110 Common Timing Model](110_common_timing_model_and_calibration.md), [113 Clocked Native Timeline](113_clocked_native_timeline.md), [118 Host Pacing & Audio Delivery](118_runtime_pacing_and_audio_delivery.md) |
 | **Display & Video (`s3c2410fb`)** | Handheld 12-bpp LCD444 (`GPH8 = 1` strap) & 16-bpp RGB565 decoding, coherent frame latch, DXGI VSync / GDI presentation on Windows and SDL2 renderer on Linux | [10 RGB565 Support](10_color_depth_and_rgb565_support.md), [32 Coherent Video & VSync](32_coherent_video_and_vsync.md), [42 Handheld 12-bpp LCD Mode](42_wade_gph8_lcd_mode.md), [117 SDL2 Backend](117_linux_x64_jit_and_arm64_sdl2.md) |
 | **Frontend, Input & MP3** | 7-language Win32 GUI launcher, XInput/DirectInput8/Stadia remapping, console skin, opt-in OHCI USB 256-MB FAT16 MP3 storage manager, and cross-platform SDL2 keyboard/GameController backend | [33 Console Skin & Fullscreen](33_console_skin_and_fullscreen.md), [43 Windows Launcher & Input](43_windows_launcher_and_controller_input.md), [49 Media & Cartridge Language](49_media_input_and_cartridge_language.md), [51 MP3 Storage & Player](51_mp3_storage_and_player.md), [117 SDL2 Input](117_linux_x64_jit_and_arm64_sdl2.md) |
 
 ---
 
-## 2. Historical Research & Validation Archive (`00`–`117`)
+## 2. Historical Research & Validation Archive (`00`–`118`)
 
 All step-by-step reverse-engineering notes, profiling sessions, and candidate experiments (including rejected hypotheses) are preserved below for reproducibility. Machine-readable benchmark manifests and CSV traces reside in [`validation/`](validation/).
 
 <details>
-<summary><strong>Phase 4 — Native x86-64 JIT Engine, Linux/ARM64 Port & Common Timing Model (Reports 92–117)</strong></summary>
+<summary><strong>Phase 4 — Native x86-64 JIT Engine, Linux/ARM64 Port & Common Timing Model (Reports 92–118)</strong></summary>
+
+* [118 — Runtime pacing and audio delivery in v0.4.1](118_runtime_pacing_and_audio_delivery.md)
 
 * [117 — Linux x86-64 System-V JIT, ARM64 interpreter build and SDL2 backends](117_linux_x64_jit_and_arm64_sdl2.md)
 

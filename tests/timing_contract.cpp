@@ -1,4 +1,5 @@
 #include "core/machine.h"
+#include "core/host_pacer.h"
 #include "core/timing_model.h"
 #include "cpu/x64_execution_engine.h"
 #include <fstream>
@@ -61,6 +62,25 @@ int main() {
             legacyDefaultInstructionCapMips(3)==60&&legacyDefaultInstructionCapMips(6)==120&&
             hostPacingSeconds(legacy,60000000,20000000,60)==1&&hostPacingSeconds(legacy,60000000,20000000,30)==2&&
             hostPacingSeconds(clocked,60000000,20000000,30)==1&&hostPacingSeconds(clocked,60000000,20000000,120)==1);
+    }
+    {
+        using namespace std::chrono_literals;
+        HostPacingSchedule schedule;
+        const auto start = HostPacingSchedule::Clock::time_point{} + 1s;
+        const auto legacy = TimingModel::LegacyInstructionRatio;
+        schedule.reset(start, 0, 0);
+        const auto slightDelay = schedule.deadline(legacy, 15000000, 2500000, 120, start + 130ms);
+        const auto longDelay = schedule.deadline(legacy, 15000000, 2500000, 120, start + 225ms);
+        const auto recovered = schedule.deadline(legacy, 30000000, 5000000, 120, start + 300ms);
+        check("Host pacing retains small jitter and limits repayment after a long stall",
+            slightDelay == start + 125ms && longDelay == start + 209ms &&
+            recovered == start + 334ms && schedule.discardedLagMilliseconds() == 84);
+
+        schedule.reset(start + 1s, 30000000, 5000000);
+        const auto resumed = schedule.deadline(TimingModel::RegisterCycleEstimate,
+            31000000, 7500000, 120, start + 1s);
+        check("Resumed register timing advances the deadline using only new guest ticks",
+            resumed == start + 1s + 125ms && schedule.discardedLagMilliseconds() == 84);
     }
     std::cout<<failures<<" failure(s); internal timing characterization, not original-hardware calibration\n";
     return failures?1:0;

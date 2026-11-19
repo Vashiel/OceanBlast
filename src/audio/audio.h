@@ -27,6 +27,7 @@ public:
     uint64_t getQueuedFrames() const;
     bool getPlayedFrames(uint64_t& frames) const;
     size_t getPendingFrames() const;
+    uint64_t getProducedFrames() const { return m_producedFrames.load(std::memory_order_relaxed); }
     uint64_t getSubmittedFrames() const { return m_submittedFrames.load(std::memory_order_relaxed); }
     uint64_t getEmptyQueueEvents() const { return m_emptyQueueEvents.load(std::memory_order_relaxed); }
 
@@ -50,6 +51,8 @@ private:
     std::vector<int16_t> m_resampleBuffer;
     std::vector<int16_t> m_pendingSamples;
     PcmResampler m_resampler;
+    // Output-rate frames before any host queue drops.
+    std::atomic<uint64_t> m_producedFrames{0};
     std::atomic<uint64_t> m_droppedSamples{0};
     std::atomic<uint64_t> m_submittedFrames{0};
     std::atomic<uint64_t> m_emptyQueueEvents{0};

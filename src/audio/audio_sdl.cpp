@@ -68,6 +68,7 @@ bool Audio::init(int sampleRate, int channels) {
     m_initialized = true;
     m_preroll = true;
     m_queueEmptyReported = false;
+    m_producedFrames = 0;
     m_droppedSamples = 0;
     m_submittedFrames = 0;
     m_emptyQueueEvents = 0;
@@ -108,6 +109,7 @@ void Audio::writeSamples(const int16_t* samples, size_t sampleCount, int inputSa
         m_resampler.reset();
     }
     if (playSampleCount == 0) return;
+    m_producedFrames.fetch_add(playSampleCount / static_cast<size_t>(m_channels), std::memory_order_relaxed);
 
     const size_t bytesPerFrame = static_cast<size_t>(m_channels) * sizeof(int16_t);
     const size_t queuedFrames = SDL_GetQueuedAudioSize(state->deviceId) / bytesPerFrame;

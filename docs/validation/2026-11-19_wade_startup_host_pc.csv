@@ -1,0 +1,33 @@
+executable_sha256,function_start_rva,function_end_rva_exclusive,symbol,samples,percent_of_all_samples
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x3f700,0x40265,"oceanblast::X64ExecutionEngine::run(oceanblast::ExecutionTimeline&, unsigned long long, unsigned long long)",559,28.64
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,,,outside executable module,332,17.01
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x81060,0x816f8,".text$_ZN10oceanblast18X64ExecutionEngine4Impl13executeNativeERNS1_10CacheEntryERNS_17ExecutionTimelineEyyb | oceanblast::X64ExecutionEngine::Impl::executeNative(oceanblast::X64ExecutionEngine::Impl::CacheEntry&, oceanblast::ExecutionTimeline&, unsigned long long, unsigned long long, bool)",259,13.27
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x31500,0x317fb,"oceanblast::X64ExecutionEngine::Impl::stepWindow(oceanblast::X64ExecutionEngine::Impl*, oceanblast::(anonymous namespace)::NativeRun*)",190,9.73
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x31810,0x319e1,"oceanblast::(anonymous namespace)::materializeBeforeMemory(oceanblast::Bus*, oceanblast::(anonymous namespace)::NativeRun*)",125,6.4
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x888e0,0x88dff,.text$_ZN10oceanblast3Bus4tickEy | oceanblast::Bus::tick(unsigned long long),106,5.43
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x34220,0x34777,"unsigned long long oceanblast::(anonymous namespace)::checkedLoad<4u>(oceanblast::Bus*, oceanblast::(anonymous namespace)::NativeRun*, unsigned int)",88,4.51
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x22020,0x22ab9,"oceanblast::Bus::readMmio(unsigned int, bool)",69,3.53
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x2ed50,0x2f377,oceanblast::ARM920T::step(unsigned long long),40,2.05
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x85220,0x85bd8,".text$_ZN10oceanblast18X64ExecutionEngine4Impl8reusableEyPy | oceanblast::X64ExecutionEngine::Impl::reusable(unsigned long long, unsigned long long*)",39,2.0
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x319f0,0x324a8,"oceanblast::(anonymous namespace)::checkedMultiple(oceanblast::Bus*, oceanblast::ARM920T*, oceanblast::(anonymous namespace)::NativeRun*, unsigned int)",34,1.74
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x2bf40,0x2cf5b,oceanblast::ARM920T::stepARM(unsigned int),21,1.08
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x24b40,0x24da5,oceanblast::Bus::read32PhysSlow(unsigned int),15,0.77
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x7f7c0,0x7fb1d,".text$_ZN10oceanblast17InterpreterEngine3runERNS_17ExecutionTimelineEyy | oceanblast::InterpreterEngine::run(oceanblast::ExecutionTimeline&, unsigned long long, unsigned long long)",9,0.46
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x1ece0,0x1f26c,oceanblast::ARM920T::executeSimpleDataProcessing(unsigned int) [clone .part.0],8,0.41
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x2b450,0x2bf3c,oceanblast::ARM920T::executeBlockDataTransfer(unsigned int),8,0.41
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x82780,0x829d7,".text$_ZN10oceanblast18X64ExecutionEngine4Impl17checkedScalarExitERNS_17ExecutionTimelineEy | oceanblast::X64ExecutionEngine::Impl::checkedScalarExit(oceanblast::ExecutionTimeline&, unsigned long long)",8,0.41
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x32c40,0x3348b,"unsigned int oceanblast::(anonymous namespace)::checkedStore<4u>(oceanblast::Bus*, oceanblast::(anonymous namespace)::NativeRun*, unsigned int, unsigned int)",7,0.36
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x26910,0x27e3c,"oceanblast::Bus::writeMmio(unsigned int, unsigned int)",6,0.31
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x29980,0x29d21,oceanblast::ARM920T::executeSingleDataTransfer(unsigned int),5,0.26
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x896f0,0x89b61,.text$_ZN10oceanblast3Bus6read32Ej | oceanblast::Bus::read32(unsigned int),4,0.2
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x1ec80,0x1ecdf,"oceanblast::ARM920T::setSubFlags(unsigned int, unsigned int, unsigned int)",3,0.15
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x20480,0x205c2,oceanblast::ARM920T::executeMSR(unsigned int),3,0.15
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x25020,0x25a6a,oceanblast::Bus::streamDma2Audio(bool),3,0.15
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x289d0,0x293f4,"oceanblast::Bus::write32PhysSlow(unsigned int, unsigned int)",3,0.15
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x173f40,0x17b736,main,2,0.1
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x20980,0x20f4c,oceanblast::ARM920T::executeDataProcessing(unsigned int),1,0.05
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x5eeb0,0x5ef0a,.text | .text | __popcountdi2,1,0.05
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x88e00,0x8926d,.text$_ZN10oceanblast3Bus5read8Ej | oceanblast::Bus::read8(unsigned int),1,0.05
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x89b70,0x8a1e8,".text$_ZN10oceanblast3Bus6write8Ejh | oceanblast::Bus::write8(unsigned int, unsigned char)",1,0.05
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x9b810,0x9bcb6,".text$_ZNK10oceanblast10Arm920TMmu9translateEjPKhPNS0_8MmuFaultEb | oceanblast::Arm920TMmu::translate(unsigned int, unsigned char const*, oceanblast::Arm920TMmu::MmuFault*, bool) const",1,0.05
+c10283eeb9a575bca98795deaddd554c850930fcfe61f9b232d54c4cea3c6ed9,0x103f40,0x103f45,.text$_ZNSolsEi | std::ostream::operator<<(int),1,0.05

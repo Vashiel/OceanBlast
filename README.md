@@ -17,13 +17,9 @@
 
 OceanBlast was built from very little public documentation — mostly from cartridge dumps, scattered notes shared by a handful of people online, and even **photos of opened cartridges on Reddit** used to identify the chips on the board. I own neither a real digiBLAST console nor any cartridges to test against — a huge thank you to all the dumpers out there who made this project possible!
 
-I recently received some early feedback, which led to two updates in **`v0.4.1`**:
+**`v0.4.1`** adds a Windows audio worker and built-in diagnostic export. The speed indicator reports modeled time relative to elapsed time. Game frame rates vary by scene. In the released build, the displayed LCD value scales with modeled speed.
 
-1. **Clearer title bar (`Speed 100% | LCD 60 Hz`):**
-   The digiBLAST has **no dedicated 2D/3D GPU** — its 180 MHz ARM9 CPU renders every background, sprite, and transparency in software alongside embedded Linux and audio mixing. Games therefore run at **variable frame rates** depending on scene complexity (lighter games/menus up to 50–60 FPS, heavier titles often ~15–35 FPS), while the LCD refreshes at 60 Hz. The old `Display XX FPS` counter made full-speed emulation look slow, so `v0.4.1` now displays **`Speed 100% | LCD 60 Hz`**.
-
-2. **Windows audio slowdowns (a shot in the dark — I need logs!):**
-   While OceanBlast runs at full speed with clean audio on my 5-year-old laptop, users with **faster AMD CPUs** reported severe slowdowns with sound enabled. Because I cannot reproduce this locally, **without logs I am just guessing** — so `v0.4.1` takes a shot in the dark by moving Windows `waveOut` audio onto a dedicated async worker thread, and adds a built-in log export so you can send me real data from your system.
+A follow-up replay of *Wade Hixton's Counter Punch* reproduced audio interruptions during startup. The development build reduces fast recovery bursts after a slowdown and lowers the cost of the guest kernel's idle loop. Remaining audio interruptions are tracked in the [timing and audio measurements](docs/118_runtime_pacing_and_audio_delivery.md).
 
 ### How You Can Help (Starting with `v0.4.1`)
 1. Open **Settings → Timing & Diagnostics** and make sure **Log FPS & audio metrics (`performance.csv`)** is **enabled** *(leave **Extended debug logging** **off** for normal speed)*.
@@ -186,7 +182,7 @@ bin/oceanblast <cartridge.bin> [--gui] [--sound] [--engine <jit|interpreter>] [-
 
 ## Documentation & Research Archive
 
-* **[Technical Documentation Index (`docs/README.md`)](docs/README.md):** Structured subsystem reference and indexed archive of all hardware reverse-engineering and validation reports (`docs/00`–`docs/117`).
+* **[Technical Documentation Index (`docs/README.md`)](docs/README.md):** Structured subsystem reference and indexed archive of all hardware reverse-engineering and validation reports (`docs/00`–`docs/118`).
 * **[Development Roadmap (`ROADMAP.md`)](ROADMAP.md):** Current J0–J6 and T0–T4 milestone status and validation rules.
 * **[Changelog (`CHANGELOG.md`)](CHANGELOG.md):** Release and milestone history.
 

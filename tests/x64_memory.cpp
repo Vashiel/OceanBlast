@@ -89,6 +89,40 @@ int main() {
             equal(machine,reference)&&native.stats().windowLinks>before&&machine.bus().getTimer4Expirations()>0&&
             machine.bus().getTimer4Expirations()==reference.bus().getTimer4Expirations());
     }
+    for (bool clocked : {false, true}) {
+        Machine machine, reference;
+        constexpr uint32_t clkcon = ADDR_CLKCON_BASE + 0x0c;
+        constexpr uint32_t storedControl = 0x0007fff4;
+        for (auto* target : {&machine, &reference}) {
+            target->configureExecution(clocked, 6);
+            target->state().r[1] = clkcon;
+            target->bus().write32(clkcon, storedControl);
+            target->bus().setMmioProfiling(true);
+            target->bus().write32(0, 0xe5912000); // LDR r2, [r1]
+            target->bus().write32(4, 0xe2833001); // ADD r3, r3, #1
+            target->bus().write32(8, 0xeafffffc); // B 0
+        }
+        NativeCacheLimits limits;
+        limits.clockedNative = clocked;
+        X64ExecutionEngine native(machine.state(), machine.cpu(), machine.bus(), limits);
+        machine.execution().selectEngine(native);
+        const bool chained = machine.execution().run(96) == 96 && reference.execution().run(96) == 96 &&
+            equal(machine, reference) && machine.state().r[2] == storedControl && machine.state().r[3] == 32 &&
+            native.stats().nativeWindows < 32;
+        for (auto* target : {&machine, &reference}) {
+            target->bus().write32(0x5100003c, 3);
+            target->bus().write32(0x51000008, (1u << 21) | (1u << 20));
+        }
+        const uint64_t deadline = machine.execution().time().ticks + 14;
+        const auto generated = machine.execution().run(128, deadline);
+        const auto interpreted = reference.execution().run(128, deadline);
+        check(clocked ? "Clocked CLKCON reads preserve Timer 4 and MMIO profiling" :
+                        "Legacy CLKCON reads preserve Timer 4 and MMIO profiling",
+            chained && generated == interpreted && equal(machine, reference) &&
+            machine.bus().getTimer4Expirations() == 1 && reference.bus().getTimer4Expirations() == 1 &&
+            machine.bus().getMmio(0x4a000000) == reference.bus().getMmio(0x4a000000) &&
+            machine.bus().getMmioProfile().at(clkcon).reads == reference.bus().getMmioProfile().at(clkcon).reads);
+    }
     {
         Machine machine;machine.state().r[13]=0x30001100;machine.state().r[14]=0x1234567b;
         machine.state().cpsr=0xd3|FLAG_N|FLAG_C|FLAG_V;

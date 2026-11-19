@@ -22,7 +22,12 @@ Path(f'snapshot_{{steps-1}}.txt').write_text(
 Path('sdram.bin').write_bytes(b'ram')
 Path('fb_active.raw').write_bytes(b'frame')
 print(f'[OceanBlast] Execution finished after {{steps}} instructions.')
-print('fixed CPU state')
+print(f'[JIT] Generated: {{2 if Path.cwd().name == "baseline" else 3}}')
+print('[CPU] PC: 0x00 SP: 0x00 LR: 0x00 CPSR: 0x10 (ARM)')
+print('  r12: 0x00')
+print('  r0: 0x00  r1: 0x00  r2: 0x00  r3: 0x00')
+print('  r4: 0x00  r5: 0x00  r6: 0x00  r7: 0x00')
+print('  r8: 0x00  r9: 0x00  r10: 0x00  r11: 0x00')
 print('--- [Linux Kernel dmesg / Log Buffer] ---')
 '''
 
@@ -46,7 +51,7 @@ class CompareGuiAcceptance(unittest.TestCase):
             capture_output=True, text=True, timeout=15)
         return result, output
 
-    def test_matching_pair_is_accepted(self):
+    def test_matching_registers_are_accepted_with_different_jit_counts(self):
         result, output = self.run_case()
         self.assertEqual(result.returncode, 0, result.stderr)
         with (output / 'results.csv').open() as source:

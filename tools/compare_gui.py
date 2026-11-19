@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 import subprocess
 import time
-from compare_execution import process_seconds
+from compare_execution import final_cpu_state, process_seconds
 
 
 def digest(path):
@@ -128,8 +128,7 @@ def main():
             weighted_changes += float(current['changed_fps']) * float(current['seconds'])
         snapshot = dict(line.split('=', 1) for line in
                         (directory / f'snapshot_{args.steps-1}.txt').read_text(encoding='utf-8').splitlines())
-        cpu = log.split('[OceanBlast] Execution finished after ', 1)[1].split(
-            '--- [Linux Kernel dmesg / Log Buffer] ---', 1)[0]
+        cpu = final_cpu_state(log)
         row = dict(rom=args.rom.name, repeat=repeat, variant=variant, ratio=args.ratio, steps=args.steps,
                    batch=batch, host_pacing=not args.unpaced,
                    end_inspection=args.inspect_end, timeout_seconds=args.timeout,
