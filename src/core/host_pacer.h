@@ -1,5 +1,4 @@
 #pragma once
-#include "timing_model.h"
 #include <chrono>
 #include <thread>
 #ifdef _WIN32
@@ -59,40 +58,5 @@ private:
     HANDLE timer = nullptr;
     bool highResolution_ = false, periodRequested_ = false;
 #endif
-};
-
-class HostPacingSchedule {
-public:
-    using Clock = HostPacer::Clock;
-    static constexpr auto maxCatchUp = std::chrono::milliseconds(16);
-
-    void reset(Clock::time_point now, uint64_t steps, uint64_t ticks) {
-        origin = now;
-        originSteps = steps;
-        originTicks = ticks;
-    }
-
-    Clock::time_point deadline(TimingModel model, uint64_t steps, uint64_t ticks,
-                               double capMips, Clock::time_point now) {
-        const auto offset = std::chrono::duration<double>(
-            hostPacingSeconds(model, steps - originSteps, ticks - originTicks, capMips));
-        const auto target = origin + std::chrono::duration_cast<Clock::duration>(offset);
-        const auto earliest = now - maxCatchUp;
-        if (target >= earliest) return target;
-
-        // A long host stall must not build up a burst of guest work for later.
-        discardedLag += earliest - target;
-        reset(earliest, steps, ticks);
-        return earliest;
-    }
-
-    double discardedLagMilliseconds() const {
-        return std::chrono::duration<double, std::milli>(discardedLag).count();
-    }
-
-private:
-    Clock::time_point origin{};
-    uint64_t originSteps = 0, originTicks = 0;
-    Clock::duration discardedLag{};
 };
 }

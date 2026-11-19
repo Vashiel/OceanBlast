@@ -4,12 +4,6 @@ This changelog records releases, architectural milestones, and empirical validat
 
 ---
 
-## Unreleased
-
-* The x86-64 JIT keeps side-effect-free `CLKCON` word reads inside the existing device deadline, reducing the cost of the guest kernel's idle loop.
-* The host scheduler limits catch-up after a slow scene to 16 ms. The title bar reports the effective execution engine and modeled speed.
-* Audio diagnostics count produced frames and successful device submissions separately. `--audio-capture-only` counts guest PCM without opening the playback device. [Timing and audio validation](docs/118_runtime_pacing_and_audio_delivery.md).
-
 ## v0.4.1 — 2026-11-19 — Async Win32 Audio Thread, Diagnostic Log Export, JIT Single-Step Fix & Clearer Title Bar
 
 * **Asynchronous Win32 `waveOut` Audio Worker (`src/audio/audio_win32.cpp`, `src/audio/audio.h`, `src/audio/resampler.h`):**

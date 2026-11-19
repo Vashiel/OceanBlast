@@ -13,21 +13,6 @@ def digest(path):
         return hashlib.file_digest(source, 'sha256').hexdigest()
 
 
-def final_cpu_state(log):
-    _, marker, tail = log.partition('[OceanBlast] Execution finished after ')
-    if not marker:
-        raise ValueError('Missing execution completion log')
-    lines = tail.splitlines()
-    prefixes = ('[CPU] PC: ', '  r12: ', '  r0: ', '  r4: ', '  r8: ')
-    for index, line in enumerate(lines):
-        if line.startswith(prefixes[0]):
-            state = lines[index : index + len(prefixes)]
-            if len(state) == len(prefixes) and all(line.startswith(prefix) for line, prefix in zip(state, prefixes)):
-                return '\n'.join(state) + '\n'
-            break
-    raise ValueError('Missing or incomplete final register dump')
-
-
 def process_seconds(process):
     if sys.platform != 'win32':
         return None
@@ -109,7 +94,8 @@ def main():
                 if exit_code:
                     raise RuntimeError(f'{rom.name}: batch {batch} exited {exit_code}')
                 text = (directory / 'run.log').read_text(encoding='utf-8', errors='replace')
-                final_cpu = final_cpu_state(text)
+                final_cpu = text.split('[OceanBlast] Execution finished after ', 1)[1].split(
+                    '--- [Linux Kernel dmesg / Log Buffer] ---', 1)[0]
                 row = dict(rom=rom.name, repeat=repeat, batch=batch, variant=variant, comparison=args.comparison, timing=args.timing,
                            ratio=args.ratio if args.timing == 'legacy' else 1,
                            steps=args.steps, seconds=round(elapsed, 4),

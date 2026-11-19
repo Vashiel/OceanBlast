@@ -65,7 +65,6 @@ void printUsage(const char* progName) {
               << "  --simple-alu <on|off> Common ARM ALU execution path (default on)\n"
               << "  --host-wait <timer|sleep> GUI pacing wait (default high-resolution timer when supported)\n"
               << "  --audio-rate <Hz> Host output rate (default 22050)\n"
-              << "  --audio-capture-only  Count guest PCM frames without resampling or device output\n"
               << "  --profile          Write GUI performance.csv, including audio rate and dropped samples\n";
     std::cout << "  --jit-clocked      Experimental cycle-accounted JIT; requires --engine jit --timing auto\n";
     std::cout << "  --host-cost-profile <start-step>  Write host_cost.csv from this instruction step\n";
@@ -124,7 +123,7 @@ int main(int argc, char* argv[]) {
     bool windowSkin = false, startFullscreen = false;
     int scale = 3;
 
-    bool sound = false, audioCaptureOnly = false;
+    bool sound = false;
     int audioRate = 22050; // Native digiBLAST S3C2410 audio rate
     bool debug = false;
     bool faultLog = false;
@@ -293,8 +292,6 @@ int main(int argc, char* argv[]) {
             gui = true;
         } else if (arg == "--sound" || arg == "--audio") {
             sound = true;
-        } else if (arg == "--audio-capture-only") {
-            audioCaptureOnly = true;
         } else if ((arg == "--audio-rate" || arg == "--rate" || arg == "--samplerate") && i + 1 < argc) {
             audioRate = std::stoi(argv[++i]);
         } else if (arg == "--scale" && i + 1 < argc) {
@@ -302,10 +299,6 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (sound && audioCaptureOnly) {
-        std::cerr << "[Error] Select either audio playback or audio capture only.\n";
-        return 1;
-    }
     if (!executionBatch || executionBatch > 4096) {
         std::cerr << "[Error] Execution batch must be between 1 and 4096.\n"; return 1;
     }
@@ -460,10 +453,7 @@ int main(int argc, char* argv[]) {
     if (gui && coherentFrames && identifiedVideo && !displayStride && displayFormat == 0)
         std::cout << "[Display] Identified video cartridge: complete native video sweeps enabled.\n";
 
-    uint64_t capturedAudioFrames = 0;
-    if (audioCaptureOnly) {
-        bus.setAudioCallback([&](const int16_t*, size_t count) { capturedAudioFrames += count / 2; });
-    } else if (sound) {
+    if (sound) {
         if (audio.init(audioRate, 2)) {
             audio.setVolume(display.configuredAudioVolume());
             bus.setAudioCallback([&](const int16_t* s, size_t n) {
@@ -550,7 +540,6 @@ int main(int argc, char* argv[]) {
                    << ',' << std::dec << entry.second << '\n';
     };
 
-    HostPacingSchedule paceSchedule;
     auto saveSnapshot = [&]() {
         writePcProfile();
         const std::string stem = "snapshot_" + std::to_string(executedSteps);
@@ -592,7 +581,6 @@ int main(int argc, char* argv[]) {
               << "\nmpllcon=" << std::hex << bus.getMmio(0x4c000004)
               << "\nclkslow=" << bus.getMmio(0x4c000010) << "\nclkdivn=" << bus.getMmio(0x4c000014) << std::dec
               << "\ndropped_samples=" << audio.getDroppedSamples()
-              << "\naudio_produced_frames=" << audio.getProducedFrames()
               << "\naudio_submitted_frames=" << audio.getSubmittedFrames()
               << "\naudio_queued_frames=" << audio.getQueuedFrames()
               << "\naudio_empty_queue_events=" << audio.getEmptyQueueEvents()
@@ -619,19 +607,19 @@ int main(int argc, char* argv[]) {
               << "\ntiming_calibration=unverified\nrequested_engine=" << (useJit?"jit":"interpreter")
               << "\neffective_engine=" << effectiveBackend << "\ninternal_ticks_per_second=" << std::dec << EmulatedTime::ticksPerSecond
               << "\nhost_instruction_cap_mips=" << (autoTiming?0:clockMips)
-              << "\nhost_pacing=" << (gui&&clockMips>0)
-              << "\nhost_discarded_lag_ms=" << paceSchedule.discardedLagMilliseconds() << '\n';
+              << "\nhost_pacing=" << (gui&&clockMips>0) << '\n';
     };
 
     std::cout << "\n[OceanBlast] Starting ARM920T Steppingstone execution from 0x00000000..." << std::endl;
 
-    using Clock = HostPacer::Clock;
+    using Clock = std::chrono::steady_clock;
     HostPacer hostPacer(gui && preciseHostWait);
     if (gui) std::cout << "[Timing] Host wait: " << (hostPacer.highResolution() ? "high-resolution timer" : "standard sleep") << '\n';
     auto lastFrame = Clock::now(), lastStats = lastFrame;
-    paceSchedule.reset(lastFrame, executedSteps, guestTicks);
+    auto paceStart = lastFrame;
     auto nextRecordedFrame = lastFrame;
-    uint64_t statsTicks = 0;
+    uint64_t paceSteps = 0;
+    uint64_t paceTicks = 0, statsTicks = 0;
     uint64_t statsSteps = 0, presented = 0, changed = 0;
     uint32_t previousHash = 0;
     u32 previousFb = 0;
@@ -643,7 +631,7 @@ int main(int argc, char* argv[]) {
     uint64_t nextVideoProbe = 1000000000;
     bool videoDecoderRecognized = identifiedVideo;
     std::ofstream metrics;
-    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples,audio_submitted_frames,audio_queued_frames,audio_empty_queue_events,fclk,pclk,cpu_steps_per_tick,guest_seconds,speed_percent,idle_ticks,coherent_frames,partial_sweeps,synchronized_presentations,frame_capture_active,capture_ready,audio_played_frames,audio_remaining_frames,audio_pending_frames,audio_output_rate,timing_model,timing_calibration,requested_engine,effective_engine,host_instruction_cap_mips,host_pacing,host_discarded_lag_ms,audio_produced_frames\n"; }
+    if (profile && gui) { metrics.open("performance.csv"); metrics << "steps,seconds,present_fps,changed_fps,mips,pc,framebuffer,audio_rate,dropped_samples,audio_submitted_frames,audio_queued_frames,audio_empty_queue_events,fclk,pclk,cpu_steps_per_tick,guest_seconds,speed_percent,idle_ticks,coherent_frames,partial_sweeps,synchronized_presentations,frame_capture_active,capture_ready,audio_played_frames,audio_remaining_frames,audio_pending_frames,audio_output_rate,timing_model,timing_calibration,requested_engine,effective_engine,host_instruction_cap_mips,host_pacing\n"; }
     bool hostCostRunning = false;
     Clock::time_point hostCostBegin;
     uint64_t hostCpuNs = 0, hostUiNs = 0, hostWaitNs = 0;
@@ -755,6 +743,7 @@ int main(int argc, char* argv[]) {
             if (seconds >= 1.0) {
                 const double mips = (executedSteps - statsSteps) / seconds / 1000000.0;
                 const double speed = (guestTicks - statsTicks) * 100.0 / EmulationClock::ticksPerSecond / seconds;
+                const double lcdHz = display.paused ? 0.0 : (speed * 0.6);
 #if defined(_WIN64) || defined(__x86_64__)
                 const char* archLabel = "x64";
 #elif defined(__aarch64__)
@@ -763,9 +752,8 @@ int main(int argc, char* argv[]) {
                 const char* archLabel = "x86";
 #endif
                 std::ostringstream title;
-                const char* engineLabel = useJit && (!autoTiming || clockedNative) ? "JIT" : "Interpreter";
-                title << "OceanBlast v0.4.1 (" << archLabel << " " << engineLabel << ") | Model speed "
-                      << std::fixed << std::setprecision(0) << speed << "%";
+                title << "OceanBlast v0.4.1 (" << archLabel << ") | Speed " << std::fixed << std::setprecision(0) << speed << "%"
+                      << " | LCD " << std::setprecision(0) << lcdHz << " Hz";
                 if (sound && audio.isInitialized()) {
                     title << " | Audio " << std::setprecision(1) << (bus.getAudioSampleRate() / 1000.0) << " kHz";
                 } else {
@@ -780,15 +768,13 @@ int main(int argc, char* argv[]) {
                 if (metrics) {
                     uint64_t playedFrames = 0;
                     const bool positionValid = audio.getPlayedFrames(playedFrames);
-                    const auto submittedFrames = audio.getSubmittedFrames();
-                    metrics << executedSteps << ',' << seconds << ',' << presented / seconds << ',' << changed / seconds << ',' << mips << ',' << cpu.getPC() << ',' << getActiveFbPhys() << ',' << bus.getAudioSampleRate() << ',' << audio.getDroppedSamples() << ',' << submittedFrames << ',' << audio.getQueuedFrames() << ',' << audio.getEmptyQueueEvents() << ',' << bus.getCpuClock() << ',' << bus.getPeripheralClock() << ',' << cpuStepsPerTick << ',' << double(guestTicks) / EmulationClock::ticksPerSecond << ',' << speed << ',' << idleTicks << ',' << bus.getHostFrameCapture().completed() << ',' << bus.getHostFrameCapture().abandoned() << ',' << display.presentedFrames() << ',' << bus.hostFrameCaptureActive() << ',' << bus.getHostFrameCapture().ready() << ',';
+                    metrics << executedSteps << ',' << seconds << ',' << presented / seconds << ',' << changed / seconds << ',' << mips << ',' << cpu.getPC() << ',' << getActiveFbPhys() << ',' << bus.getAudioSampleRate() << ',' << audio.getDroppedSamples() << ',' << audio.getSubmittedFrames() << ',' << audio.getQueuedFrames() << ',' << audio.getEmptyQueueEvents() << ',' << bus.getCpuClock() << ',' << bus.getPeripheralClock() << ',' << cpuStepsPerTick << ',' << double(guestTicks) / EmulationClock::ticksPerSecond << ',' << speed << ',' << idleTicks << ',' << bus.getHostFrameCapture().completed() << ',' << bus.getHostFrameCapture().abandoned() << ',' << display.presentedFrames() << ',' << bus.hostFrameCaptureActive() << ',' << bus.getHostFrameCapture().ready() << ',';
                     if (positionValid) metrics << playedFrames;
                     metrics << ',';
-                    if (positionValid) metrics << (submittedFrames > playedFrames ? submittedFrames - playedFrames : 0);
+                    if (positionValid) metrics << (audio.getSubmittedFrames() > playedFrames ? audio.getSubmittedFrames() - playedFrames : 0);
                     metrics << ',' << audio.getPendingFrames() << ',' << audio.getSampleRate()
                             << ',' << timingModelName(activeTimingModel) << ",unverified," << (useJit?"jit":"interpreter")
-                            << ',' << effectiveBackend << ',' << (autoTiming?0:clockMips) << ',' << (clockMips>0)
-                            << ',' << paceSchedule.discardedLagMilliseconds() << ',' << audio.getProducedFrames() << '\n';
+                            << ',' << effectiveBackend << ',' << (autoTiming?0:clockMips) << ',' << (clockMips>0) << '\n';
                     metrics.flush();
                 }
                 lastStats = now; statsSteps = executedSteps; statsTicks = guestTicks; presented = changed = 0;
@@ -797,16 +783,18 @@ int main(int argc, char* argv[]) {
                 display.snapshot = false;
                 saveSnapshot();
             }
-            if (display.paused) paceSchedule.reset(Clock::now(), executedSteps, guestTicks);
+            if (display.paused) { paceStart = Clock::now(); paceSteps = executedSteps; paceTicks = guestTicks; }
             if (display.paused && !display.singleStep) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); continue; }
             display.singleStep = false;
             if (!display.paused && clockMips > 0) {
+                const auto target = paceStart + std::chrono::duration_cast<Clock::duration>(
+                    std::chrono::duration<double>(hostPacingSeconds(activeTimingModel,executedSteps-paceSteps,guestTicks-paceTicks,clockMips)));
                 const auto current = Clock::now();
-                const auto target = paceSchedule.deadline(activeTimingModel, executedSteps, guestTicks, clockMips, current);
                 if (target > current) {
                     HostCostTimer waitCost(hostCostRunning, hostWaitNs);
                     hostPacer.waitUntil(target);
                 }
+                else if (current - target > std::chrono::milliseconds(250)) { paceStart = current; paceSteps = executedSteps; paceTicks = guestTicks; }
             }
         }
 
@@ -933,7 +921,6 @@ int main(int argc, char* argv[]) {
     }
 
     if (autoTiming) saveSnapshot();
-    if (audioCaptureOnly) std::cout << "[Audio] Guest PCM frames captured without host output: " << capturedAudioFrames << '\n';
     std::cout << "[Timing] Modeled seconds: " << double(guestTicks) / EmulationClock::ticksPerSecond << "; idle seconds: " << double(idleTicks) / EmulationClock::ticksPerSecond << '\n';
     std::cout << "\n[OceanBlast] Execution finished after " << executedSteps << " instructions." << std::endl;
 #ifdef OCEANBLAST_WITH_JIT

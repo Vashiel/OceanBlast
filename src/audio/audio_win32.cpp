@@ -29,6 +29,7 @@ struct Win32AudioState {
     size_t ringRead = 0;
     size_t ringWrite = 0;
     size_t ringCount = 0;
+    uint64_t totalAcceptedSamples = 0;
     std::atomic<size_t> ringPendingSamples{0};
 
     std::vector<bool> inFlight;
@@ -192,7 +193,6 @@ bool Audio::init(int sampleRate, int channels) {
     }
 
     m_currentBuffer = 0;
-    m_producedFrames.store(0, std::memory_order_relaxed);
     m_droppedSamples.store(0, std::memory_order_relaxed);
     m_submittedFrames.store(0, std::memory_order_relaxed);
     m_emptyQueueEvents.store(0, std::memory_order_relaxed);
@@ -289,7 +289,6 @@ bool Audio::init(int sampleRate, int channels) {
                 if (waveOutWrite(state->hWave, hdr, sizeof(WAVEHDR)) == MMSYSERR_NOERROR) {
                     state->inFlight[chosen] = true;
                     state->waveSubmittedFrames += chunkFrames;
-                    m_submittedFrames.store(state->waveSubmittedFrames, std::memory_order_relaxed);
                     queued += chunkFrames;
                     state->queueEmptyReported = false;
                     submittedAny = true;
@@ -372,7 +371,7 @@ void Audio::writeSamples(const int16_t* samples, size_t sampleCount, int inputSa
     if (playSampleCount == 0) return;
 
     const size_t chunkSamples = BUFFER_BYTES / sizeof(int16_t);
-    m_producedFrames.fetch_add(playSampleCount / static_cast<size_t>(m_channels), std::memory_order_relaxed);
+    const size_t chunkFrames = chunkSamples / static_cast<size_t>(m_channels);
     bool shouldWake = false;
 
     {
@@ -395,6 +394,12 @@ void Audio::writeSamples(const int16_t* samples, size_t sampleCount, int inputSa
             state->ringCount += accept;
             state->ringPendingSamples.store(state->ringCount, std::memory_order_relaxed);
 
+            const uint64_t prevChunks = state->totalAcceptedSamples / chunkSamples;
+            state->totalAcceptedSamples += accept;
+            const uint64_t nextChunks = state->totalAcceptedSamples / chunkSamples;
+            if (nextChunks > prevChunks) {
+                m_submittedFrames.fetch_add((nextChunks - prevChunks) * chunkFrames, std::memory_order_relaxed);
+            }
             shouldWake = state->ringCount >= chunkSamples;
         }
     }
