@@ -272,6 +272,29 @@ int main() {
       b.write32(0x4a000008,~1u);b.setButtonMask(1u<<4);c.step(10);
       check("IRQ entry advances the caller's peripheral budget",c.getPC()==0x18 && b.read32(0x51000040)==989);
     }
+    { Bus b; ARM920T c(b);
+      b.write32(0,0xe891000c);   // LDMIA r1,{r2,r3}
+      b.write32(4,0xe8840003);   // STMIA r4,{r0,r1}
+      b.write32(0x30000100,0x11111111); b.write32(0x30000104,0x22222222);
+      c.setReg(1,0x30000102); c.setReg(4,0x30000201); c.setReg(0,0xaaaaaaaa); c.step();
+      c.setReg(0,0xaaaaaaaa); c.step();
+      check("LDM/STM ignore address bits [1:0] without alignment checking",
+            c.getReg(2)==0x11111111 && c.getReg(3)==0x22222222 &&
+            b.read32Phys(0x30000200)==0xaaaaaaaa && b.read32Phys(0x30000204)==0x30000102);
+    }
+    { Bus b; ARM920T c(b);
+      b.write32(0,0xee100f30);   // MRC p15,0,r0,c0,c0,1 (cache type)
+      b.write32(4,0xee101f10);   // MRC p15,0,r1,c0,c0,0 (main ID)
+      c.step(); c.step();
+      check("CP15 c0 opcode_2 1 returns the ARM920T cache type",c.getReg(0)==0x0d172172 && c.getReg(1)==0x41009200);
+    }
+    { Bus b; ARM920T c(b);
+      b.write32(0,0xe121f000);   // MSR CPSR_c, r0 (enter user mode)
+      b.write32(4,0xee070f3e);   // MCR p15,0,r0,c7,c14,1
+      c.setReg(0,0x10); c.step(); c.step();
+      check("User-mode CP15 access takes the Undefined Instruction trap",
+            c.getPC()==4 && (c.getCPSR()&0x1f)==0x1b && c.getReg(14)==8);
+    }
     // Supervisor LDRT/STRT use user permissions; a manager domain skips them.
     for (const u32 dacr : {0x5u, 0xdu}) {
         Bus b; ARM920T c(b);

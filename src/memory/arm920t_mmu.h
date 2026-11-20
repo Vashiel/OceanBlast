@@ -25,6 +25,7 @@ public:
     }
     enum class MmuFault {
         NONE = 0,
+        ALIGNMENT_FAULT = 0x1,
         SECTION_TRANSLATION_FAULT = 0x5,
         PAGE_TRANSLATION_FAULT = 0x7,
         SECTION_DOMAIN_FAULT = 0x9,

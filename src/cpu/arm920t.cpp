@@ -1192,13 +1192,16 @@ void ARM920T::executeMSR(u32 instr) {
 }
 
 void ARM920T::executeCP15(u32 instr) {
+    // CP15 is privileged: user-mode MCR/MRC take the Undefined Instruction trap.
+    if ((state.cpsr & 0x1F) == 0x10) { handleUndefinedInstruction(instr); return; }
     bool is_mrc = (instr & (1 << 20)) != 0;
     u32 crn = (instr >> 16) & 0xF;
     u32 rd  = (instr >> 12) & 0xF;
 
     if (is_mrc) {
         u32 val = 0;
-        if (crn == 0) val = 0x41009200; // ARM920T (ARMv4T) ID Code
+        // c0: opcode_2 = 1 selects the cache type register (ARM920T TRM table 2-6).
+        if (crn == 0) val = ((instr >> 5) & 7) == 1 ? 0x0D172172 : 0x41009200;
         else if (crn == 1) val = state.cp15_control;
         else if (crn == 2) val = state.cp15_ttb;
         else if (crn == 3) val = state.cp15_dacr;
@@ -1361,6 +1364,7 @@ void ARM920T::executeSingleDataTransfer(u32 instr) {
         u32 baseVal = (rn == 15) ? (state.r[15] + 4) : state.r[rn];
         u32 offset = instr & 0xFFFu;
         u32 targetAddr = (instr & (1u << 23)) ? (baseVal + offset) : (baseVal - offset);
+        if (alignmentFault(targetAddr, 3u)) return;
         if (instr & (1u << 20)) {
             u32 val = ((targetAddr & 3u) == 0) ? bus.read32(targetAddr) : readRotatedWord(bus, targetAddr);
             if (bus.getLastFault() != Bus::MmuFault::NONE) {
@@ -1406,6 +1410,7 @@ void ARM920T::executeSingleDataTransfer(u32 instr) {
     u32 targetAddr = pre ? (up ? (baseVal + offset) : (baseVal - offset)) : baseVal;
     // LDRT/STRT/LDRBT/STRBT (post-indexed with W) use user permissions in
     // privileged modes; Linux copies to and from user buffers with them.
+    if (alignmentFault(targetAddr, isByte ? 0u : 3u)) return;
     const bool unprivileged = !pre && writeback && !bus.isUserMode();
     const u32 accessAddr = isByte ? targetAddr : (targetAddr & ~3u);
     u32 physical = 0, faultDomain = 0;
@@ -1464,6 +1469,7 @@ void ARM920T::executeHalfwordTransfer(u32 instr) {
         u32 baseVal = (rn == 15) ? (state.r[15] + 4) : state.r[rn];
         u32 offset = ((instr >> 4) & 0xF0u) | (instr & 0xFu);
         u32 targetAddr = (instr & (1u << 23)) ? (baseVal + offset) : (baseVal - offset);
+        if (alignmentFault(targetAddr, 1u)) return;
         if (instr & (1u << 20)) {
             u16 raw = bus.read16(targetAddr);
             if (bus.getLastFault() != Bus::MmuFault::NONE) {
@@ -1503,6 +1509,7 @@ void ARM920T::executeHalfwordTransfer(u32 instr) {
 
     u32 targetAddr = pre ? (up ? (baseVal + offset) : (baseVal - offset)) : baseVal;
 
+    if (alignmentFault(targetAddr, op == 2 ? 0u : 1u)) return;
     if (isLoad) {
         u32 val = 0;
         if (op == 1) val = bus.read16(targetAddr);
@@ -1543,10 +1550,11 @@ void ARM920T::executeBlockDataTransfer(u32 instr) {
     u32 startAddr = baseVal;
     if (!up) startAddr = baseVal - (count * 4);
     if (pre == up) startAddr += 4;
+    if (alignmentFault(startAddr, 3u)) return;
 
     bool userBank = sBit && !(regList & (1 << 15));
 
-    u32 currAddr = startAddr;
+    u32 currAddr = startAddr & ~3u; // LDM/STM ignore address bits [1:0]
     for (u32 list = regList; list != 0; list &= list - 1) {
         const int i = __builtin_ctz(list);
         if (isLoad) {
@@ -1648,6 +1656,7 @@ void ARM920T::executeSwap(u32 instr) {
     u32 rm = instr & 0xF;
     u32 addr = state.r[rn];
     bool isByte = (instr & (1 << 22)) != 0;
+    if (alignmentFault(addr, isByte ? 0u : 3u)) return;
 
     if (isByte) {
         u8 temp = bus.read8(addr);

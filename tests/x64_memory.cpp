@@ -635,5 +635,31 @@ int main() {
         machine.execution().run(1); machine.execution().run(32); machine.state().r[15]=0; machine.execution().run(1);
         check("Native store to compiled code is observed before cache reuse",machine.cpu().getReg(0)==42 && native.stats().memorySteps==1);
     }
+    {
+        // CP15 c1 A bit: native and scalar alignment aborts and aligned LDM/STM agree.
+        bool same=true; unsigned aborts=0;
+        for(uint32_t operation:{0xe5912000u,0xe5812000u,0xe1d120b0u,0xe1c120b0u,0xe891000cu,0xe881000cu})
+        for(uint32_t control:{0u,2u}) for(uint32_t offset:{1u,2u}) {
+            Machine machine,reference;
+            for(Machine* target:{&machine,&reference}) {
+                target->bus().write32(0x30000000,operation);
+                for(uint32_t word=0;word<4;++word) target->bus().write32(0x30100000+word*4,0x11223344u*(word+1));
+                target->state().r[15]=0x30000000; target->state().cpsr=0x10; target->state().cp15_control=control;
+                target->state().r[1]=0x30100000+offset; target->state().r[2]=0xaabbccdd; target->state().r[3]=0x55667788;
+                target->execution().selectInterpreter(target->cpu());
+            }
+            X64ExecutionEngine native(machine.state(),machine.cpu(),machine.bus()); machine.execution().selectEngine(native);
+            const auto exit=machine.execution().runToBoundary(1); reference.execution().run(1);
+            same=same&&equal(machine,reference)&&native.stats().generatedSteps==1;
+            for(uint32_t i=0;i<16;++i) same=same&&machine.bus().read8Phys(0x30100000+i)==reference.bus().read8Phys(0x30100000+i);
+            const bool halfword=(operation&0x0e0000f0u)==0x000000b0u;
+            const bool misaligned=halfword?(offset&1u)!=0:true;
+            if(control && misaligned) {
+                same=same&&exit.event==CpuStepEvent::DataAbort&&machine.state().cp15_fsr==1&&machine.state().cp15_far==0x30100000+offset;
+                ++aborts;
+            } else same=same&&!exit.event;
+        }
+        check("Native and scalar alignment aborts and word-aligned LDM/STM agree with and without the A bit",same&&aborts==10);
+    }
     std::cout<<failures<<" failure(s)\n"; return failures?1:0;
 }

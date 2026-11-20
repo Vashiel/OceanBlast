@@ -70,6 +70,7 @@ struct BlockLimits {
     uint32_t instructions = 32;
     uint32_t bytes = 128;
     bool followDirectBranches = false;
+    bool privileged = true; // CP15 instructions are only translated in privileged modes.
 };
 struct FetchResult {
     bool available;

@@ -235,8 +235,9 @@ Block decodeBlock(uint32_t pc,InstructionSet set,Fetch&& fetch,BlockLimits limit
                 continue;
             }
             // MCR p15 c7 cache maintenance is a functional no-op, as in the scalar
-            // CPU (one cycle). Wait-for-interrupt (c7, c0, 4) stays a scalar exit.
-            if(set==InstructionSet::Arm && (raw>>28)!=15 && (raw&0x0f100f10u)==0x0e000f10u &&
+            // CPU (one cycle). Wait-for-interrupt (c7, c0, 4) stays a scalar exit;
+            // in user mode the scalar CPU raises the Undefined Instruction trap.
+            if(set==InstructionSet::Arm && limits.privileged && (raw>>28)!=15 && (raw&0x0f100f10u)==0x0e000f10u &&
                 ((raw>>16)&15)==7 && !((raw&15)==0 && ((raw>>5)&7)==4)) {
                 block.instructions.push_back({pc,raw,uint8_t(bytes),static_cast<Condition>(raw>>28),IntegerOperation{},std::nullopt,std::nullopt});
                 consumed+=bytes;

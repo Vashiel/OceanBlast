@@ -300,6 +300,7 @@ public:
     MmuFault getLastFault() const { return lastFault; }
     u32      getLastFaultAddr() const { return lastFaultAddr; }
     void     clearLastFault() const { lastFault = MmuFault::NONE; lastFaultAddr = 0; }
+    void     setAlignmentFault(u32 address) const { lastFault = MmuFault::ALIGNMENT_FAULT; lastFaultAddr = address; }
 
     // S3C2410 Interrupts & Timers
     bool hasPendingIrq() const { return regIntpnd != 0; }

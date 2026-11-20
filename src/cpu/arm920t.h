@@ -94,6 +94,14 @@ private:
     void handleIrq();
     void handlePrefetchAbort(u32 faultPC);
     void handleDataAbort(u32 faultAddr, Bus::MmuFault faultType);
+    // CP15 c1 A bit set and address & mask nonzero: take an alignment data abort.
+    // shortcut: Thumb transfers skip this check; none of the 24 known cartridges
+    // executes Thumb code. Add it to stepThumb if one does.
+    bool alignmentFault(u32 address, u32 mask) {
+        if (!(state.cp15_control & 2u) || !(address & mask)) return false;
+        handleDataAbort(address, Bus::MmuFault::ALIGNMENT_FAULT);
+        return true;
+    }
     void handleUndefinedInstruction(u32 instr);
     bool accelerateTitleBlit(size_t peripheralTicks);
 

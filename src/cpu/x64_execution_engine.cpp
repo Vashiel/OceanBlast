@@ -88,6 +88,10 @@ bool ordinaryRam(uint32_t physical) {
 }
 template<unsigned Width> uint64_t checkedLoad(Bus* bus,NativeRun* run,uint32_t address) {
     ++run->memorySteps;
+    // CP15 c1 A bit: misaligned halfword/word accesses take an alignment abort.
+    if(Width>1 && (run->state->cp15_control&2u) && (address&(Width-1))) {
+        materializeBeforeMemory(bus,run); bus->setAlignmentFault(address); return uint64_t(1)<<32;
+    }
     uint32_t physical=0;
     if(!bus->translateDataAddress(Width==4?address&~3u:address,false,physical)) {
         materializeBeforeMemory(bus,run); return uint64_t(1)<<32;
@@ -102,6 +106,9 @@ template<unsigned Width> uint64_t checkedLoad(Bus* bus,NativeRun* run,uint32_t a
 }
 template<unsigned Width> uint32_t checkedStore(Bus* bus,NativeRun* run,uint32_t address,uint32_t value) {
     ++run->memorySteps;
+    if(Width>1 && (run->state->cp15_control&2u) && (address&(Width-1))) {
+        materializeBeforeMemory(bus,run); bus->setAlignmentFault(address); return 1;
+    }
     uint32_t physical=0;
     if(!bus->translateDataAddress(Width==4?address&~3u:address,true,physical)) {
         materializeBeforeMemory(bus,run); return 1;
@@ -132,6 +139,8 @@ uint32_t checkedMultiple(Bus* bus,ARM920T* cpu,NativeRun* run,uint32_t encoding)
     const bool load=encoding&(1u<<20),up=encoding&(1u<<23),pre=encoding&(1u<<24);
     uint32_t address=up?base:base-count*4;
     if(pre==up) address+=4;
+    if((state.cp15_control&2u) && (address&3u)) { bus->setAlignmentFault(address); checkedAbort(cpu); return 1; }
+    address&=~3u; // LDM/STM ignore address bits [1:0]
     uint32_t status=0;
     for(uint32_t list=registers;list;list&=list-1,address+=4) {
         const unsigned reg=__builtin_ctz(list);
@@ -439,6 +448,9 @@ struct X64ExecutionEngine::Impl {
         if (memory.load) {
             const auto slow=a.new_label(),translated=a.new_label(),sram=a.new_label(),loaded=a.new_label(),complete=a.new_label();
             const auto view=bus.nativeReadView();
+            // CP15 c1 is part of the block key: with the A bit set, a misaligned
+            // address takes the checked path, which raises the alignment abort.
+            if(width>1 && (architecturalState.cp15_control&2u)) { a.test(x86::r8d,width-1); a.jnz(slow); }
             a.mov(x86::edx,x86::r8d); if(width==4) a.and_(x86::edx,~3u);
             a.mov(x86::rax,uintptr_t(view.enabled)); a.cmp(x86::byte_ptr(x86::rax),0); a.je(translated);
             a.mov(x86::ecx,x86::edx); a.shr(x86::ecx,12); a.mov(x86::r9d,x86::ecx); a.and_(x86::r9d,uint32_t(view.size-1));
@@ -871,7 +883,7 @@ struct X64ExecutionEngine::Impl {
                 [&](const auto& source) { return source.first==physical; });
             return word!=entry.source.end()?FetchResult{true,word->second}:FetchResult{false,0};
         };
-        auto block=decodeBlock(entry.context[0],set,fetch,{entry.context[5],128,limits.followDirectBranches});
+        auto block=decodeBlock(entry.context[0],set,fetch,{entry.context[5],128,limits.followDirectBranches,(entry.context[1]&0x1fu)!=0x10u});
         restrictClockedBlock(block);
         size_t bytes=0;
         auto function=compile(block,block.instructions.size(),bytes);
@@ -1282,7 +1294,7 @@ ExecutionExit X64ExecutionEngine::runUntilDeadline(ExecutionTimeline& timeline,s
                 return FetchResult{true,encoding};
             };
             auto block=decodeBlock(state.r[15],(state.cpsr&FLAG_T)?InstructionSet::Thumb:InstructionSet::Arm,fetch,
-                {uint32_t(count),128,engine.limits.followDirectBranches});
+                {uint32_t(count),128,engine.limits.followDirectBranches,(state.cpsr&0x1fu)!=0x10u});
             engine.restrictClockedBlock(block);
             const size_t nativeCount=block.instructions.size();
             if (!nativeCount && source.empty()) return engine.fallback(timeline,budget,stopTicks);

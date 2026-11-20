@@ -113,6 +113,13 @@ int main() {
             block.instructions[0].operation.left.value==0x1008 && block.instructions[1].operation.right.kind==ValueKind::Constant &&
             block.instructions[1].operation.right.value==0x100c);
     }
+    {
+        // Cache maintenance is translated only for privileged code; user mode traps in the CPU.
+        auto mcr=[](uint32_t,InstructionSet){return FetchResult{true,0xee070f3eu};};
+        auto privileged=decodeBlock(0,arm,mcr,{1,4,false,true}), user=decodeBlock(0,arm,mcr,{1,4,false,false});
+        check("CP15 c7 maintenance is translated only in privileged modes",
+            privileged.instructions.size()==1 && user.instructions.empty() && user.stop==BlockStop::Unsupported);
+    }
     for (uint32_t raw : {0xe5bf0000u,0xee070f90u,0xe121f000u,0xe0800f11u,0xe1a0f00fu,0xe081010fu,0xf2800001u,
                          0xe8b10000u,0xe8bf000cu,0xe8f1000cu}) {
         auto block=decodeBlock(0,arm,[&](uint32_t,InstructionSet){return FetchResult{true,raw};});
