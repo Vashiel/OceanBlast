@@ -24,7 +24,11 @@ For user instructions and cartridge compatibility, see the main [Project README]
 All step-by-step reverse-engineering notes, profiling sessions, and candidate experiments (including rejected hypotheses) are preserved below for reproducibility. Machine-readable benchmark manifests and CSV traces reside in [`validation/`](validation/).
 
 <details>
-<summary><strong>Phase 4 — Native x86-64 JIT Engine, Linux/ARM64 Port & Common Timing Model (Reports 92–118)</strong></summary>
+<summary><strong>Phase 4 — Native x86-64 JIT Engine, Linux/ARM64 Port & Common Timing Model (Reports 92–120)</strong></summary>
+
+* [120 — Alignment checking, CP15 privilege and the cache type register](120_alignment_and_cp15_privilege.md)
+
+* [119 — ARM920T CP15 and transfer semantics](119_arm920t_cp15_and_transfer_semantics.md)
 
 * [118 — Runtime pacing and audio delivery in v0.4.1](118_runtime_pacing_and_audio_delivery.md)
 
