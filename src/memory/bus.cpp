@@ -411,8 +411,10 @@ u8 Bus::readNandByte() {
     }
 
     if (nandReadActive) {
-        size_t pageSize = rawNand528 ? 528 : 512;
-        size_t baseOffset = nandPageAddr * pageSize;
+        // 64-bit: a 24-bit page address times 528 exceeds 4 GiB; a 32-bit
+        // size_t would wrap into the cartridge instead of reading past it.
+        uint64_t pageSize = rawNand528 ? 528 : 512;
+        uint64_t baseOffset = nandPageAddr * pageSize;
 
         // Check if this page in the dump contains real OOB data
         bool pageHasRawOob = false;
