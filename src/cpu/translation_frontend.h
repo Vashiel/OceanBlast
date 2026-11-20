@@ -15,8 +15,9 @@ inline void constantShift(IntegerOperation& op, unsigned kind, unsigned amount) 
     }
 }
 
-inline bool decodeArmInteger(uint32_t raw, IntegerOperation& op) {
-    // ARMv4T data processing. PC operands remain explicit scalar exits.
+inline bool decodeArmInteger(uint32_t raw, IntegerOperation& op, uint32_t pc) {
+    // ARMv4T data processing. A PC operand reads as the constant pc+8 (PLT stubs,
+    // `mov lr, pc`); PC destinations and register-shifted PC stay scalar exits.
     if ((raw>>28)==15 || (raw&0x0c000000u)!=0) return false;
     if((raw&0x0fc000f0u)==0x00000090u) {
         const unsigned rd=(raw>>16)&15,rn=(raw>>12)&15,rs=(raw>>8)&15,rm=raw&15;
@@ -35,7 +36,8 @@ inline bool decodeArmInteger(uint32_t raw, IntegerOperation& op) {
     const bool compare=code>=8 && code<=11;
     if (compare && !setFlags) return false; // Includes PSR/control encodings.
     const bool usesLeft=code!=13 && code!=15;
-    if ((usesLeft && rn==15) || (!compare && rd==15) || (!immediate && (raw&15)==15)) return false;
+    const bool pcRight=!immediate && (raw&15)==15;
+    if ((!compare && rd==15) || (registerShift && usesLeft && rn==15) || (pcRight && (raw&0xff0u))) return false;
     static constexpr IntegerOpcode codes[16]={
         IntegerOpcode::And,IntegerOpcode::Xor,IntegerOpcode::Subtract,IntegerOpcode::ReverseSubtract,
         IntegerOpcode::Add,IntegerOpcode::AddCarry,IntegerOpcode::SubtractCarry,IntegerOpcode::ReverseSubtractCarry,
@@ -43,7 +45,7 @@ inline bool decodeArmInteger(uint32_t raw, IntegerOperation& op) {
         IntegerOpcode::Or,IntegerOpcode::Move,IntegerOpcode::BitClear,IntegerOpcode::Not
     };
     op={}; op.opcode=codes[code];
-    if (usesLeft) op.left=Value::reg(uint8_t(rn));
+    if (usesLeft) op.left=rn==15?Value::constant(pc+8):Value::reg(uint8_t(rn));
     if (!compare) op.destination=uint8_t(rd);
     const bool arithmetic=(code>=2 && code<=7) || code==10 || code==11;
     op.flags=setFlags ? (arithmetic?FlagWrite::Arithmetic:FlagWrite::Logical) : FlagWrite::Preserve;
@@ -53,6 +55,8 @@ inline bool decodeArmInteger(uint32_t raw, IntegerOperation& op) {
         const uint32_t rotated=rotate ? (value>>rotate)|(value<<(32-rotate)) : value;
         op.right=Value::constant(rotated);
         op.shifterCarry=rotate ? ((rotated>>31)?CarrySource::One:CarrySource::Zero) : CarrySource::Preserve;
+    } else if (pcRight) {
+        op.right=Value::constant(pc+8); // Unshifted only (checked above).
     } else {
         op.right=Value::reg(uint8_t(raw&15));
         if(registerShift) {
@@ -195,7 +199,7 @@ Block decodeBlock(uint32_t pc,InstructionSet set,Fetch&& fetch,BlockLimits limit
         if (!word.available) { block.stop=BlockStop::FetchUnavailable; break; }
         const uint32_t raw=set==InstructionSet::Arm?word.encoding:(word.encoding&0xffffu);
         IntegerOperation op;
-        const bool decoded=set==InstructionSet::Arm?decodeArmInteger(raw,op):decodeThumbInteger(uint16_t(raw),op);
+        const bool decoded=set==InstructionSet::Arm?decodeArmInteger(raw,op,pc):decodeThumbInteger(uint16_t(raw),op);
         if (!decoded) {
             Instruction::BranchOperation branch{};
             Condition condition=Condition::Always;
@@ -229,6 +233,16 @@ Block decodeBlock(uint32_t pc,InstructionSet set,Fetch&& fetch,BlockLimits limit
                 pc=next;
                 if(multiple.load && (multiple.registers&0x8000u)) { block.stop=BlockStop::ControlFlow;block.stopEncoding=raw;break; }
                 continue;
+            }
+            // MCR p15 c7 cache maintenance is a functional no-op, as in the scalar
+            // CPU (one cycle). Wait-for-interrupt (c7, c0, 4) stays a scalar exit.
+            if(set==InstructionSet::Arm && (raw>>28)!=15 && (raw&0x0f100f10u)==0x0e000f10u &&
+                ((raw>>16)&15)==7 && !((raw&15)==0 && ((raw>>5)&7)==4)) {
+                block.instructions.push_back({pc,raw,uint8_t(bytes),static_cast<Condition>(raw>>28),IntegerOperation{},std::nullopt,std::nullopt});
+                consumed+=bytes;
+                const uint32_t next=pc+bytes;
+                if(next<pc) { pc=next;block.stop=BlockStop::AddressWrap;break; }
+                pc=next; continue;
             }
             block.stop=isControlFlow(raw,set)?BlockStop::ControlFlow:BlockStop::Unsupported;
             block.stopEncoding=raw;

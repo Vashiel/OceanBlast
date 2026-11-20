@@ -15,6 +15,7 @@ int main() {
     check("Crazy Jack automatic ratio", resolveCartridgeSettings(17301504,0x9bce041a,true,false,1,false).cpuStepsPerTick == 2);
     check("Cuccioli automatic ratio", resolveCartridgeSettings(69206016,0x40a18574,true,false,1,false).cpuStepsPerTick == 3);
     check("Gormiti 2 episodi video ratio", resolveCartridgeSettings(34603008,0xb0b98ad1,true,false,1,false).cpuStepsPerTick == 3);
+    check("Gormiti Lotta Oscura automatic ratio", resolveCartridgeSettings(34603008,0xd11135f5,true,false,1,false).cpuStepsPerTick == 5);
     check("Sonic X video ratio", resolveCartridgeSettings(69206016,0xc24cb643,true,false,1,false).cpuStepsPerTick == 3);
     check("Winx Club video ratio", resolveCartridgeSettings(69206016,0xee696172,true,false,1,false).cpuStepsPerTick == 3);
     check("Winx + 5 Atari Games ratio", resolveCartridgeSettings(34603008,0xeb1d8fda,true,false,1,false).cpuStepsPerTick == 3);

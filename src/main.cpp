@@ -431,6 +431,8 @@ int main(int argc, char* argv[]) {
         nativeLimits.compileThreshold=3;
         nativeLimits.sampledCompilation=true;
         nativeLimits.followDirectBranches=true;
+        // Gormiti scene changes outgrow 8 MB; evicted code must warm up again in the interpreter.
+        nativeLimits.bytes=32*1024*1024;
         nativeEngine=std::make_unique<X64ExecutionEngine>(machine.state(),cpu,bus,nativeLimits);
         machine.execution().selectEngine(*nativeEngine);
     }

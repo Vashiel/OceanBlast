@@ -13,9 +13,11 @@ inline const CartridgeIdentity* identifyCartridge(size_t size, uint32_t crc) {
         {17301504, 0xc57e4b7cu, "DigiQUAD", 2, false},
         {34603008, 0xb0b98ad1u, "Gormiti: 2 episodi (Video)", 3, true},
         {69206016, 0x8bf52908u, "Gormiti: Dalle Origini all'Eclissi (Video)", 3, true},
-        {34603008, 0xddeec7eau, "Gormiti: Agguato nella Valle", 3, false},
-        {34603008, 0xd11135f5u, "Gormiti: Lotta Oscura", 3, false},
-        {17301504, 0xf890f74cu, "Gormiti: Masters of the Gorm Island", 3, false},
+        // Lotta Oscura: ratio 6 halts the post-intro music 1 s early (its title
+        // preparation finishes first); ratio 3 decodes the intro video 17 s late.
+        {34603008, 0xddeec7eau, "Gormiti: Agguato nella Valle", 5, false},
+        {34603008, 0xd11135f5u, "Gormiti: Lotta Oscura", 5, false},
+        {17301504, 0xf890f74cu, "Gormiti: Masters of the Gorm Island", 5, false},
         {17301504, 0xd1d6118fu, "Pitfall", 3, false},
         {17301504, 0xe3e1953eu, "Rayman 3", 4, false},
         {69206016, 0xc24cb643u, "Sonic X: Volume 1 (Video)", 3, true},

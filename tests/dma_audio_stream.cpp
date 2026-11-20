@@ -65,6 +65,75 @@ int main() {
       check("Repeated ON preserves active source and progress",b.read32(0x4b000098)==current && b.read32(0x4b000094)==remaining);
       check("Repeated enable diagnostic records the write",b.getDma2RedundantEnables()==1);
     }
+    {
+        Bus b;
+        b.reset();
+        constexpr u32 initialSource = 0x30010000;
+        constexpr u32 secondSource = 0x30012000;
+        constexpr u32 thirdSource = 0x30014000;
+        constexpr u32 control = 512 | (1u << 20) | (1u << 23) | (1u << 29);
+        const auto requestDelay = (period + 511) / 512;
+        std::vector<int16_t> heard;
+        b.setAudioCallback([&](const int16_t* samples, size_t count) {
+            heard.insert(heard.end(), samples, samples + count);
+        });
+        for (u32 index = 0; index < 512; ++index) {
+            b.write16(initialSource + index * 2, 100);
+            b.write16(secondSource + index * 2, 200);
+        }
+        setup(b);
+        b.write32(0x4b0000a0, 4);
+        b.write32(0x4b000090, control);
+        b.write32(0x4b0000a0, 2);
+        b.tick(period);
+        check("IIS DMA completes before the next request latches a new count",
+              heard.size() == 512 && b.getMmio(0x4b000094) == 0 &&
+              b.getMmio(0x4b000098) == initialSource + 1024 &&
+              (b.getMmio(0x4a000000) & (1u << 19)) && b.ticksUntilEvent() == 32 * requestDelay);
+        b.write32(0x4b000080, secondSource);
+        b.tick(requestDelay);
+        check("A queued IIS source waits for the driver's DCON write",
+              b.getMmio(0x4b000094) == 0 && b.getMmio(0x4b000098) == initialSource + 1024);
+        b.write32(0x4b000090, control);
+        check("IIS reload counts the waiting time as transferred items",
+              b.getMmio(0x4b000094) == 511 && b.getMmio(0x4b000098) == secondSource + 2);
+        b.write16(secondSource, 300);
+        b.write32(0x4b000080, thirdSource);
+        b.tick(period - requestDelay);
+        check("IIS reload transfers the full second buffer in order",
+              heard.size() == 1024 && heard[511] == 100 && heard[512] == 200 &&
+              heard.back() == 200 && b.getMmio(0x4b000098) == secondSource + 1024);
+        b.write32(0x55000000, 0x2b);
+        b.tick(period);
+        check("Paused IIS retains the completed source while awaiting a request",
+              b.getMmio(0x4b000094) == 0 && b.getMmio(0x4b000098) == secondSource + 1024);
+        b.write32(0x4b0000a0, 4);
+        b.write32(0x55000000, 0x23);
+        b.tick(period);
+        check("DMA STOP cancels a pending IIS reload",
+              heard.size() == 1024 && b.getMmio(0x4b000094) == 0);
+    }
+    for (int poll = 0; poll < 2; ++poll) {
+        // poll 1: Linux waitforload reads DSTAT; poll 0: no driver response.
+        Bus b;
+        b.reset();
+        constexpr u32 control = 512 | (1u << 20) | (1u << 23) | (1u << 29);
+        const auto requestDelay = (period + 511) / 512;
+        setup(b);
+        b.write32(0x4b0000a0, 4);
+        b.write32(0x4b000090, control);
+        b.write32(0x4b0000a0, 2);
+        b.tick(period);
+        b.write32(0x4b000080, 0x30012000);
+        if (poll) {
+            check("Driver DSTAT poll latches the queued IIS source",
+                  b.read32(0x4b000094) == 512 && b.getMmio(0x4b000098) == 0x30012000);
+        } else {
+            b.tick(32 * requestDelay);
+            check("Without a driver response the IIS reload latches after 32 items",
+                  b.getMmio(0x4b000094) == 480 && b.getMmio(0x4b000098) == 0x30012000 + 64);
+        }
+    }
     { Bus b;b.reset();std::vector<int16_t> heard;b.setAudioCallback([&](const int16_t* p,size_t n){heard.insert(heard.end(),p,p+n);});
       b.write16(0x30010000,1234);setup(b,0x55000010,1);b.tick(period);
       check("Fixed-source DMA repeats the transfer item",heard.size()==512 && heard.front()==1234 && heard.back()==1234);

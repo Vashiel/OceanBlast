@@ -104,7 +104,16 @@ int main() {
     check("Block remains inside a 1 KB permission span",decodeBlock(1020,arm,constant).stop==BlockStop::PageBoundary);
     check("Address wrap produces a bounded exit",decodeBlock(0xfffffffc,arm,constant).stop==BlockStop::AddressWrap);
     check("Unavailable fetch does not produce an instruction",decodeBlock(0,arm,[](uint32_t,InstructionSet){return FetchResult{false,0};}).instructions.empty());
-    for (uint32_t raw : {0xe5bf0000u,0xee070f90u,0xe121f000u,0xe0800f11u,0xe1a0f00fu,0xe08f0001u,0xf2800001u,
+    {
+        // PLT/return-address idioms read PC as a constant; shifted PC operands stay scalar.
+        auto block=decodeBlock(0x1000,arm,[](uint32_t pc,InstructionSet){
+            return FetchResult{true,pc==0x1000?0xe08fc00cu:0xe1a0e00fu};},{2,128});
+        check("PC operands decode as the instruction address plus eight",
+            block.instructions.size()==2 && block.instructions[0].operation.left.kind==ValueKind::Constant &&
+            block.instructions[0].operation.left.value==0x1008 && block.instructions[1].operation.right.kind==ValueKind::Constant &&
+            block.instructions[1].operation.right.value==0x100c);
+    }
+    for (uint32_t raw : {0xe5bf0000u,0xee070f90u,0xe121f000u,0xe0800f11u,0xe1a0f00fu,0xe081010fu,0xf2800001u,
                          0xe8b10000u,0xe8bf000cu,0xe8f1000cu}) {
         auto block=decodeBlock(0,arm,[&](uint32_t,InstructionSet){return FetchResult{true,raw};});
         check("Unsupported memory control or PC operation exits before execution",
@@ -149,6 +158,11 @@ int main() {
                                  0x400au,0x404au,0x414au,0x418au,0x420au,0x424au,0x428au,0x42cau,0x430au,0x434au,0x438au,0x43cau})
                 compare(raw,thumb,pattern,flags);
             for(uint32_t raw:{0xe0020190u,0xe0120190u,0xe0223190u,0xe0323190u}) compare(raw,arm,pattern,flags);
+            for(uint32_t raw:{0xe08f0001u,0xe04f0001u,0xe28f0004u,0xe24fe010u,0xe1a0e00fu,0xe1b0000fu,0xe15f0001u,0xe08f000fu})
+                compare(raw,arm,pattern,flags);
+            // CP15 c7 cache maintenance (clean/invalidate lines, conditional) executes as a no-op.
+            for(uint32_t raw:{0xee070f3eu,0xee070f35u,0x1e070f35u,0xee070f15u,0xee070f1au})
+                compare(raw,arm,pattern,flags);
         }
     }
     for (unsigned condition=0;condition<15;++condition)

@@ -72,6 +72,17 @@ public:
         return interpreter.runLegacy(budget, timeline.ratio, timeline.phase, timeline.elapsed.ticks);
     }
 
+    // Legacy-time run that ends at the first taken branch, so a native caller
+    // resumes at a block entry instead of an arbitrary mid-block address.
+    size_t runUntilBranch(ExecutionTimeline& timeline,size_t budget,uint64_t stopTicks) {
+        if (timeline.registerClocks) return run(timeline,budget,stopTicks);
+        if (!budget || cpu.isHalted() || timeline.elapsed.ticks >= stopTicks) return 0;
+        const uint64_t remaining = stopTicks - timeline.elapsed.ticks;
+        if (remaining <= budget)
+            budget = std::min<uint64_t>(budget, legacyStepsUntilTickLimit(remaining, timeline.ratio, timeline.phase));
+        return interpreter.runLegacyUntilBranch(budget, timeline.ratio, timeline.phase, timeline.elapsed.ticks);
+    }
+
 private:
     ARM920T& cpu;
     Bus& bus;

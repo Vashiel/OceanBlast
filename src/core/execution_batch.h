@@ -49,6 +49,21 @@ public:
         return retired;
     }
 
+    // Like runLegacy, but returns after the first step that does not fall through
+    // to the next sequential instruction (taken branch, exception, interrupt).
+    // Waiting for an interrupt keeps stepping exactly as runLegacy does.
+    size_t runLegacyUntilBranch(size_t budget, size_t ratio, size_t& phase, uint64_t& guestTicks) {
+        size_t retired = 0;
+        const auto& state = cpu.getState();
+        while (retired < budget && !cpu.isHalted()) {
+            const u32 next = state.r[15] + ((state.cpsr & FLAG_T) ? 2 : 4);
+            stepLegacy(ratio, phase, guestTicks);
+            ++retired;
+            if (state.r[15] != next && !cpu.isWaitingForInterrupt()) break;
+        }
+        return retired;
+    }
+
     size_t runClocked(EmulationClock& clock, size_t budget, uint64_t stopTicks, uint64_t& guestTicks) {
         size_t retired = 0;
         while (retired < budget && !cpu.isHalted() && !cpu.isWaitingForInterrupt() && guestTicks < stopTicks) {

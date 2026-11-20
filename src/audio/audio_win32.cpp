@@ -212,7 +212,7 @@ bool Audio::init(int sampleRate, int channels) {
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
         const size_t chunkSamples = BUFFER_BYTES / sizeof(int16_t);
         const size_t chunkFrames = chunkSamples / static_cast<size_t>(m_channels);
-        const size_t prerollFrames = 2 * chunkFrames;
+        const size_t prerollFrames = 4 * chunkFrames; // 46 ms jitter reserve at 22.05 kHz
         HANDLE events[2] = { state->wakeEvent, state->doneEvent };
         size_t nextBuffer = 0;
 

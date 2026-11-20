@@ -38,8 +38,10 @@ private:
     int m_channels;
     std::atomic<unsigned> m_volume{100};
 
-    static constexpr size_t NUM_BUFFERS = 16;
-    static constexpr size_t BUFFER_BYTES = 4096;
+    // 256 stereo frames (11.6 ms at 22.05 kHz): output waits for whole buffers,
+    // so their size sets the latency added to guest sound effects.
+    static constexpr size_t NUM_BUFFERS = 32;
+    static constexpr size_t BUFFER_BYTES = 1024;
 
     struct AudioBuffer {
         void* header;

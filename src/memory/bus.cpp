@@ -85,10 +85,12 @@ void Bus::reset() {
     regIntpnd = 0;
     regIntmsk = ~0u;
     dma2Active = false;
+    dma2ReloadPending = false;
     dma2Paused = false;
     dma2RedundantEnables = 0;
     dma2Timer = 0;
     dma2PcmPending.clear();
+    dma2GuardSize = 0;
     adcPending = false;
     adcTimer = 0;
     i2cPending = false;
@@ -234,11 +236,13 @@ void Bus::write8PhysSlow(u32 addr, u8 val) {
         return;
     }
     if (addr >= ADDR_SDRAM_BASE && (addr - ADDR_SDRAM_BASE) < ADDR_SDRAM_SIZE) {
+        beforeRamWrite(addr, 1);
         sdram[addr - ADDR_SDRAM_BASE] = val;
         captureFrameWrite(addr, 1);
         return;
     }
     if (addr >= 0x32000000 && (addr - 0x32000000) < ADDR_SDRAM_SIZE) {
+        beforeRamWrite(addr - 0x02000000, 1);
         sdram[addr - 0x32000000] = val;
         captureFrameWrite(addr - 0x02000000, 1);
         return;
@@ -316,6 +320,7 @@ void Bus::write32PhysSlow(u32 pa, u32 val) {
         }
     }
     if (pa >= ADDR_SDRAM_BASE && (pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 4) && (pa & 3) == 0) {
+        beforeRamWrite(pa, 4);
         std::memcpy(sdram.data() + (pa - ADDR_SDRAM_BASE), &val, 4);
         captureFrameWrite(pa, 4);
         return;
@@ -559,6 +564,8 @@ void Bus::writeNandAddr(u8 addr) {
 
 
 u32 Bus::readMmio(u32 addr, bool guestAccess) {
+    // Linux polls DSTAT only after queueing the next buffer (waitforload).
+    if (guestAccess && addr == 0x4B000094) latchPendingDma2();
     if (mmioProfiling && guestAccess) ++mmioAccesses[addr].reads;
     if (usbHostEnabled && addr >= ADDR_USBHOST_BASE && addr < ADDR_USBHOST_BASE + 0x100)
         return usbHost.read(addr - ADDR_USBHOST_BASE);
@@ -788,42 +795,29 @@ void Bus::writeMmio(u32 addr, u32 val) {
         case 0x4B0000A0: { // DMASKTRIG2
             mmioReg(0x4B0000A0) = val;
             if (val & (1 << 2)) { // STOP
+                if (dma2Active) streamDma2Audio(false);
+                dma2GuardSize = 0;
                 if (audioCallback && dma2PcmPending.size() >= 2) {
                     audioCallback(dma2PcmPending.data(), dma2PcmPending.size() & ~size_t(1));
                 }
                 dma2Active = false;
+                dma2ReloadPending = false;
                 dma2Timer = 0;
                 dma2PcmPending.clear();
                 mmioReg(0x4B000094) = 0;
             } else if (val & (1 << 1)) { // ON
-                if (dma2Active) { ++dma2RedundantEnables; return; }
-                dma2Active = true;
-                dma2Src = getMmioReg(0x4B000080); // DISRC2
-                u32 dcon = getMmioReg(0x4B000090); // DCON2
-                u32 tc = dcon & 0x000FFFFF;      // Transfer Count
-                u32 dsz = (dcon >> 20) & 3;      // Data size (00=1B, 01=2B, 10=4B)
-                u32 itemSize = (dsz == 1) ? 2 : ((dsz == 2) ? 4 : 1);
-                dma2Count = tc * itemSize;       // Total bytes
-                dma2ItemSize = itemSize;
-                dma2Dst = getMmioReg(0x4B000088);
-                dma2SrcFixed = (getMmioReg(0x4B000084) & 1) != 0;
-                dma2DstFixed = (getMmioReg(0x4B00008C) & 1) != 0;
-                mmioReg(0x4B000098) = dma2Src;
-                mmioReg(0x4B00009C) = dma2Dst;
-                mmioReg(0x4B000094) = tc;
-                // In S3C2410 IIS audio, DMA rate is paced by DAC consumption.
-                // Dynamic cycle calculation prevents ALSA from racing ahead or stalling.
-                u32 rate = getAudioSampleRate();
-                u32 bytesPerSec = rate * 4; // 16-bit stereo PCM
-                dma2Timer = (dma2Count > 0 && bytesPerSec > 0)
-                    ? std::max<uint64_t>(1, uint64_t(dma2Count) * EmulatedTime::ticksPerSecond / bytesPerSec) : 150000;
-                dma2Period = dma2Timer;
-                dma2EmittedBytes = 0;
-                dma2PcmPending.clear();
-                scheduleDma2Audio();
+                if (dma2Active || dma2ReloadPending) { ++dma2RedundantEnables; return; }
+                startDma2Transfer();
+            } else if (dma2ReloadPending) {
+                dma2ReloadPending = false;
+                dma2Timer = 0;
             }
             return;
         }
+        case 0x4B000090: // DCON2: Linux writes it last when queueing a buffer.
+            mmioReg(addr) = val;
+            latchPendingDma2();
+            return;
 
         // ADC Controller (0x58000000)
         case 0x58000000: { // ADCCON
@@ -918,11 +912,21 @@ void Bus::selectPendingIrq() {
 }
 
 void Bus::scheduleDma2Audio() {
-    // Snapshot each consumed 16-bit sample before the producer can reuse RAM.
-    // Host callbacks remain batched to avoid submitting tiny audio fragments.
-    const u32 next = std::min(dma2Count, dma2EmittedBytes + std::max(2u, dma2ItemSize));
+    // Consumed samples are copied once per host callback batch (256 samples).
+    // A RAM write into the uncopied source copies them first (protectDma2Audio),
+    // so the producer can still reuse a consumed sample immediately.
+    const u32 next = std::min(dma2Count, dma2EmittedBytes + std::max(512u, dma2ItemSize));
     dma2NextAudioTimer = dma2Period - std::min<uint64_t>(dma2Period,
         (uint64_t(next) * dma2Period + dma2Count - 1) / std::max(dma2Count, 1u));
+    const bool streamed = dma2Active && audioCallback && dma2Dst == 0x55000010 && dma2EmittedBytes < dma2Count &&
+        dma2Src >= ADDR_SDRAM_BASE && uint64_t(dma2Src - ADDR_SDRAM_BASE) + dma2Count <= ADDR_SDRAM_SIZE;
+    dma2GuardBase = dma2SrcFixed ? dma2Src : dma2Src + dma2EmittedBytes;
+    dma2GuardSize = !streamed ? 0 : (dma2SrcFixed ? dma2ItemSize : dma2Count - dma2EmittedBytes);
+}
+
+void Bus::protectDma2Audio() {
+    // Copy what the DMA has consumed by now; later source bytes stay live.
+    if (dma2Active && dma2Period) streamDma2Audio(false);
 }
 
 void Bus::streamDma2Audio(bool complete) {
@@ -970,6 +974,52 @@ void Bus::setButtonMask(u32 newMask) {
     updateExtInterrupts();
 }
 
+void Bus::startDma2Transfer() {
+    dma2Active = true;
+    dma2Src = getMmioReg(0x4B000080);
+    const u32 dcon = getMmioReg(0x4B000090);
+    const u32 items = dcon & 0x000FFFFF;
+    const u32 width = (dcon >> 20) & 3;
+    dma2ItemSize = width == 1 ? 2 : (width == 2 ? 4 : 1);
+    dma2Count = items * dma2ItemSize;
+    dma2Dst = getMmioReg(0x4B000088);
+    dma2SrcFixed = (getMmioReg(0x4B000084) & 1) != 0;
+    dma2DstFixed = (getMmioReg(0x4B00008C) & 1) != 0;
+    mmioReg(0x4B000098) = dma2Src;
+    mmioReg(0x4B00009C) = dma2Dst;
+    mmioReg(0x4B000094) = items;
+    const u32 bytesPerSecond = getAudioSampleRate() * 4; // 16-bit stereo PCM
+    dma2Timer = dma2Count && bytesPerSecond
+        ? std::max<uint64_t>(1, uint64_t(dma2Count) * EmulatedTime::ticksPerSecond / bytesPerSecond)
+        : 150000;
+    dma2Period = dma2Timer;
+    dma2EmittedBytes = 0;
+    dma2PcmPending.clear();
+    scheduleDma2Audio();
+}
+
+size_t Bus::dma2FirstItemTicks(size_t period) const {
+    const u32 items = dma2Count / dma2ItemSize;
+    return items ? (uint64_t(period) + items - 1) / items : 0;
+}
+
+void Bus::latchDma2Reload(size_t elapsed) {
+    // Time since the previous transfer completed counts as already transferred,
+    // so a late latch keeps the output gapless and at the same rate.
+    dma2ReloadPending = false;
+    startDma2Transfer();
+    if (elapsed >= dma2Timer) {
+        tickDma2();
+    } else {
+        dma2Timer -= elapsed;
+        if (audioCallback && dma2Timer <= dma2NextAudioTimer) streamDma2Audio(false);
+    }
+}
+
+void Bus::latchPendingDma2() {
+    if (dma2ReloadPending) latchDma2Reload(dma2ReloadWindow - dma2Timer);
+}
+
 void Bus::tickDma2() {
     streamDma2Audio(true);
     dma2Active = false;
@@ -978,11 +1028,22 @@ void Bus::tickDma2() {
     mmioReg(0x4B000098) = dma2Src + (dma2SrcFixed ? 0 : dma2Count);
     mmioReg(0x4B00009C) = dma2Dst + (dma2DstFixed ? 0 : dma2Count);
 
-    // DCON/DISRC are reload registers. Linux queues a second buffer
-    // while the first runs and expects it to load before the IRQ.
-    if (!(getMmioReg(0x4B000090) & (1u << 22)) &&
+    const u32 dcon = getMmioReg(0x4B000090);
+    if (!(dcon & (1u << 22)) &&
         (getMmioReg(0x4B0000A0) & (1u << 1))) {
-        writeMmio(0x4B0000A0, getMmioReg(0x4B0000A0));
+        // Hardware-triggered IIS DMA latches on the next FIFO request, one item
+        // later; the zero count stays visible until then. Linux queues a single
+        // buffer from this IRQ, which a 200 MHz CPU finishes within that item but
+        // a reduced emulated CPU ratio does not. The latch therefore waits for
+        // the driver to write DCON or poll DSTAT (latchPendingDma2), or at most
+        // 32 items, and counts the waiting time as transferred.
+        if (dma2Dst == 0x55000010 && dma2Count && (dcon & (1u << 23))) {
+            dma2ReloadPending = true;
+            dma2ReloadWindow = 32 * dma2FirstItemTicks(dma2Period);
+            dma2Timer = dma2ReloadWindow;
+        } else {
+            startDma2Transfer();
+        }
     } else {
         mmioReg(0x4B0000A0) &= ~(1u << 1);
     }
@@ -1072,10 +1133,18 @@ void Bus::updateClockedDevices() {
     const u32 con = getMmioReg(0x55000000), mod = getMmioReg(0x55000004);
     dma2Paused = (iisConWritten && ((con & 0x21) != 0x21 || (con & 8))) ||
                  (iisModWritten && !(mod & 0x80));
-    if (!dma2Active || !dma2Period) return;
+    if ((!dma2Active && !dma2ReloadPending) || !dma2Period) return;
     const uint64_t bytesPerSecond = uint64_t(getAudioSampleRate()) * 4;
     const size_t period = std::max<uint64_t>(1, uint64_t(dma2Count) * EmulatedTime::ticksPerSecond / bytesPerSecond);
     if (period == dma2Period) return;
+    if (dma2ReloadPending) {
+        const size_t previous = dma2FirstItemTicks(dma2Period);
+        const size_t next = dma2FirstItemTicks(period);
+        dma2Timer = (uint64_t(dma2Timer) * next + previous - 1) / previous;
+        dma2ReloadWindow = (uint64_t(dma2ReloadWindow) * next + previous - 1) / previous;
+        dma2Period = period;
+        return;
+    }
     // Preserve transfer progress when the source clock changes. Long double
     // avoids overflow for long transfers at a slow peripheral clock.
     dma2Timer = std::max<size_t>(1, size_t((static_cast<long double>(dma2Timer) / dma2Period) * period + 0.5L));
@@ -1084,6 +1153,7 @@ void Bus::updateClockedDevices() {
 }
 
 void Bus::flushAudioClockBoundary() {
+    if (dma2Active) streamDma2Audio(false); // Copy samples consumed at the old rate.
     const size_t ready = dma2PcmPending.size() & ~size_t(1);
     if (audioCallback && ready) {
         audioCallback(dma2PcmPending.data(), ready);

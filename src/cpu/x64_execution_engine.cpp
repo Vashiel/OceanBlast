@@ -107,11 +107,13 @@ template<unsigned Width> uint32_t checkedStore(Bus* bus,NativeRun* run,uint32_t 
         materializeBeforeMemory(bus,run); return 1;
     }
     const bool ram=ordinaryRam(physical);
-    if(!ram) materializeBeforeMemory(bus,run);
+    // Audio DMA progress is read from committed time before its source is overwritten.
+    const bool boundary=!ram || bus->audioSourceWrite(physical,Width);
+    if(boundary) materializeBeforeMemory(bus,run);
     if (Width==1) bus->write8Phys(physical,uint8_t(value));
     else if(Width==2) bus->write16Phys(physical,uint16_t(value));
     else bus->write32Phys(physical,value);
-    if(!ram) return 2;
+    if(boundary) return 2;
     // A store to the currently executing physical code page must return before
     // any following translated instruction, including writes through aliases.
     const uint32_t activePage=run->physical&~1023u;
@@ -387,6 +389,17 @@ struct X64ExecutionEngine::Impl {
         }
         else if(sample.visits<limits.compileThreshold) ++sample.visits;
         return sample.visits>=limits.compileThreshold;
+    }
+    // Hint for cold interpreter runs: native code already exists for this entry.
+    bool compiledEntry() const {
+        const auto& state=architecturalState;
+        const uint32_t mode=(state.cpsr&0x3fu)|(bus.isUserMode()?0x100u:0u);
+        for(auto* candidate=cacheByPc[pcBucketIndex(state.r[15])];candidate;candidate=candidate->nextByPc) {
+            const auto& key=candidate->context;
+            if(candidate->function && key[0]==state.r[15] && key[1]==mode && key[2]==state.cp15_control &&
+                key[3]==state.cp15_ttb && key[4]==state.cp15_dacr) return true;
+        }
+        return false;
     }
 
     Function publish(asmjit::CodeHolder& code,size_t& bytes) {
@@ -827,18 +840,28 @@ struct X64ExecutionEngine::Impl {
         if (errors.error!=Error::kOk) return nullptr;
         return publish(code,bytes);
     }
-    void evictOldest() {
+    void evictOldest(const CacheEntry* keep=nullptr) {
+        // A full cache sheds its least recently used eighth (at least one entry)
+        // in one scan; a scan per compiled block made code-heavy scene changes stall.
+        std::vector<uint64_t> ages;
+        ages.reserve(cache.size());
+        for(const auto& entry:cache) if(&entry!=keep) ages.push_back(entry.used);
+        if(ages.empty()) return;
+        const size_t count=std::max<size_t>(1,ages.size()/8);
+        std::nth_element(ages.begin(),ages.begin()+(count-1),ages.end());
+        const uint64_t newestEvicted=ages[count-1];
         // Invalidate every borrowed successor before releasing any entry.
         ++cacheLifetime;
-        auto oldest=std::min_element(cache.begin(),cache.end(),
-            [](const CacheEntry& left,const CacheEntry& right) { return left.used<right.used; });
-        auto& slot=hot[hotIndex(oldest->context[0])];
-        if(slot.entry==&*oldest) slot={};
-        for(auto** link=&cacheByPc[pcBucketIndex(oldest->context[0])];*link;link=&(*link)->nextByPc)
-            if(*link==&*oldest) { *link=oldest->nextByPc; break; }
-        cacheBytes-=oldest->bytes;
-        if(oldest->function) { runtime.release(oldest->function); verifiedRegionBase=0; verifiedRegionSize=0; }
-        cache.erase(oldest); ++counters.cacheEvictions;
+        for(auto oldest=cache.begin();oldest!=cache.end();) {
+            if(&*oldest==keep || oldest->used>newestEvicted) { ++oldest; continue; }
+            auto& slot=hot[hotIndex(oldest->context[0])];
+            if(slot.entry==&*oldest) slot={};
+            for(auto** link=&cacheByPc[pcBucketIndex(oldest->context[0])];*link;link=&(*link)->nextByPc)
+                if(*link==&*oldest) { *link=oldest->nextByPc; break; }
+            cacheBytes-=oldest->bytes;
+            if(oldest->function) { runtime.release(oldest->function); verifiedRegionBase=0; verifiedRegionSize=0; }
+            oldest=cache.erase(oldest); ++counters.cacheEvictions;
+        }
     }
     void promote(CacheEntry& entry) {
         const auto set=(entry.context[1]&FLAG_T)?InstructionSet::Thumb:InstructionSet::Arm;
@@ -858,7 +881,7 @@ struct X64ExecutionEngine::Impl {
         }
         // The selected entry is the most recently used node and has no code
         // yet. The per-function check guarantees it survives byte eviction.
-        while(cacheBytes+bytes>limits.bytes) evictOldest();
+        while(cacheBytes+bytes>limits.bytes) evictOldest(&entry);
         entry.function=function; entry.bytes=bytes; cacheBytes+=bytes;
         counters.peakCacheBytes=std::max<uint64_t>(counters.peakCacheBytes,cacheBytes);
         ++counters.promotions;
@@ -1194,8 +1217,16 @@ size_t X64ExecutionEngine::run(ExecutionTimeline& timeline,size_t budget,uint64_
             // Sampling is a compilation hint only. The existing interpreter
             // owns every cold instruction, interrupt and peripheral step.
             // Its bulk runner avoids decoding/looking up each cold JIT block.
+            // The cold run continues across taken branches but stops at one whose
+            // target already has native code; running the whole batch regardless
+            // kept hot, compiled code in the interpreter (up to 46 % of all steps).
             engine.eventWindowDirty=true;
-            const size_t completed=engine.reference.run(timeline,left,stopTicks);
+            size_t completed=0;
+            for(;;) {
+                const size_t run=engine.reference.runUntilBranch(timeline,left-completed,stopTicks);
+                completed+=run;
+                if(!run || completed>=left || engine.cpu.isHalted() || engine.compiledEntry()) break;
+            }
             engine.counters.fallbackSteps+=completed;
             engine.counters.sampledFallbackSteps+=completed;
             ++engine.counters.sampledFallbackBatches;

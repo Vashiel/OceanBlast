@@ -157,8 +157,18 @@ public:
         u32 value; std::memcpy(&value, instructionPointer + (va & 1023), sizeof(value)); return value;
     }
 
+    // True when a RAM write overlaps audio DMA source bytes that may already be
+    // consumed but are not yet copied for host output.
+    bool audioSourceWrite(u32 pa, unsigned bytes) const {
+        return dma2GuardSize && (pa - dma2GuardBase < dma2GuardSize || dma2GuardBase - pa < bytes);
+    }
+    inline void beforeRamWrite(u32 pa, unsigned bytes) {
+        if (__builtin_expect(audioSourceWrite(pa, bytes), 0)) protectDma2Audio();
+    }
+
     inline void write8Phys(u32 pa, u8 val) {
         if (__builtin_expect((pa - ADDR_SDRAM_BASE) < ADDR_SDRAM_SIZE, 1)) {
+            beforeRamWrite(pa, 1);
             sdramPtr[pa - ADDR_SDRAM_BASE] = val;
             captureFrameWrite(pa, 1);
             return;
@@ -167,6 +177,7 @@ public:
     }
     inline void write16Phys(u32 pa,u16 value) {
         if((pa-ADDR_SDRAM_BASE)<=ADDR_SDRAM_SIZE-2 && !(pa&1)) {
+            beforeRamWrite(pa,2);
             std::memcpy(sdramPtr+(pa-ADDR_SDRAM_BASE),&value,2);
             captureFrameWrite(pa,2); return;
         }
@@ -174,6 +185,7 @@ public:
     }
     inline void write32Phys(u32 pa,u32 value) {
         if((pa-ADDR_SDRAM_BASE)<=ADDR_SDRAM_SIZE-4 && !(pa&3)) {
+            beforeRamWrite(pa,4);
             std::memcpy(sdramPtr+(pa-ADDR_SDRAM_BASE),&value,4);
             captureFrameWrite(pa,4); return;
         }
@@ -222,6 +234,7 @@ public:
             return;
         }
         if (__builtin_expect((pa - ADDR_SDRAM_BASE) < ADDR_SDRAM_SIZE, 1)) {
+            beforeRamWrite(pa, 1);
             sdramPtr[pa - ADDR_SDRAM_BASE] = val;
             captureFrameWrite(pa, 1);
             return;
@@ -238,6 +251,7 @@ public:
             return;
         }
         if (__builtin_expect((pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 2) && (pa & 1) == 0, 1)) {
+            beforeRamWrite(pa, 2);
             std::memcpy(sdramPtr + (pa - ADDR_SDRAM_BASE), &val, 2);
             captureFrameWrite(pa, 2);
             return;
@@ -254,6 +268,7 @@ public:
             return;
         }
         if (__builtin_expect((pa - ADDR_SDRAM_BASE) <= (ADDR_SDRAM_SIZE - 4) && (pa & 3) == 0, 1)) {
+            beforeRamWrite(pa, 4);
             std::memcpy(sdramPtr + (pa - ADDR_SDRAM_BASE), &val, 4);
             captureFrameWrite(pa, 4);
             return;
@@ -311,12 +326,13 @@ public:
             if (usbHost.irq() && !(regSrcpnd & (1u << 26))) requestIrq(26);
         }
         if (timer4.isRunning() && timer4.advance(cycles)) requestIrq(14);
-        if (dma2Active && (!dma2Paused || dma2Dst != 0x55000010)) {
+        if ((dma2Active || dma2ReloadPending) && (!dma2Paused || dma2Dst != 0x55000010)) {
             if (cycles >= dma2Timer) {
-                tickDma2();
+                if (dma2ReloadPending) latchDma2Reload(dma2ReloadWindow + (cycles - dma2Timer));
+                else tickDma2();
             } else {
                 dma2Timer -= cycles;
-                if (audioCallback && dma2Timer <= dma2NextAudioTimer) streamDma2Audio(false);
+                if (dma2Active && audioCallback && dma2Timer <= dma2NextAudioTimer) streamDma2Audio(false);
             }
         }
         if (adcPending || i2cPending) {
@@ -328,9 +344,9 @@ public:
     uint64_t ticksUntilEvent() const {
         uint64_t next = std::min<uint64_t>(20000, timer4.ticksUntilExpiry());
         if (usbHostEnabled && usbHost.needsTicks()) next = std::min<uint64_t>(next, usbHost.ticksUntilEvent());
-        if (dma2Active && (!dma2Paused || dma2Dst != 0x55000010)) {
+        if ((dma2Active || dma2ReloadPending) && (!dma2Paused || dma2Dst != 0x55000010)) {
             next = std::min<uint64_t>(next, dma2Timer);
-            if (audioCallback && dma2Timer > dma2NextAudioTimer)
+            if (dma2Active && audioCallback && dma2Timer > dma2NextAudioTimer)
                 next = std::min<uint64_t>(next, dma2Timer - dma2NextAudioTimer);
         }
         if (adcPending) next = std::min<uint64_t>(next, adcTimer);
@@ -443,6 +459,7 @@ private:
 
     // S3C2410 DMA Channel 2 (IIS Audio) State
     bool   dma2Active = false;
+    bool   dma2ReloadPending = false;
     bool dma2Paused = false;
     size_t dma2Timer = 0;
     u32    dma2Src = 0;
@@ -455,8 +472,16 @@ private:
     uint64_t dma2RedundantEnables = 0;
     bool wadeTitleBlit = false;
     size_t dma2NextAudioTimer = 0;
+    void startDma2Transfer();
+    size_t dma2ReloadWindow = 0;
+    void latchDma2Reload(size_t elapsed);
+    void latchPendingDma2();
+    size_t dma2FirstItemTicks(size_t period) const;
     void streamDma2Audio(bool complete);
     void scheduleDma2Audio();
+    // Source bytes the next RAM write must not change before they are copied.
+    u32 dma2GuardBase = 0, dma2GuardSize = 0;
+    void protectDma2Audio();
     void selectPendingIrq();
     AudioCallback audioCallback = nullptr;
 
