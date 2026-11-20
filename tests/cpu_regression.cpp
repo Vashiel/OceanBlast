@@ -272,6 +272,32 @@ int main() {
       b.write32(0x4a000008,~1u);b.setButtonMask(1u<<4);c.step(10);
       check("IRQ entry advances the caller's peripheral budget",c.getPC()==0x18 && b.read32(0x51000040)==989);
     }
+    // Supervisor LDRT/STRT use user permissions; a manager domain skips them.
+    for (const u32 dacr : {0x5u, 0xdu}) {
+        Bus b; ARM920T c(b);
+        b.write32(0,0xe4a01004);       // STRT r1,[r0],#4
+        b.write32(4,0xe4b32000);       // LDRT r2,[r3],#0
+        b.write32(8,0xe5801000);       // STR  r1,[r0] (ordinary supervisor store)
+        b.write32(0x30000000,0x11111111); b.write32(0x30200000,0x22222222);
+        b.write32(0x30100000,0x00000c02);  // VA 0: domain 0, AP=3
+        b.write32(0x30101000,0x30000822);  // VA 0x40000000: domain 1, AP=2 (user read-only)
+        b.write32(0x30101004,0x30200422);  // VA 0x40100000: domain 1, AP=1 (privileged only)
+        b.setTtb(0x30100000); b.setDacr(dacr); b.setMmuEnabled(true);
+        const bool manager=dacr==0xdu;
+        c.setReg(0,0x40000000); c.setReg(1,0xcafef00d); c.setReg(3,0x40100000); c.step();
+        const bool storeOk=manager
+            ? c.getPC()==4 && c.getReg(0)==0x40000004 && b.read32Phys(0x30000000)==0xcafef00d
+            : c.getPC()==0x10 && c.getState().cp15_fsr==0x1d && c.getReg(0)==0x40000000 && b.read32Phys(0x30000000)==0x11111111;
+        check(manager?"Manager-domain STRT bypasses the user-page write protection"
+                     :"Client-domain STRT to a user read-only page takes a data abort with its domain",storeOk);
+        c.setReg(15,4); c.setReg(2,0); c.step();
+        const bool loadOk=manager ? c.getPC()==8 && c.getReg(2)==0x22222222
+                                  : c.getPC()==0x10 && c.getState().cp15_fsr==0x1d && c.getReg(2)==0;
+        check(manager?"Manager-domain LDRT reads a privileged-only page"
+                     :"Client-domain LDRT from a privileged-only page takes a data abort",loadOk);
+        c.setReg(15,8); c.setReg(0,0x40000000); c.step();
+        check("Ordinary supervisor STR keeps privileged write access",c.getPC()==12 && b.read32Phys(0x30000000)==0xcafef00d);
+    }
     std::cout << failures << " failure(s)\n";
     return failures ? 1 : 0;
 }

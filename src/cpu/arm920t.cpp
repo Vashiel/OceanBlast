@@ -1404,11 +1404,23 @@ void ARM920T::executeSingleDataTransfer(u32 instr) {
     }
 
     u32 targetAddr = pre ? (up ? (baseVal + offset) : (baseVal - offset)) : baseVal;
+    // LDRT/STRT/LDRBT/STRBT (post-indexed with W) use user permissions in
+    // privileged modes; Linux copies to and from user buffers with them.
+    const bool unprivileged = !pre && writeback && !bus.isUserMode();
+    const u32 accessAddr = isByte ? targetAddr : (targetAddr & ~3u);
+    u32 physical = 0, faultDomain = 0;
 
     if (isLoad) {
-        u32 val = isByte ? bus.read8(targetAddr) : readRotatedWord(bus, targetAddr);
+        u32 val = 0;
+        if (!unprivileged) val = isByte ? bus.read8(targetAddr) : readRotatedWord(bus, targetAddr);
+        else if (bus.translateUnprivileged(accessAddr, false, physical, faultDomain)) {
+            val = isByte ? bus.read8Phys(physical) : bus.read32Phys(physical);
+            const u32 shift = isByte ? 0 : (targetAddr & 3u) * 8;
+            if (shift) val = (val >> shift) | (val << (32 - shift));
+        }
         if (bus.getLastFault() != Bus::MmuFault::NONE) {
             handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+            state.cp15_fsr |= faultDomain << 4;
             bus.clearLastFault();
             return;
         }
@@ -1425,10 +1437,16 @@ void ARM920T::executeSingleDataTransfer(u32 instr) {
         }
     } else {
         u32 val = (rd == 15) ? (state.r[15] + 4) : state.r[rd];
-        if (isByte) bus.write8(targetAddr, val & 0xFF);
+        if (unprivileged) {
+            if (bus.translateUnprivileged(accessAddr, true, physical, faultDomain)) {
+                if (isByte) bus.write8Phys(physical, val & 0xFF);
+                else bus.write32Phys(physical, val);
+            }
+        } else if (isByte) bus.write8(targetAddr, val & 0xFF);
         else bus.write32(targetAddr & ~3u, val);
         if (bus.getLastFault() != Bus::MmuFault::NONE) {
             handleDataAbort(bus.getLastFaultAddr(), bus.getLastFault());
+            state.cp15_fsr |= faultDomain << 4;
             bus.clearLastFault();
             return;
         }

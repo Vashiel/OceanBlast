@@ -102,6 +102,13 @@ public:
         if(fault==MmuFault::NONE) return true;
         lastFault=fault; lastFaultAddr=address; return false;
     }
+    // LDRT/STRT translation with user permissions; `domain` feeds the FSR.
+    bool translateUnprivileged(u32 address,bool write,u32& physical,u32& domain) {
+        MmuFault fault=MmuFault::NONE;
+        physical=mmu.translateUnprivileged(address,sdramPtr,&fault,write,&domain);
+        if(fault==MmuFault::NONE) return true;
+        lastFault=fault; lastFaultAddr=address; return false;
+    }
 
     // Physical (translated) memory access slow paths
     u8   read8PhysSlow(u32 addr);

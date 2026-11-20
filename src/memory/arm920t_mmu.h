@@ -72,6 +72,28 @@ public:
         return translateSlow(va, ram, fault, isWrite);
     }
 
+    // Privileged LDRT/STRT access: user permissions under the DACR policy.
+    // Manager domains skip the AP check (Linux set_fs(KERNEL_DS)), client
+    // domains check AP as user, reserved and no-access domains fault.
+    u32 translateUnprivileged(u32 va, const u8* ram, MmuFault* fault, bool isWrite, u32* domain) const {
+        *domain = 0;
+        const u32 pa = translate(va, ram, fault, isWrite);
+        if (!mmuEnabled || *fault != MmuFault::NONE) return pa;
+        const u32 vpn = va >> 12, idx = vpn & (TLB_SIZE - 1);
+        const u32 tag = tlb[idx].tag;
+        // Emulator fallback mappings carry no descriptor domain and stay unchecked.
+        if ((tag & TLB_KEY_MASK) != (vpn | TLB_VALID) || tlbDomain[idx] > 15) return pa;
+        *domain = tlbDomain[idx];
+        const bool section = (tag & TLB_SECTION) != 0;
+        const u32 access = (dacr >> (*domain * 2)) & 3;
+        if (access == 3) return pa;
+        const u32 ap = (tag >> (TLB_AP_SHIFT + ((va >> 10) & 3) * 2)) & 3;
+        if (access != 1) *fault = section ? MmuFault::SECTION_DOMAIN_FAULT : MmuFault::PAGE_DOMAIN_FAULT;
+        else if (ap <= 1 || (ap == 2 && isWrite)) *fault = section ? MmuFault::SECTION_PERMISSION_FAULT : MmuFault::PAGE_PERMISSION_FAULT;
+        else return pa;
+        return 0xFFFFFFFF;
+    }
+
 private:
     // S3C2410 / ARM920T MMU State
     bool mmuEnabled = false;
@@ -91,6 +113,9 @@ private:
     static_assert(sizeof(TlbEntry) == 8, "TLB entries must remain two words");
     static constexpr size_t TLB_SIZE = 2048;
     mutable std::array<TlbEntry, TLB_SIZE> tlb = {};
+    // Descriptor domain per TLB slot (0xff: emulator mapping). Kept outside
+    // TlbEntry, whose two-word layout native code reads directly.
+    mutable std::array<u8, TLB_SIZE> tlbDomain = {};
     mutable bool tlbEmpty = true;
 };
 
@@ -120,6 +145,7 @@ inline u32 Arm920TMmu::translateSlow(u32 va, const u8* ram, MmuFault* fault, boo
             u32 pa = (desc & 0xFFF00000) | (va & 0x000FFFFF);
             tlb[idx].paBase = pa & ~0xFFF;
             tlb[idx].tag = makeTlbTag(vpn, static_cast<u8>(ap * 0x55), true);
+            tlbDomain[idx] = static_cast<u8>((desc >> 5) & 15);
             tlbEmpty = false;
             return pa;
         } else if ((desc & 3) == 1) { // Coarse Page Table
@@ -141,6 +167,7 @@ inline u32 Arm920TMmu::translateSlow(u32 va, const u8* ram, MmuFault* fault, boo
                     u32 pa = (pte & 0xFFFFF000) | (va & 0xFFF);
                     tlb[idx].paBase = pa & ~0xFFF;
                     tlb[idx].tag = makeTlbTag(vpn, static_cast<u8>((pte >> 4) & 0xff), false);
+                    tlbDomain[idx] = static_cast<u8>((desc >> 5) & 15);
                     tlbEmpty = false;
                     return pa;
                 } else if ((pte & 3) == 1) { // Large Page (64KB)
@@ -155,6 +182,7 @@ inline u32 Arm920TMmu::translateSlow(u32 va, const u8* ram, MmuFault* fault, boo
                     u32 pa = (pte & 0xFFFF0000) | (va & 0xFFFF);
                     tlb[idx].paBase = pa & ~0xFFF;
                     tlb[idx].tag = makeTlbTag(vpn, static_cast<u8>(ap * 0x55), false);
+                    tlbDomain[idx] = static_cast<u8>((desc >> 5) & 15);
                     tlbEmpty = false;
                     return pa;
                 } else {
@@ -173,6 +201,7 @@ inline u32 Arm920TMmu::translateSlow(u32 va, const u8* ram, MmuFault* fault, boo
         u32 pa = (va - 0xC0000000) + ADDR_SDRAM_BASE;
         tlb[idx].paBase = pa & ~0xFFF;
         tlb[idx].tag = makeTlbTag(vpn, 0xff, false);
+        tlbDomain[idx] = 0xff;
         tlbEmpty = false;
         return pa;
     }

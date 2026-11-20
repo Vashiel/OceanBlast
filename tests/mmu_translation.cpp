@@ -132,6 +132,40 @@ int main() {
       }
       check("Synthetic kernel fallback retains read and write policy across cached mode changes",allowed);
     }
+    { // LDRT/STRT: user permissions under the DACR domain policy, cold and cached.
+      Arm920TMmu unprivileged; unprivileged.setTtb(table); unprivileged.setEnabled(true); unprivileged.setUserMode(false);
+      bool policy=true;
+      for (bool page : {false,true}) for (u32 ap=0;ap<4;++ap) {
+        const u32 domain=page?2:5;
+        if (page) { write(table+0x1000,0x30108001|(domain<<5)); write(0x30108000,ADDR_SDRAM_BASE|((ap*0x55u)<<4)|2); }
+        else write(table+0x1000,0x30000002|(ap<<10)|(domain<<5));
+        unprivileged.flushTlb();
+        for (int pass=0;pass<2;++pass) for (u32 access=0;access<4;++access) for (bool store:{false,true}) {
+          unprivileged.setDacr(access<<(domain*2));
+          u32 reported=99;
+          const u32 result=unprivileged.translateUnprivileged(va+0x10,ram.data(),&fault,store,&reported);
+          const bool userAllowed=ap==3||(ap==2&&!store);
+          const Fault expected = access==3 || (access==1 && userAllowed) ? Fault::NONE
+              : access==1 ? (page?Fault::PAGE_PERMISSION_FAULT:Fault::SECTION_PERMISSION_FAULT)
+              : (page?Fault::PAGE_DOMAIN_FAULT:Fault::SECTION_DOMAIN_FAULT);
+          policy=policy&&fault==expected&&reported==domain&&
+            (expected==Fault::NONE ? result==ADDR_SDRAM_BASE+0x10 : result==UINT32_MAX);
+        }
+      }
+      check("Unprivileged translation applies domain access and user AP for sections and pages",policy);
+      write(table+0x1000,0x30000802|(1u<<5)); unprivileged.flushTlb(); unprivileged.setDacr(0xcu);
+      u32 reported=0;
+      bool cached=unprivileged.translateUnprivileged(va,ram.data(),&fault,true,&reported)==0x30000000&&fault==Fault::NONE;
+      unprivileged.setDacr(0x4u);
+      cached=cached&&unprivileged.translateUnprivileged(va,ram.data(),&fault,true,&reported)==UINT32_MAX&&
+             fault==Fault::SECTION_PERMISSION_FAULT;
+      check("A DACR change applies to an already cached translation",cached);
+      check("Privileged ordinary translation keeps ignoring user AP",
+            unprivileged.translate(va,ram.data(),&fault,true)==0x30000000&&fault==Fault::NONE);
+      unprivileged.setDacr(0);
+      check("Emulator kernel fallback mapping stays outside the domain check",
+            unprivileged.translateUnprivileged(0xc0001034,ram.data(),&fault,true,&reported)==0x30001034&&fault==Fault::NONE);
+    }
     std::cout << failures << " failure(s)\n";
     return failures?1:0;
 }
