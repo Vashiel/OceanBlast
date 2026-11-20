@@ -31,6 +31,7 @@ The [committed JIT architecture](docs/92_jit_architecture_decision.md) defines t
 | **Common timing model & clocked-native timeline** | **T0 & Initial T3 Complete** | [docs/110](docs/110_common_timing_model_and_calibration.md), [docs/113](docs/113_clocked_native_timeline.md): unified CPU/Timer/DMA time unit and opt-in cycle-accounted JIT (`--engine jit --timing auto --jit-clocked`) pass all 13 suites and short state comparisons. Original-hardware tempo calibration remains open. |
 | **Per-cartridge NVRAM & Superstar Chefs health fix** | **Complete** | [docs/91](docs/91_chefs_eeprom_health.md): content-keyed `sessions/nvram/` EEPROM files preserve legacy saves and repair invalid persisted difficulty 80 in Superstar Chefs. |
 | **Battery-power startup reserve & weak-hardware checks** | **Open** | [docs/112](docs/112_chefs_battery_countercheck.md), [docs/114](docs/114_chefs_battery_memory_review.md): AC gameplay runs cleanly, while throttled battery startup before the first title input and measurements on older low-end hardware remain open validation items. |
+| **Windows x86 (32-bit) speed** | **Open** | The interpreter-only build reaches about 96 MIPS on *Wade*; ratio 6 needs about 120. Candidates: a 32-bit JIT backend or further interpreter work. 64-bit Windows users should use the x64 package. |
 
 ---
 

@@ -17,7 +17,14 @@
 
 OceanBlast was built from very little public documentation — mostly from cartridge dumps, scattered notes shared by a handful of people online, and even **photos of opened cartridges on Reddit** used to identify the chips on the board. I own neither a real digiBLAST console nor any cartridges to test against — a huge thank you to all the dumpers out there who made this project possible!
 
-I recently received some early feedback, which led to two updates in **`v0.4.1`**:
+**`v0.4.2`** focuses on sound and accuracy:
+
+1. **Audio fixes:** *Wade Hixton's Counter Punch* no longer plays wrong notes or stutters, and the crackling in *DigiQUAD* and *Crazy Jack* is gone. Sound effects also arrive faster: the delay inside the emulator drops from about 80 ms to about 40 ms.
+2. **Smoother x64 JIT:** Far fewer instructions fall back to the slower interpreter, which helps with scene changes, for example in the *Gormiti* intros. The three *Gormiti* games now use a higher CPU setting, so the intro video and the narration stay in sync.
+3. **More accurate CPU:** Several ARM920T details now behave like the real chip, including unaligned memory accesses (used by *Spider-Man: Mysterio's Menace*) and the cache information Linux reads at boot.
+4. **32-bit Windows build:** A bug that only affected the x86 build made Linux mark two NAND blocks as bad. The x86 build now behaves like the 64-bit builds. It has no JIT, though, so *Wade Hixton's Counter Punch* does not reach full speed there, and the *Gormiti* games may not either. **On 64-bit Windows, please always use the x64 package.**
+
+Earlier, `v0.4.1` brought two updates:
 
 1. **Clearer title bar (`Speed 100% | LCD 60 Hz`):**
    The digiBLAST has **no dedicated 2D/3D GPU** — its 180 MHz ARM9 CPU renders every background, sprite, and transparency in software alongside embedded Linux and audio mixing. Games therefore run at **variable frame rates** depending on scene complexity (lighter games/menus up to 50–60 FPS, heavier titles often ~15–35 FPS), while the LCD refreshes at 60 Hz. The old `Display XX FPS` counter made full-speed emulation look slow, so `v0.4.1` now displays **`Speed 100% | LCD 60 Hz`**.
@@ -70,10 +77,10 @@ Load the MP3 firmware cartridge to create a separate **256-MB FAT16 music store*
 
 | Package | Target Platform | Execution Engine & Graphics |
 | :--- | :--- | :--- |
-| **`oceanblast-v0.4.0-windows7-11-x64.zip`** (`bin/oceanblast.exe`) | Windows 7 SP1 – Windows 11 (64-bit) | **x86-64 Native JIT + Interpreter Hybrid**, dynamic D3D11/DXGI VSync with automatic GDI fallback |
-| **`oceanblast-v0.4.0-windows7-11-x86.zip`** (`bin/oceanblast-x86.exe`) | Windows 7 SP1 – Windows 11 (32-bit x86, SSE2) | **Profile-Guided (PGO) ARM920T Interpreter**, dynamic D3D11/DXGI VSync with automatic GDI fallback |
-| **`oceanblast-v0.4.0-linux-x64.tar.gz`** (`oceanblast`) | Linux x86-64 (GLIBC 2.35+, SDL2) | **x86-64 Native JIT (System-V ABI) + Interpreter Hybrid**, SDL2 video/audio/gamepad |
-| **`oceanblast-v0.4.0-linux-arm64.tar.gz`** (`oceanblast`) | Linux ARM64 (`aarch64`, GLIBC 2.35+, SDL2) | **ARM920T + FPA11 Interpreter**, SDL2 video/audio/gamepad |
+| **`oceanblast-v0.4.2-windows7-11-x64.zip`** (`bin/oceanblast.exe`) | Windows 7 SP1 – Windows 11 (64-bit) | **x86-64 Native JIT + Interpreter Hybrid**, dynamic D3D11/DXGI VSync with automatic GDI fallback |
+| **`oceanblast-v0.4.2-windows7-11-x86.zip`** (`bin/oceanblast-x86.exe`) | Windows 7 SP1 – Windows 11 (32-bit x86, SSE2) | **Profile-Guided (PGO) ARM920T Interpreter** (no JIT; heavy titles such as *Wade* run below full speed), dynamic D3D11/DXGI VSync with automatic GDI fallback |
+| **`oceanblast-v0.4.2-linux-x64.tar.gz`** (`oceanblast`) | Linux x86-64 (GLIBC 2.38+, SDL2) | **x86-64 Native JIT (System-V ABI) + Interpreter Hybrid**, SDL2 video/audio/gamepad |
+| **`oceanblast-v0.4.2-linux-arm64.tar.gz`** (`oceanblast`) | Linux ARM64 (`aarch64`, GLIBC 2.38+, SDL2) | **ARM920T + FPA11 Interpreter**, SDL2 video/audio/gamepad |
 
 Double-click `bin/oceanblast.exe` on Windows (or download an archive from [GitHub Releases](https://github.com/Vashiel/OceanBlast/releases)) to start:
 
@@ -108,9 +115,9 @@ All 11 tested commercial game cartridges boot autonomously through Steppingstone
 | **Crazy Jack** `[G] (EN)` | Yes | Title, Level Select & In-Game | Plays (Auto 2×) | Native 12-bpp LCD444 (`GPH8 = 1`) |
 | **Cuccioli Cerca Amici** `[G] (IT)` | Yes | Main Menu & In-Game | Plays (Auto 3×) | 64 MB NAND (`0x98, 0x76`); 12-bpp LCD444 |
 | **DigiQUAD** `[G] (EN)` | Yes | Main Menu & Racing Scene | Plays (Auto 2×) | Native 12-bpp LCD444 (`GPH8 = 1`) |
-| **Gormiti: Agguato nella Valle** `[G] (IT)` | Yes | Title, Character Select & Bracket | Plays (Auto 3×) | 32 MB NAND (`0x98, 0x75`); 16-bpp RGB565 |
-| **Gormiti: Lotta Oscura** `[G] (IT)` | Yes | Intro, Title & Gameplay | Plays (Auto 3×) | 32 MB NAND (`0x98, 0x75`); 16-bpp RGB565 |
-| **Gormiti: Masters of the Gorm Island** `[G] (IT)` | Yes | Main Menu & In-Game Level/HUD | Plays (Auto 3×) | 16 MB NAND (`0x98, 0x73`); 16-bpp RGB565 |
+| **Gormiti: Agguato nella Valle** `[G] (IT)` | Yes | Title, Character Select & Bracket | Plays (Auto 5×) | 32 MB NAND (`0x98, 0x75`); 16-bpp RGB565 |
+| **Gormiti: Lotta Oscura** `[G] (IT)` | Yes | Intro, Title & Gameplay | Plays (Auto 5×) | 32 MB NAND (`0x98, 0x75`); 16-bpp RGB565 |
+| **Gormiti: Masters of the Gorm Island** `[G] (IT)` | Yes | Main Menu & In-Game Level/HUD | Plays (Auto 5×) | 16 MB NAND (`0x98, 0x73`); 16-bpp RGB565 |
 | **Pitfall: The Lost Expedition** `[G] (EN)` | Yes | Intro, Title & Gameplay | Smooth (Auto 3×) | Native 12-bpp LCD444 |
 | **Rayman 3** `[G] (M10)` | Yes | Intro, Title & In-Game Levels | Smooth (Auto 4×) | 16-bpp RGB565; ~40 frame submissions/s |
 | **Spider-Man: Mysterio's Menace** `[G] (EN)` | Yes | Main Menu, Story & In-Game | Plays (Auto 3×) | 16-bpp RGB565 |
@@ -186,7 +193,7 @@ bin/oceanblast <cartridge.bin> [--gui] [--sound] [--engine <jit|interpreter>] [-
 
 ## Documentation & Research Archive
 
-* **[Technical Documentation Index (`docs/README.md`)](docs/README.md):** Structured subsystem reference and indexed archive of all hardware reverse-engineering and validation reports (`docs/00`–`docs/117`).
+* **[Technical Documentation Index (`docs/README.md`)](docs/README.md):** Structured subsystem reference and indexed archive of all hardware reverse-engineering and validation reports (`docs/00`–`docs/120`).
 * **[Development Roadmap (`ROADMAP.md`)](ROADMAP.md):** Current J0–J6 and T0–T4 milestone status and validation rules.
 * **[Changelog (`CHANGELOG.md`)](CHANGELOG.md):** Release and milestone history.
 
