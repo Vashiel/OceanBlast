@@ -766,7 +766,7 @@ int main(int argc, char* argv[]) {
 #endif
                 std::ostringstream title;
                 const char* engineLabel = useJit && (!autoTiming || clockedNative) ? "JIT" : "Interpreter";
-                title << "OceanBlast v0.4.1 (" << archLabel << " " << engineLabel << ") | Model speed "
+                title << "OceanBlast v0.4.2 (" << archLabel << " " << engineLabel << ") | Model speed "
                       << std::fixed << std::setprecision(0) << speed << "%";
                 if (sound && audio.isInitialized()) {
                     title << " | Audio " << std::setprecision(1) << (bus.getAudioSampleRate() / 1000.0) << " kHz";

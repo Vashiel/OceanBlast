@@ -4,11 +4,27 @@ This changelog records releases, architectural milestones, and empirical validat
 
 ---
 
-## Unreleased
+## v0.4.2 — 2026-11-20 — IIS DMA Audio Fixes, Lower Audio Latency, Fewer JIT Interpreter Fallbacks & ARM920T Accuracy
 
-* The x86-64 JIT keeps side-effect-free `CLKCON` word reads inside the existing device deadline, reducing the cost of the guest kernel's idle loop.
-* The host scheduler limits catch-up after a slow scene to 16 ms. The title bar reports the effective execution engine and modeled speed.
-* Audio diagnostics count produced frames and successful device submissions separately. `--audio-capture-only` counts guest PCM without opening the playback device. [Timing and audio validation](docs/118_runtime_pacing_and_audio_delivery.md).
+* **IIS DMA Audio (`src/memory/bus.cpp`, `src/memory/bus.h`):**
+  * The next audio buffer is latched when the guest driver writes `DCON` or polls `DSTAT`, at the latest after 32 items, and the waiting time counts as transferred. This fixes skipped buffers with two queued buffers (*Wade Hixton's Counter Punch*: wrong notes and stutter) and replayed buffers with single-buffer drivers at low CPU ratios (*DigiQUAD*, *Crazy Jack*: crackling).
+  * Consumed PCM is copied once per 256-sample batch instead of one scheduled event per sample. A RAM write into the uncopied part of the active buffer copies the consumed samples first, so the output stays bit-identical. With sound enabled, the *Wade* fight start runs at 99.4% mean speed instead of 94.7%.
+* **Lower Win32 Audio Latency (`src/audio/audio.h`, `src/audio/audio_win32.cpp`):** 1,024-byte buffers (11.6 ms), 32 buffers and a four-buffer preroll. The emulator-side delay of sound effects drops from a median of about 80 ms to about 41 ms.
+* **x86-64 JIT (`src/cpu/translation_frontend.h`, `src/cpu/x64_execution_engine.cpp`, `src/core/execution_batch.h`, `src/core/interpreter_engine.h`):**
+  * Data processing with `PC` as an operand (`add ip, pc, ip`, `mov lr, pc`) is translated natively; the *Wade* desert intro needs 13% less CPU time.
+  * Privileged `MCR p15, c7` cache maintenance is translated as a no-op; wait-for-interrupt stays scalar.
+  * Cold interpreter runs continue across branches and stop at the first branch target with native code. The interpreter share across 23 cartridges falls from 11–47% to 4–11%.
+  * A full code cache evicts its oldest eighth per scan instead of searching the whole cache for every new block, and the player code cache grows from 8 MB to 32 MB. The *Gormiti Lotta Oscura* intro drops from 25 to 5 audio underruns.
+  * Side-effect-free `CLKCON` word reads stay inside the existing device deadline, reducing the cost of the guest kernel's idle loop.
+* **Host Pacing & Diagnostics (`src/core/host_pacer.h`, `src/main.cpp`):** Catch-up after a slow scene is limited to 16 ms. The title bar reports the effective execution engine and modeled speed. Audio diagnostics count produced frames and successful device submissions separately, and `--audio-capture-only` counts guest PCM without opening the playback device. [Timing and audio validation](docs/118_runtime_pacing_and_audio_delivery.md).
+* **ARM920T Accuracy (`src/cpu/arm920t.cpp`, `src/memory/arm920t_mmu.h`, `src/memory/bus.cpp`) — [CP15 and transfer semantics](docs/119_arm920t_cp15_and_transfer_semantics.md), [Alignment and CP15 privilege](docs/120_alignment_and_cp15_privilege.md):**
+  * `LDRT`/`STRT` in privileged modes use user-mode permissions under the DACR domain policy. Previously the kernel could write a signal frame into a read-only user page.
+  * `LDM`/`STM` use the word-aligned address. *Spider-Man: Mysterio's Menace* executes two such transfers with an unaligned base about 590,000 times each in 1.5 billion steps and read or wrote shifted data every time.
+  * With the CP15 `A` bit set, misaligned transfers take an alignment fault in the interpreter and in native code; the guest kernel handles it as on the hardware.
+  * CP15 instructions in user mode raise Undefined Instruction. `MRC p15, 0, Rd, c0, c0, 1` returns the ARM920T cache type `0x0D172172`.
+* **Cartridge Presets (`src/core/cartridge_settings.h`):** *Gormiti Agguato nella Valle*, *Lotta Oscura* and *Masters of the Gorm Island* use CPU ratio 5. Ratio 3 decoded the *Lotta Oscura* intro video 17 s behind its soundtrack; ratio 6 cut the narration after the intro short.
+* **Packages:** The Windows x86 executable is built with the same GCC 16.2 toolchain as x64 (PGO training on *Superstar Chefs*, *Rayman 3* and *Wade*) and links `msvcrt.dll` instead of the Universal CRT. Linux packages require GLIBC 2.38 and `libSDL2-2.0.so.0`, as in v0.4.1.
+* **Validation:** Windows x64 passes 549 ROM-free checks and 13/13 JIT suites; Linux x64 passes 13/13 JIT and 19/19 portable suites; Linux ARM64 passes 19/19 portable suites under `qemu-aarch64`. *Superstar Chefs* at ratio 3 reaches identical CPU and SDRAM states on Windows x64 (JIT and interpreter) and Linux x64 after 600,000,000 steps, and on all four builds after 10,000,000 steps.
 
 ## v0.4.1 — 2026-11-19 — Async Win32 Audio Thread, Diagnostic Log Export, JIT Single-Step Fix & Clearer Title Bar
 

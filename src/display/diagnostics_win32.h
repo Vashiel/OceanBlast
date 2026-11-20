@@ -518,11 +518,11 @@ inline DiagnosticBundle collectDiagnostics(const std::wstring& appFolder,
 
     const char* archBuild =
 #if defined(_WIN64) && defined(OCEANBLAST_WITH_JIT)
-        "v0.4.1 (Windows x64 JIT)";
+        "v0.4.2 (Windows x64 JIT)";
 #elif defined(_WIN64)
-        "v0.4.1 (Windows x64 Interpreter)";
+        "v0.4.2 (Windows x64 Interpreter)";
 #else
-        "v0.4.1 (Windows x86 Interpreter)";
+        "v0.4.2 (Windows x86 Interpreter)";
 #endif
 
     const std::wstring romNameW = !activeRomPath.empty()
@@ -709,7 +709,7 @@ inline bool uploadToPasteRs(const std::string& payload, std::string& outUrl, std
         ? payload.substr(0, kMaxUploadBytes) + "\n[... truncated for paste.rs upload ...]\n"
         : payload;
 
-    HINTERNET hSession = pOpen(L"OceanBlast/0.4.1", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+    HINTERNET hSession = pOpen(L"OceanBlast/0.4.2", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
                                WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!hSession) {
         FreeLibrary(winhttp);
